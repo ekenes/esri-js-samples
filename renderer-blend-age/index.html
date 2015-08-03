@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no" />
+  <title>BlendRenderer: United States minority population</title>
+  <link rel="stylesheet" href="http://js.arcgis.com/3.14/dijit/themes/claro/claro.css">
+  <link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+  <style>
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+    }
+
+    #meta {
+      position: absolute;
+      left: 20px;
+      bottom: 20px;
+      width: 20em;
+      z-index: 40;
+      background: #ffffff;
+      color: #777777;
+      padding: 5px;
+      border: 2px solid #666666;
+      -webkit-border-radius: 5px;
+      -moz-border-radius: 5px;
+      border-radius: 5px;
+      font-family: arial;
+      font-size: 0.9em;
+    }
+
+    #meta h3 {
+      color: #666666;
+      font-size: 1.1em;
+      padding: 0px;
+      margin: 0px;
+      display: inline-block;
+    }
+  </style>
+  <script src="http://js.arcgis.com/3.14/"></script>
+  <script>
+    require([
+      "dojo/_base/array", "esri/Color", "esri/dijit/PopupTemplate", "esri/layers/ArcGISTiledMapServiceLayer", "esri/layers/FeatureLayer",
+      "esri/map", "esri/renderers/BlendRenderer",
+      "esri/symbols/SimpleFillSymbol", "esri/symbols/SimpleLineSymbol", "dojo/on", "dojo/dom", "dojo/domReady!"
+    ], function (array, Color, PopupTemplate, ArcGISTiledMapServiceLayer, FeatureLayer, Map, BlendRenderer, SimpleFillSymbol, SimpleLineSymbol, on, dom){
+
+      var map = new Map("map", {
+        basemap: "dark-gray",  //"topo"
+        center: [-98.5, 38],
+        zoom: 5
+      });
+
+      var layerUrl = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/ArcGIS/rest/services/US_Esri_Census/FeatureServer/4";
+
+      //Create the PopupTemplate to be used to display demographic info
+     //Create the PopupTemplate to be used to display demographic info
+      var template = new PopupTemplate({
+        "title": "{NAME} County, {STATE_NAME}",
+        "fieldInfos": [
+          {
+            "fieldName": "POP2013",
+            "label": "2013 Population",
+            "visible": true,
+            "format": {
+              "places": 0,
+              "digitSeparator": true
+            }
+          }, {
+            "fieldName": "MALES",
+            "label": "males",
+            "visible": true,
+            "format": {
+              "places": 0,
+              "digitSeparator": true
+            }
+          }, {
+            "fieldName": "FEMALES",
+            "label": "females",
+            "visible": true,
+            "format": {
+              "places": 0,
+              "digitSeparator": true
+            }
+          }
+        ],
+        "description": ""
+      });
+        
+      var blue = new Color([0, 0, 255]);
+      var yellow = new Color([255, 255, 0]);
+      var red = new Color([255, 0, 0]);
+
+      //Set the blendRenderer's parameters
+      var blendRendererOptions = {
+        blendMode: "multiply", //By default, it uses "source-over", uncomment to display different mode
+        //See: https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/globalCompositeOperation
+        symbol: new SimpleFillSymbol().setOutline(new SimpleLineSymbol().setWidth(0)),
+        fields: [
+          {
+            field: "MALES",
+            label: "Blue",
+            color: blue
+          }, {
+            field: "FEMALES",
+            label: "yellow",
+            color: yellow
+          }
+        ],
+        opacityStops: [
+          {
+            value: 0,
+            opacity: 0
+          },
+          {
+            value: 0.75,
+            opacity: 1
+          }
+        ],
+        normalizationField: "POP2013"
+      };
+
+      renderer = new BlendRenderer(blendRendererOptions);
+
+      layer = new FeatureLayer(layerUrl, {
+        outFields: ["FEMALES", "POP2013", "MALES", "NAME", "STATE_NAME"],
+        opacity: 1,
+        infoTemplate: template
+      });
+
+      layer.setRenderer(renderer);
+      map.addLayer(layer);
+        
+      on(dom.byId("mode"), "change", function(evt){
+         blendRendererOptions.blendMode = evt.target.value;
+         var updateRenderer = new BlendRenderer(blendRendererOptions);
+         layer.setRenderer(updateRenderer);
+         layer.redraw();
+      });
+
+    });
+  </script>
+  </head>
+  <body class="claro">
+    <div data-dojo-type="dijit/layout/BorderContainer" data-dojo-props="design: 'headline',gutters:false" style="width: 100%; height: 100%; margin: 0;">
+      <div id="map" data-dojo-type="dijit/layout/ContentPane" data-dojo-props="region: 'center'">
+         <div id="meta">
+            <h3>Men vs. Women</h3>
+            <br>
+            <br>This map depicts the populations of men vs. women by U.S. county (2013).
+            <ul>
+             <li>Blue: Male dominance</li>
+             <li>Yellow: Female dominance</li>
+             <li>Shades of Gray: No clear dominance</li>
+            </ul>
+            The more opaque the color, the higher the concentration for that demographic.
+<!--
+             <br><br>Change the <strong>blendMode</strong> here: 
+             <select id="mode">
+                <option selected value="multiply">multiply</option>
+                <option value="xor">xor</option>
+                <option value="screen">screen</option>
+                <option value="lighten">lighten</option>
+                <option value="darken">darken</option>
+                <option value="lighter">lighter</option>
+                <option value="difference">difference</option>
+                <option value="exclusion">exclusion</option> 
+             </select>
+-->
+         </div>
+      </div>
+    </div>
+  </body>
+</html>

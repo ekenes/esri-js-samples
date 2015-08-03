@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+    
+<title>Geodesic Length vs. Planar Length</title>
+
+<link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+
+<style>
+  html, body, #map {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+#results{
+  top: 120px;
+  right: 20px;
+  width: 300px;
+  height: 100px;
+}
+        
+#finalList{
+  bottom: 20px;
+  left: 20px;
+  width: 300px;
+  max-height: 80%; 
+    z-index: 30;
+    visibility: hidden;
+    overflow-y: auto;
+}        
+    
+#title{
+  top: 20px;
+  width: 50%; 
+  height: 50px;;
+  padding-top: 5px;
+  text-align: center;
+  margin: 0 0 0 25%;
+}
+.mainStyle{
+  position: absolute;
+  z-index: 99;
+  background-color: black;
+  color: whitesmoke;
+  border-radius: 8px;
+  border-width: medium;
+  border-color: cornflowerblue;
+  padding: 15px;
+  opacity: 0.75;
+}    
+
+</style>
+
+<script src="http://js.arcgis.com/3.14/"></script>  
+<script>
+var map;
+
+require(["esri/map",
+       "esri/graphic",
+       "esri/Color",
+       "esri/layers/GraphicsLayer",
+       "esri/symbols/SimpleLineSymbol",
+       "esri/symbols/Font",
+       "esri/symbols/TextSymbol",
+       "esri/geometry/geometryEngine",
+       "esri/geometry/Polyline",
+       "esri/geometry/Point",
+       "esri/geometry/screenUtils",
+       "esri/renderers/ClassBreaksRenderer",
+
+       "dojo/dom",
+       "dojo/on",
+       "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, SimpleLineSymbol, Font, TextSymbol, geometryEngine, Line, Point, screenUtils, ClassBreaksRenderer, dom, on) {
+map = new Map("map", {
+  basemap: "dark-gray",
+  center: [-122.45, 37.75], // longitude, latitude
+  zoom: 3
+});    
+    
+  var defaultLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("black"), 4);
+  var highLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("red"), 4);
+  var medHighLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255,102,0]), 4);
+  var mediumLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("yellow"), 4);
+  var lowLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("green"), 4);
+  var lineLayer = new GraphicsLayer();
+  map.addLayer(lineLayer);
+
+        //Function for creating drawing line
+    function drawLine(pt1, pt2){
+      var pt1Cor = [pt1.x, pt1.y];
+      var pt2Cor = [pt2.x, pt2.y];
+      var lineJSON = {
+          paths: [[pt1Cor, pt2Cor]],
+          spatialReference: pt1.spatialReference
+      };
+      var polyLine = new Line(lineJSON);
+      return polyLine;
+    }
+
+        var clicks = 0;  
+          var newLine = null;
+    on(map, "click", function(evt){
+        clicks++;  //increment map clicking var for line construction purposes
+
+        if(clicks === 1){
+            map.disableMapNavigation();
+
+            var lineGeom = drawLine(evt.mapPoint, evt.mapPoint);
+            newLine = new Graphic(lineGeom, defaultLineSym);
+            lineLayer.add(newLine);
+            placeLabel(newLine.geometry);
+
+            dom.byId("geostyle").style.visibility = "visible";
+            dom.byId("diffstyle").style.visibility = "visible";
+            dom.byId("perstyle").style.visibility = "visible";
+            dom.byId("planarstyle").style.visibility = "visible";
+
+        }
+        if(clicks > 1){
+          //Add additional line paths for each click (can be "buggy" at times) don't click too fast
+          newLine.geometry.addPath([newLine.geometry.paths[newLine.geometry.paths.length-1][1], evt.mapPoint]);
+          lineLayer.redraw();
+        }
+
+        return;
+    });
+
+    on(map, "mouse-move", function(evt){
+    if(newLine){
+        newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
+
+        var lengthResults = lengthRatio(newLine.geometry);
+
+        updateResults(lengthResults);
+
+        var reclassSym = reclassLineError(lengthResults.ratio);
+        newLine.setSymbol(reclassSym);
+
+        lineLayer.redraw();
+    }
+    });
+
+    function updateResults(result){
+        dom.byId("geodesicResult").innerHTML = numberWithCommas(Math.round(result.geodesic * 100) / 100);
+        dom.byId("planarResult").innerHTML = numberWithCommas(Math.round(result.planar * 100) / 100);
+        dom.byId("differenceResult").innerHTML = numberWithCommas(Math.round(result.difference * 100) / 100);
+        dom.byId("errorResult").innerHTML = Math.round(result.ratio * 100) / 100;
+    }
+
+    function publishResults(){
+        if(lineLayer.graphics.length === 1){
+            dom.byId("finalList").innerHTML = "<h2>Line Stats</h2>";
+            dom.byId("finalList").style.visibility = "visible";
+        }
+
+        dom.byId("finalList").innerHTML += "<h3 style='color:" + dom.byId("perstyle").style.color + "'>Line " + lineLayer.graphics.length + "</h3>" + dom.byId("content").innerHTML + "<hr>";
+    }      
+
+    on(map, "dbl-click", function(evt){
+      if(newLine){
+          newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
+          lineLayer.redraw();
+          newLine = null;    
+          clicks = 0;
+          map.enableMapNavigation();
+          publishResults();
+
+          dom.byId("geostyle").style.visibility = "hidden";
+          dom.byId("diffstyle").style.visibility = "hidden";
+          dom.byId("perstyle").style.visibility = "hidden";
+          dom.byId("planarstyle").style.visibility = "hidden";
+      }
+    });
+
+  function lengthRatio(lineGeom){
+      var linePlanarLength = geometryEngine.planarLength(lineGeom, "miles"); //planar length in miles  9093
+      var lineGeodesicLength = geometryEngine.geodesicLength(lineGeom, "miles");  //geodesic length in miles  9093
+      var ratio = ((linePlanarLength - lineGeodesicLength) / lineGeodesicLength) * 100;
+
+      return {
+              planar: linePlanarLength,
+              geodesic: lineGeodesicLength,
+              difference: (linePlanarLength - lineGeodesicLength),
+              ratio: ratio
+             };
+  }
+
+  function reclassLineError(ratio){
+      var symbol;
+      
+      
+//      if(ratio < 5){
+//          symbol = lowLineSym;
+//          dom.byId("perstyle").style.color = "green";
+//          dom.byId("planarstyle").style.color = "green";
+//      }
+//      if(ratio > 5 && ratio < 20){
+//          symbol = mediumLineSym;
+//          dom.byId("perstyle").style.color = "yellow";
+//          dom.byId("planarstyle").style.color = "yellow";
+//      }
+//      if(ratio > 20 && ratio < 40){
+//          symbol = medHighLineSym;
+//          dom.byId("perstyle").style.color = "orange";
+//          dom.byId("planarstyle").style.color = "orange";
+//      }
+//      if(ratio > 40){
+//          symbol = highLineSym;
+//          dom.byId("perstyle").style.color = "red";
+//          dom.byId("planarstyle").style.color = "red";
+//      }
+      
+      var r = 255;
+      var g = 255;
+      var b = 255;
+      
+      if(ratio < 5){
+          r = Math.round((ratio / 5) * 255);
+          g = 255;
+          b = 0;
+      }
+      if(ratio >= 5){
+          r = 255;
+          g = Math.round(255 - ((ratio - 5) * 3.4));
+          b = 0;
+      }
+      
+      dom.byId("perstyle").style.color = "rgb(" + r + "," + g + "," + b + ")";
+      dom.byId("planarstyle").style.color = "rgb(" + r + "," + g + "," + b + ")";
+      symbol = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([r,g,b]), 4);
+      
+      return symbol;
+  }
+
+  function placeLabel(lineGeom, ratio){
+      var beginMapXY = lineGeom.paths[0][0];
+      var labelPoint = new Point(beginMapXY[0], beginMapXY[1], map.spatialReference);
+
+      var labelScreenPoint = screenUtils.toScreenPoint(map.extent, map.width, map.height, labelPoint);
+      labelScreenPoint.x += 3;
+      labelScreenPoint.y -= 10;
+      var labelMapPoint = screenUtils.toMapPoint(map.extent, map.width, map.height, labelScreenPoint);
+
+      var labelFont = new Font(14, Font.STYLE_NORMAL, Font.VARIANT_NORMAL, Font.WEIGHT_BOLD, "Arial");
+      var textLabel = new TextSymbol(lineLayer.graphics.length, labelFont, new Color("white"));
+
+      map.graphics.add(new Graphic(labelMapPoint, textLabel));
+  }
+    
+  function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  dom.byId("geostyle").style.color = "green";
+  dom.byId("diffstyle").style.color = "red";
+});
+</script>
+</head>
+
+<body>
+<div id="map">
+<div class="mainStyle" id="title"><h2>Geodesic Length vs. Planar Length</h2></div>
+<div class="mainStyle" id="results"><span id="instructions">Click the map to begin drawing a line.</span><br><br>
+    <span id="content">
+        Geodesic Length: <span id="geostyle" style="visibility:hidden;"><span id="geodesicResult"></span> mi</span>
+        <br>Planar Length: <span id="planarstyle" style="visibility:hidden;"><span id="planarResult"></span> mi</span>
+        <br>Difference: <span id="diffstyle" style="visibility:hidden;"><span id="differenceResult"></span> mi</span>
+        <br>Length Error: <span id="perstyle" style="visibility:hidden;"><span id="errorResult"></span>%</span>
+    </span>
+</div>  
+    <div class="mainStyle" id="finalList"></div>
+</div>
+</body>
+</html>
