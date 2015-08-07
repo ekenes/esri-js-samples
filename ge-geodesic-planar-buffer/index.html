@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Buffer in 2D and 3D</title>
+
+<style>
+  html, body {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+  }
+  .viewDivBase{
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    width: 49.9%;
+  }
+  #viewDiv2d{
+    float: left;
+  }
+  #viewDiv3d{
+    float: right;
+  }
+  .title{
+    top: 0;
+    right: 0;
+    text-align: center;
+    position: absolute;
+    z-index: 99;
+    background-color: white;
+    padding: 6px;
+    opacity: 0.75;
+  }
+  #mapTitle{
+    right: 50%;
+  }
+  #legend{
+    position: absolute;
+    background-color: white;
+    bottom: 20px;
+    left: 20px;
+    z-index: 84;
+    padding: 6px;
+    opacity: 0.75;  
+  }
+</style>
+    
+<script>
+  var dojoConfig = { 
+    paths: {
+      ViewUtils: location.pathname.replace(/\/[^/]+$/, "") + "./",
+    }
+  };
+</script>    
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta1/esri/css/esri.css">
+<script src="https://js.arcgis.com/4.0beta1/"></script>
+
+<script>
+var map, view2d, view3d, point, wmPoint, geodesicBuffer, planarBuffer, sceneViewWatch, mapViewWatch;
+
+require([
+  "esri/Map",
+  "esri/views/SceneView",
+  "esri/views/MapView",
+  "esri/layers/GraphicsLayer",
+  "esri/Graphic",
+  "esri/geometry/SpatialReference",
+  "esri/symbols/SimpleMarkerSymbol",
+  "esri/symbols/SimpleLineSymbol",
+  "esri/symbols/SimpleFillSymbol",
+  "esri/geometry/geometryEngine",
+  "esri/geometry/Point",
+  "esri/geometry/support/webMercatorUtils",
+  "esri/core/watchUtils",
+  "dojo/domReady!"
+],
+function(
+  Map,
+  SceneView,
+  MapView,
+  GraphicsLayer,
+  Graphic,
+  SpatialReference,
+  SimpleMarkerSymbol,
+  SimpleLineSymbol,
+  SimpleFillSymbol,
+  geometryEngine,
+  Point,
+  webMercatorUtils,
+  watchUtils 
+) {
+
+  map = new Map({
+    basemap: "gray"
+  });
+
+  view3d = new SceneView({
+    container: "viewDiv3d",
+    map: map,
+    zoom: 4,
+    center: [0,72]
+  });
+
+  view2d = new MapView({
+    container: "viewDiv2d",
+    map: map,
+    zoom: 3,
+    center: [0,72]
+  });
+
+  /********************************************************************
+  * Add two graphics layers to map: one for points, another for buffers
+  ********************************************************************/
+
+  var bufferLayer = new GraphicsLayer();
+  var pointLayer = new GraphicsLayer();
+
+  map.add([bufferLayer, pointLayer]);
+
+  var sr = new SpatialReference(4326);
+
+  var pointSym = new SimpleMarkerSymbol({
+    color: [255,255,255],
+    size: 8
+  });
+
+  var geoSym = new SimpleFillSymbol({
+    style: "none",
+    outline: new SimpleLineSymbol({
+      color: "green",
+      width: 4
+    })
+  });
+    
+  var planarSym = new SimpleFillSymbol({
+    style: "none",
+    outline: new SimpleLineSymbol({
+      color: [255,128,0],
+      width: 4
+    })
+  });    
+
+  /********************************************************************
+  * Generate points every 10 degrees along Prime Meridian. Add to layer.
+  * Buffer each point by 560km using GeometryEngine. Add buffers to map.
+  ********************************************************************/
+
+  addPoints();
+
+  function addPoints(){
+
+    for(var lat = -80; lat <= 80; lat+=10){
+      point = new Point({
+        x: 0,
+        y: lat,
+        spatialReference: sr
+      });
+      pointLayer.add(new Graphic({
+        geometry: point,
+        symbol: pointSym
+      }));
+        
+      /********************************************************
+      * Each point must be projected to Web Mercator in order to use
+      * the buffer() function in GeometryEngine because buffer()
+      * only takes projected geometries
+      * ******************************************************/
+      wmPoint = webMercatorUtils.geographicToWebMercator(point);    
+
+      /********************************************************************
+      * Geodesic Buffer calculates the true distance to buffer a point,
+      * minimizing the distortion that exists when buffering points away
+      * from a projection's line of tangency. This distortion is evident
+      * in the 2D view of this application. This map uses a Web Mercator
+      * spatial reference, which has a line of tangency at the equator.
+      * Buffers created on the equator have very little distortion in their
+      * shape. The further buffers are created away from the equator, the
+      * more distorted they will be in their shape.
+      *
+      * If using a standard planar buffer, the shape of the buffers won't
+      * distort in 2D views, but their size and areas will be very distorted
+      * as they move away from the equator.
+      ********************************************************************/
+      geodesicBuffer = geometryEngine.geodesicBuffer(point, 560, "kilometers");
+      bufferLayer.add(new Graphic({
+        geometry: geodesicBuffer,
+        symbol: geoSym
+      }));
+        
+      planarBuffer = geometryEngine.buffer(wmPoint, 560, "kilometers");
+      bufferLayer.add(new Graphic({
+        geometry: planarBuffer,
+        symbol: planarSym
+      }));    
+    }
+  }
+  
+  /*****************************
+  * sync both views
+  ******************************/
+    
+   view2d.then(function(){
+     mapViewWatchExtent = watchUtils.pausable(view2d, "extent", function(val){
+       var vp = view2d.createViewpoint({
+         center: view2d.center,
+         scale: view2d.scale
+       });  
+       view3d.animateTo(vp);
+     });
+       
+    mapViewWatchRotation = watchUtils.pausable(view2d, "rotation", function(val){
+       var vp = view2d.createViewpoint({
+         center: view2d.center,
+         scale: view2d.scale
+       });  
+       view3d.animateTo(vp);
+     });   
+    
+     watchUtils.when(view2d, "interacting", function(val){
+        if(view2d.animation)
+          view2d.animation.stop();
+        mapViewWatchExtent.resume();
+        mapViewWatchRotation.resume();
+        sceneViewWatch.pause();
+     });
+       
+   });
+   
+   view3d.then(function(){
+      sceneViewWatch = watchUtils.pausable(view3d, "camera", function(val){
+        var vp = view3d.createViewpoint(view3d.camera);
+        view2d.animateTo(vp); 
+      });  
+       
+     watchUtils.when(view3d, "interacting", function(val){
+        mapViewWatchExtent.pause();
+        mapViewWatchRotation.pause();
+        sceneViewWatch.resume();
+     });       
+   });
+});
+</script>
+</head>
+
+<body>
+<div class="viewDivBase" id="viewDiv2d">
+  <div id="mapTitle" class="title">MapView</div>
+  <div id="legend">Orange rings denote Euclidean buffers. 
+      <br><br>Green rings denote geodesic buffers.</div>    
+</div>
+<div class="viewDivBase" id="viewDiv3d">
+  <div id="sceneTitle" class="title">SceneView</div>
+</div>
+</body>
+
+</html>
