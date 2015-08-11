@@ -6,10 +6,9 @@
 <title>Custom Basemap</title>
 
 <style>
-html, body, #viewDiv {
+html, body{
   padding: 0;
   margin: 0;
-  height: 100%;
 }
 #basemapToggleDiv {
   position: absolute;
@@ -19,12 +18,12 @@ html, body, #viewDiv {
 }    
 </style>
 
-<link href="https://jsdev.arcgis.com/4.0beta1/esri/css/esri.css" 
+<link href="https://js.arcgis.com/4.0beta1/esri/css/esri.css" 
       rel="stylesheet" type="text/css">
-<script src="https://jsdev.arcgis.com/4.0beta1/"></script>
+<script src="https://js.arcgis.com/4.0beta1/"></script>
 
 <script>
-var map, view, basemap, initCamera;
+var map, sceneView, initCamera, toggle, stamen;
 
 require([
   "esri/config",
@@ -51,15 +50,18 @@ require([
 
   esriConfig.request.corsEnabledServers
       .push("a.tile.stamen.com", "b.tile.stamen.com", "c.tile.stamen.com", "d.tile.stamen.com");
-
-  elevationCol = new Collection();
-  elevationCol.addItem(new ArcGISElevationLayer({
-      url: "http://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer"
-  }));
     
-  mapBaseCol = new Collection();
-  mapBaseCol.addItem(new WebTiledLayer({
-    urlTemplate: 'http://${subDomain}.tile.stamen.com/watercolor/${level}/${col}/${row}.png',
+  /******************************************
+  *
+  * Set up Stamen basemap with elevation
+  * 
+  * *****************************************/
+  elevationLayer = new ArcGISElevationLayer({
+      url: "http://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer"
+  });
+ 
+  mapBaseLayer = new WebTiledLayer({
+    urlTemplate: 'http://${subDomain}.tile.stamen.com/toner/${level}/${col}/${row}.png',
     subDomains: ['a', 'b', 'c', 'd'],
     copyright: [
       'Map tiles by <a href="http://stamen.com/">Stamen Design</a>, ',
@@ -67,22 +69,22 @@ require([
       'Data by <a href="http://openstreetmap.org/">OpenStreetMap</a>, ',
       'under <a href="http://creativecommons.org/licenses/by-sa/3.0">CC BY SA</a>.'
       ]
-    }));
+    });
   
-  labels = new Collection();
-  labels.addItem(new ArcGISTiledLayer({ url: "http://services.arcgisonline.com/arcgis/rest/services/Reference/World_Boundaries_and_Places/MapServer"}));
+//  labels = new ArcGISTiledLayer({ url: "http://services.arcgisonline.com/arcgis/rest/services/Reference/World_Boundaries_and_Places/MapServer"});
 
   stamen = new Basemap({
-    baseLayers: mapBaseCol,
-    referenceLayers: labels,
-    elevationLayers: elevationCol,
-    title: "stamen"
+    baseLayers: [mapBaseLayer],
+//    referenceLayers: [labels],
+    elevationLayers: [elevationLayer],
+    title: "stamen",
+    id: "stamen"
   });
 
   map = new Map({
-    basemap: stamen
-  });
-
+    basemap: "satellite"
+  }); 
+    
   initCamera = new Camera({
       fov: 55,
       heading: 124.7,
@@ -92,19 +94,30 @@ require([
           longitude: -111.848111,
           z: 1990
       }
-  });    
+  }); 
     
   sceneView = new SceneView({
     container: "viewDiv",
     map: map,
     camera: initCamera
-  });
-  
-  var toggle = new BasemapToggle({
+  }); 
+
+  toggle = new BasemapToggle({
       map: map,
-      basemap: "satellite"
+      basemap: stamen,
+      basemaps: {
+        "stamen": {
+          "title": "Stamen Toner",
+          "thumbnailUrl": "http://stamen-tiles.a.ssl.fastly.net/toner/10/177/409.png"
+        },  
+        "satellite": {
+          "title": "Satellite",
+          "thumbnailUrl": "http://js.arcgis.com/4.0beta1/esri/images/basemap/satellite.jpg"
+        }
+      }
   }, "basemapToggleDiv");
-  toggle.startup();
+  toggle.startup();  
+  
 });
 </script>
 </head>
