@@ -86,9 +86,9 @@ require(["esri/map",
     
   //Instructions for using the app. Will update based on user behavior    
   var drawInstructions = "Click outside the selected feature to begin drawing cutting line. Double-click to finish line and make final cut.";
-  var initInstructions = "Select a feature by clicking on it.";
+  var initInstructions = "Choose an operation below then click to select a feature.";
   var mergeInstructions = "Select another polygon to merge into the selected feature.";
-
+  dom.byId("instructions").innerHTML = initInstructions;
   map = new Map("map", {
     basemap: "satellite",
     extent: initExtent
@@ -159,6 +159,7 @@ require(["esri/map",
   //Select features on click event    
   function selectFeature(evt){
     if(cutOpt.checked){
+      mergeOpt.disabled = true;
       dom.byId("instructions").innerHTML = drawInstructions;    
       if(!disableDraw){
           return;
@@ -170,6 +171,7 @@ require(["esri/map",
       isSelected = true;   
     }
     if(mergeOpt.checked){
+      cutOpt.disabled = true;
       selectedGraphic = new Graphic(evt.graphic.geometry, selectionSym);
       selectionLayer.add(selectedGraphic);
       dom.byId("instructions").innerHTML = mergeInstructions;
@@ -298,6 +300,7 @@ require(["esri/map",
       dom.byId("instructions").innerHTML = initInstructions;
       var orchardGeoms = graphicsUtils.getGeometries(orchardLayer.graphics);
       labelAreas(orchardGeoms);
+      mergeOpt.disabled = false;
   });
     
   //cut the polygon with the line drawn on map
@@ -364,12 +367,15 @@ require(["esri/map",
     orchardLayer.add(new Graphic(mergedGeometry, orchardSym));
     labelAreas(graphicsUtils.getGeometries(orchardLayer.graphics));
     dom.byId("instructions").innerHTML = initInstructions;
+    cutOpt.disabled = false;  
   }
 
   //Function for offseting geometries by 10 feet    
   function offsetGeoms(polys){
     return geometryEngine.offset(polys, 10, 9002, 0);
   }
+    
+  on(dom.byN)
     
 });
 </script>
@@ -378,7 +384,7 @@ require(["esri/map",
 <body>
   <div id="map">
     <div class="mainStyle" id="title"><h2>Apple Orchards</h2></div>
-    <div class="mainStyle" id="results"><span id="instructions">Select a feature by clicking on it.</span><br><br>
+    <div class="mainStyle" id="results"><span id="instructions"></span><br><br>
     <input type="radio" name="operation" id="cutOpt" checked>Cut Features<br><br>
     <input type="radio" name="operation" id="mergeOpt">Merge Features<br><br>    
   </div>
