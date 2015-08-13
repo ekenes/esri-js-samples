@@ -381,7 +381,10 @@ require(["esri/map",
   function enableCut(){
     cutOpt.disabled = false;
     dom.byId("cutLabel").style.color = "black";  
-  }     
+  } 
+  on(displayLabels, 'graphic-node-add', function (graphic) {
+    graphic.node.style.textShadow = "1px 1px 1px white, 1px -1px 1px white, -1px 1px 1px white, -1px -1px 1px white";
+  });    
 });
 </script>
 </head>
