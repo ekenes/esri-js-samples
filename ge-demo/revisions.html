@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+<title>Geometry Engine Showcase</title>
+<link rel="stylesheet" href="http://jsdev.arcgis.com/3.14/esri/css/esri.css">
+<style>
+html, body, #map {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+#results{
+  bottom: 20px;
+  left: 20px;
+  width: 300px;
+/*  height: 90px;*/
+}
+
+#cutBtn{
+  background-color: white;
+  color: black;
+}    
+    
+#title{
+  top: 20px;
+  width: 50%; 
+  height: 50px;;
+  padding-top: 5px;
+  text-align: center;
+  margin: 0 0 0 25%;
+}
+.mainStyle{
+  position: absolute;
+  z-index: 99;
+  background-color: white;
+/*  color: darkblue;*/
+  border-radius: 8px;
+  border-width: medium;
+  border-color: cornflowerblue;
+  padding: 15px;
+  opacity: 0.75;
+}
+</style>
+
+<script>
+var dojoConfig = { 
+  paths: {
+    data: location.pathname.replace(/\/[^/]+$/, "") + "/data"
+  }
+};
+</script>
+
+<script src="http://jsdev.arcgis.com/3.14/"></script>
+<script>
+var map;
+require(["esri/map",
+         "esri/graphic",
+         "esri/graphicsUtils",
+         "esri/geometry/Extent",
+         "esri/geometry/geometryEngine",
+         "esri/geometry/Polyline",
+         "esri/geometry/Point",
+         "esri/SpatialReference",
+         
+         "esri/symbols/SimpleFillSymbol",
+         "esri/symbols/SimpleLineSymbol",
+         "esri/symbols/TextSymbol",
+         "esri/symbols/Font",
+         "esri/Color",
+         "esri/renderers/SimpleRenderer",
+         
+         "esri/layers/FeatureLayer",
+         "esri/layers/GraphicsLayer",
+         "data/orchards",  //Feature layer representing an apple orchard
+         
+         "dojo/on",
+         "dojo/_base/array",
+         "dojo/dom",
+         "dojo/domReady!"
+], function(Map, Graphic, graphicsUtils, Extent, geometryEngine, Line, Point, SpatialReference, SimpleFillSymbol, SimpleLineSymbol, TextSymbol, Font, Color, SimpleRenderer, FeatureLayer, GraphicsLayer, orchards, on, array, dom) {
+    
+  var initExtent = new Extent(-13056650, 6077558, -13055709, 6077938, new SpatialReference({wkid:3857}));
+    
+  //Instructions for using the app. Will update based on user behavior    
+  var drawInstructions = "Click outside the selected feature to begin drawing cutting line. Double-click to finish line and make final cut.";
+  var initInstructions = "Select a feature by clicking on it.";
+  var clickInstructions = "Choose editing operation below.";
+
+  map = new Map("map", {
+    basemap: "satellite",
+    extent: initExtent
+  });
+    
+  //Layer symbology    
+  var orchardSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([175, 255, 155]), 2), new Color([175, 255, 155, 0.3]));
+  var selectionSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color("black"), 3), new Color([255, 255, 255, 0.25]));
+  var offsetSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_NULL, new SimpleLineSymbol(SimpleLineSymbol.STYLE_DASH, new Color([0,0,0]), 2), new Color([96, 252, 219, 0.5]));
+  var cutterSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_DASH, new Color("white"), 2);
+  var renderer = new SimpleRenderer (orchardSym);
+    
+  //Get FeatureLayer created from FeatureCollection stored on the client through data/orchards
+  var orchardLayer = orchards;  
+  orchardLayer.setRenderer(renderer);
+  map.addLayer(orchardLayer);
+    
+  //Create graphics layer for labeling
+  var displayLabels = new GraphicsLayer();
+  var labelFont = new Font(14, Font.STYLE_NORMAL, Font.VARIANT_NORMAL, Font.WEIGHT_BOLD, "Verdana");    
+  var textSym = new TextSymbol("filler text", labelFont, new Color([128,0,0]));
+    
+  //Create selection layer to display selection symbol
+  var selectionLayer = new GraphicsLayer();
+  var originalGraphicSelection, selectedGraphic;
+
+  //Create GraphicsLayer for cutting line
+  //var cutLayer = new GraphicsLayer();   
+  var cutGraphic1, cutGraphic2;
+  //map.addLayer(cutLayer);
+ 
+  map.addLayer(selectionLayer);
+  map.addLayer(displayLabels);  
+
+  //Calculates the area of the input geometry using GeometryEngine.geodesicArea() and converts it to a string
+  function calcArea(geom){
+      return (Math.round(geometryEngine.geodesicArea(geom, 109402)*100) / 100) + " acres"; //area in acres
+  }
+    
+  //Define cutting line object
+  var cutter = null;
+  //Function for creating drawing line
+  function drawLine(pt1, pt2){
+    var pt1Cor = [pt1.x, pt1.y];
+    var pt2Cor = [pt2.x, pt2.y];
+    var lineJSON = {
+      paths: [[pt1Cor, pt2Cor]],
+      spatialReference: pt1.spatialReference
+    };
+    var polyLine = new Line(lineJSON);
+    return polyLine;
+  }
+  
+  //Label areas based on input POLYGON geometries
+  function labelAreas(geoms){
+     displayLabels.clear();
+
+     array.forEach(geoms, function(item, i){
+        var center = item.getCentroid();
+        var area = calcArea(item);
+        textSym.setText(area);
+        displayLabels.add(new Graphic(center, textSym));
+     });
+  }
+    
+  var isSelected = false;
+  
+  //Select features on click event    
+  function selectFeature(evt){
+      
+
+      if(!disableDraw){
+          return;
+      }
+
+      selectionLayer.clear();
+      
+      originalGraphicSelection = evt.graphic;
+      selectedGraphic = new Graphic(evt.graphic.geometry, selectionSym);
+
+      selectionLayer.add(selectedGraphic);
+      isSelected = true;
+
+//      evt.stopPropagation();  //stop click event from bubbling to map click handlers
+      
+      dom.byId("instructions").innerHTML = clickInstructions;
+      console.log("number of clickes = ", clicks);
+      return selectedGraphic;
+  }
+  
+  //Manage map clicking for line drawing purposes    
+  var initClick;
+  var clicks = 0;
+    
+  //cut button object    
+  var cutOpt = dom.byId("cutOpt");
+  var mergeOpt = dom.byId("mergeOpt");
+    
+  //Initialize drawing capabilities with click of cut button
+//  on(cutBtn, "click", function(){
+//      if(!isSelected){
+//          alert("Please select a feature to cut first.");
+//          return;
+//      }
+//      
+//      dom.byId("instructions").innerHTML = drawInstructions;
+//      
+//      setBtn();  //change style of cut button to inform user it is activated
+//      
+//      clicks = 0;
+//      cutter = null;  //reset cutter to null each time button is clicked
+//      disableDraw = false;  //enable drawing
+//      map.disableMapNavigation();  //disable map navigation while drawing
+    
+  
+//  });
+    
+    //After button is clicked watch for map click events
+    on(map, "click", mapClick);
+    
+    
+    
+    
+    
+    
+    
+    
+    
+  function initCut(){
+    dom.byId("instructions").innerHTML = drawInstructions;
+      
+//      setBtn();  //change style of cut button to inform user it is activated
+      
+//      clicks = 0;
+      cutter = null;  //reset cutter to null each time button is clicked
+      disableDraw = false;  //enable drawing
+      map.disableMapNavigation();  //disable map navigation while drawing  
+  }
+    
+  function startCut(evt){
+//    //When map is clicked outside of selected feature, clear selection  
+//     if(isSelected && disableDraw){
+//          var isFeatureClicked = geometryEngine.intersects(originalGraphicSelection.geometry, evt.mapPoint);
+//          if(!isFeatureClicked){
+//              clearSelectedFeatures();
+//              orchardLayer.add(originalGraphicSelection);
+//          }
+//          else{
+//              return;
+//          }
+//      }
+      if(clicks === 0){
+        initCut();  
+      }
+      
+      
+     clicks++;  //increment map clicking var for line construction purposes
+        
+        if(clicks === 1){
+            initClick = evt.mapPoint;  //set initial click to global var for testing purposes
+            console.log("cool. Selected graphic: ", selectedGraphic);
+            if(selectedGraphic){
+               var initClickOutsideSelection = geometryEngine.disjoint(selectedGraphic.geometry, initClick);
+            }
+            if(!initClickOutsideSelection){
+                //Don't allow for cutting to being inside of selected feature
+                alert("Start cutting line outside of selected feature.");
+//                dom.byId("instructions").innerHTML = clickInstructions;
+//                resetBtn();
+            }
+            else{
+                console.log("clicks: ", clicks);
+                //Create line and add to map
+                var lineGeom = drawLine(evt.mapPoint, evt.mapPoint);
+                cutter = new Graphic(lineGeom, cutterSym);
+                map.graphics.add(cutter);
+                console.log("cutter initialized: ", cutter);
+            }
+        }
+        if(clicks > 1){
+          //Add additional line paths for each click (can be "buggy" at times) don't click too fast
+          cutter.geometry.addPath([cutter.geometry.paths[cutter.geometry.paths.length-1][1], evt.mapPoint]);
+          map.graphics.redraw();
+        }
+        
+//        evt.stopPropagation();
+        
+        return;   
+  }
+    
+    
+    
+    
+    
+    
+    
+  function mapClick(evt){
+      
+      console.log("map click: ", evt);
+      
+      
+    if(evt.graphic && !isSelected){
+        
+//      var isFeatureClicked = geometryEngine.intersects(originalGraphicSelection.geometry, evt.mapPoint);
+//          if(isFeatureClicked){
+//              clearSelectedFeatures();
+//              orchardLayer.add(originalGraphicSelection);
+//          }
+//          else{
+              
+//          }    
+        
+      selectFeature(evt);
+        
+    } else if (!evt.graphic && !isSelected){
+        alert("Please select a feature to cut first.");
+          return;
+    } 
+    else if (evt.graphic && isSelected && clicks < 1){
+       alert("You must start drawing outside fo the feature to cut it.") 
+    }
+    else{
+        startCut(evt);
+    }
+  }     
+
+    
+ //For managing cleared selections   
+ function clearSelectedFeatures(){
+      selectionLayer.clear();
+      isSelected = false;
+      clicks = 0;
+      cutter = null;
+      selectedGraphic = null;
+ }
+    
+  //After starting to draw a line, continue drawing with cursor movement    
+  on(map, "mouse-move", function(evt){
+    if(cutter && !disableDraw){
+        cutter.geometry.setPoint(cutter.geometry.paths.length-1, 1, evt.mapPoint);
+        map.graphics.redraw();
+        cutGeoms(selectedGraphic.geometry, cutter.geometry, evt.mapPoint, selectionLayer);
+    }
+    else{
+        return;
+    }
+  });
+    
+ //Set button style to "activated" style    
+// function setBtn(){
+//    cutBtn.style.backgroundColor = "black";
+//    cutBtn.style.color = "white"; 
+// }  
+// 
+// //Set button style to initial style      
+// function resetBtn(){
+//    cutBtn.style.backgroundColor = "white";
+//    cutBtn.style.color = "black";
+// }
+    
+ var disableDraw = true;
+    
+ //Finish drawing line on double-click event 
+ on(map, "dbl-click", function(evt){
+     map.enableMapNavigation();
+     
+     disableDraw = true;
+     map.graphics.clear();
+     var goodCut = cutGeoms(selectedGraphic.geometry, cutter.geometry, evt.mapPoint, orchardLayer);
+      if(goodCut){
+          //Add cut graphics to map and remove original selected graphic
+          orchardLayer.add(cutGraphic1);
+          orchardLayer.add(cutGraphic2);
+          orchardLayer.remove(originalGraphicSelection);
+
+         cutIterations = 0;
+         clearSelectedFeatures();
+          
+      }
+      else{
+          clearSelectedFeatures();
+          disableDraw = true;
+      }
+      
+      resetBtn();
+      dom.byId("instructions").innerHTML = initInstructions;
+      
+      var orchardGeoms = graphicsUtils.getGeometries(orchardLayer.graphics);
+      labelAreas(orchardGeoms);
+      
+  });
+    
+  //cut the polygon with the line drawn on map
+  var cutIterations = 0;
+  function cutGeoms(poly, cutLine, endPoint, lyr){
+      cutIterations++;
+      orchardLayer.disableMouseEvents();
+      var crossTest = geometryEngine.crosses(cutLine, poly);
+      var disjointTest = geometryEngine.disjoint(poly, endPoint);
+      //Don't attempt cut if line doesn't properly cross selected geometry
+      if(crossTest && disjointTest){
+        var cutPolys = geometryEngine.cut(poly, cutLine);
+        if(lyr === selectionLayer){
+            lyr.clear();
+            //Define final cut graphics and add temporary ones to map as mouse moves
+            cutGraphic1 = new Graphic(cutPolys[0], orchardSym);
+            cutGraphic2 = new Graphic(cutPolys[1], orchardSym);
+            lyr.add(new Graphic(cutPolys[0], selectionSym));
+            lyr.add(new Graphic(cutPolys[1], selectionSym));
+
+            //Create dashed offset polygon symbol and add to map for visualization purposes
+            var offsetPolys = offsetGeoms(cutPolys);
+            lyr.add(new Graphic(offsetPolys[0], offsetSym));
+            lyr.add(new Graphic(offsetPolys[1], offsetSym));
+            labelAreas(cutPolys);
+        }
+        if(lyr === orchardLayer){
+            //For finishing the line
+            selectionLayer.clear();
+            orchardLayer.enableMouseEvents();
+        }
+        return true;
+      }
+      else{
+          orchardLayer.enableMouseEvents();
+          return false;
+      }
+  }
+   
+  //TODO - FINISH LATER!!!    
+  //Merge polygon geometries    
+  function mergeGeoms(geom1, geom2){
+      var mergedGeometry = geometryEngine.union([geom1, geom2]);
+      selectionLayer.clear();
+      orchardLayer.remove(new Graphic(geom2, orchardSym));
+      orchardLayer.add(mergedGeometry);
+  }
+  
+  //Perform merge when merge button is clicked    
+//  on(dom.byId("mergeBtn"), "click", function(){
+//      clicks = 0;
+//     on(orchardLayer, "click", function(evt){
+//        mergeGeoms(originalGraphicSelection.geometry, evt.graphic.geometry); 
+//     }); 
+//  });
+    
+  //Function for offseting geometries by 10 feet    
+  function offsetGeoms(polys){
+    return geometryEngine.offset(polys, 10, 9002, 0);
+  }
+    
+});
+</script>
+</head>
+
+<body>
+  <div id="map">
+    <div class="mainStyle" id="title"><h2>Apple Orchards</h2></div>
+    <div class="mainStyle" id="results"><span id="instructions">Select a feature by clicking on it.</span><br><br>
+    <input type="radio" name="operation" id="cutOpt" checked>Cut Features<br><br>
+    <input type="radio" name="operation" id="mergeOpt">Merge Features<br><br>    
+<!--    <button id="cutBtn">Cut Features</button><br><br>-->
+<!--    <button id="mergeBtn">Merge Features</button>-->
+  </div>
+</div>
+</body>
+</html>
