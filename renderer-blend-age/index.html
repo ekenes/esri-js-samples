@@ -46,7 +46,7 @@ require([
 ], function (array, Color, PopupTemplate, ArcGISTiledMapServiceLayer, FeatureLayer, Map, BlendRenderer, SimpleFillSymbol, SimpleLineSymbol, on, dom){
 
   var map = new Map("map", {
-    basemap: "dark-gray",  //"topo"
+    basemap: "gray",  //"topo"
     center: [-98.5, 38],
     zoom: 5
   });
@@ -96,24 +96,27 @@ require([
     ]
   });
 
-  var blue = new Color([0, 0, 255]);
-  var yellow = new Color([255, 255, 0]);
-  var red = new Color([255, 0, 0]);
+//  var blue = new Color([20, 158, 206]);
+//  var yellow = new Color([255, 255, 0]);
+//  var red = new Color([237, 81, 81]);
+    
+  var blue = new Color([0,0,255]);
+  var red = new Color([255,0,0]);
 
   //Set the blendRenderer's parameters
   var blendRendererOptions = {
     blendMode: "multiply", //By default, it uses "source-over", uncomment to display different mode
     //See: https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/globalCompositeOperation
-    symbol: new SimpleFillSymbol().setOutline(new SimpleLineSymbol().setWidth(0)),
+    symbol: new SimpleFillSymbol().setOutline(new SimpleLineSymbol().setColor(new Color([127,127,127,.25])).setWidth(0.1)),
     fields: [
       {
         field: "MALES",
         label: "Blue",
-        color: blue
+        color: red
       }, {
         field: "FEMALES",
         label: "yellow",
-        color: yellow
+        color: blue
       }
     ],
     opacityStops: [
@@ -122,7 +125,7 @@ require([
         opacity: 0
       },
       {
-        value: 0.75,
+        value: 1,
         opacity: 1
       }
     ],
@@ -130,9 +133,19 @@ require([
   };
 
   renderer = new BlendRenderer(blendRendererOptions);
+    
+//  renderer.setVisualVariables([{
+//    type: "opacityInfo",
+//    field: "POP13_SQMI",
+//    maxDataValue: 72000,
+//    minDataValue: 1,
+//    stops: [{value: 1, opacity: 0.3},
+//            {value: 258, opacity: 0.5},
+//            {value: 1750, opacity: 1}]  
+//  }]);
 
   layer = new FeatureLayer(layerUrl, {
-    outFields: ["FEMALES", "POP2013", "MALES", "NAME", "STATE_NAME"],
+    outFields: ["FEMALES", "POP2013", "MALES", "NAME", "STATE_NAME", "POP13_SQMI"],
     opacity: 1,
     infoTemplate: template
   });
@@ -140,12 +153,21 @@ require([
   layer.setRenderer(renderer);
   map.addLayer(layer);
 
-//  on(dom.byId("mode"), "change", function(evt){
-//     blendRendererOptions.blendMode = evt.target.value;
-//     var updateRenderer = new BlendRenderer(blendRendererOptions);
-//     layer.setRenderer(updateRenderer);
-//     layer.redraw();
-//  });
+  on(dom.byId("mode"), "change", function(evt){
+     blendRendererOptions.blendMode = evt.target.value;
+     var updateRenderer = new BlendRenderer(blendRendererOptions);
+     updateRenderer.setVisualVariables([{
+    type: "opacityInfo",
+    field: "POP13_SQMI",
+    maxDataValue: 72000,
+    minDataValue: 1,
+    stops: [{value: 1, opacity: 0.3},
+            {value: 258, opacity: 0.5},
+            {value: 1750, opacity: 1}]  
+  }]);  
+     layer.setRenderer(updateRenderer);
+     layer.redraw();
+  });
 
 });
 </script>
@@ -162,7 +184,6 @@ require([
          <li>Shades of Gray: No clear dominance</li>
         </ul>
         The more opaque the color, the higher the concentration for that demographic.
-<!--
          <br><br>Change the <strong>blendMode</strong> here: 
          <select id="mode">
             <option selected value="multiply">multiply</option>
@@ -173,8 +194,8 @@ require([
             <option value="lighter">lighter</option>
             <option value="difference">difference</option>
             <option value="exclusion">exclusion</option> 
+            <option value="source-over">source-over</option> 
          </select>
--->
      </div>
   </div>
 </body>
