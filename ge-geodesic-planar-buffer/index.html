@@ -203,41 +203,34 @@ function(
   ******************************/
     
    view2d.then(function(){
-     mapViewWatchExtent = watchUtils.pausable(view2d, "extent", function(val){
-       var vp = view2d.createViewpoint({
-         center: view2d.center,
-         scale: view2d.scale
-       });  
-       view3d.animateTo(vp);
+     watchUtils.when(view2d, "interacting", function(val){
+        if(view2d.animation)
+          view2d.animation.stop();
+        mapViewWatch.resume();
+        sceneViewWatch.pause();
      });
-       
-    mapViewWatchRotation = watchUtils.pausable(view2d, "rotation", function(val){
+ 
+     mapViewWatch = watchUtils.pausable(view2d, "viewpoint", function(val){
        var vp = view2d.createViewpoint({
          center: view2d.center,
          scale: view2d.scale
        });  
        view3d.animateTo(vp);
      });   
-    
-     watchUtils.when(view2d, "interacting", function(val){
-        if(view2d.animation)
-          view2d.animation.stop();
-        mapViewWatchExtent.resume();
-        mapViewWatchRotation.resume();
-        sceneViewWatch.pause();
-     });
-       
    });
    
    view3d.then(function(){
+      watchUtils.whenTrueOnce(view3d, "updating", function(val){
+        mapViewWatch.pause();
+      });
+       
       sceneViewWatch = watchUtils.pausable(view3d, "camera", function(val){
         var vp = view3d.createViewpoint(view3d.camera);
         view2d.animateTo(vp); 
       });  
        
      watchUtils.when(view3d, "interacting", function(val){
-        mapViewWatchExtent.pause();
-        mapViewWatchRotation.pause();
+        mapViewWatch.pause();
         sceneViewWatch.resume();
      });       
    });
