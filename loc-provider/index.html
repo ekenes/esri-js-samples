@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+<title>Location Provider - Election</title>
+<link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+<style>
+  html, body, #map {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+</style>
+<script src="http://js.arcgis.com/3.14/"></script>
+<script>
+  var map, qtlp, electionLayer;
+
+  require(["esri/map", 
+           "esri/layers/FeatureLayer",
+           "esri/layers/GraphicsLayer",
+           "esri/request",
+           "esri/Color",
+           "esri/tasks/locationproviders/QueryTaskLocationProvider",
+           "esri/tasks/query",
+           "esri/symbols/SimpleFillSymbol",
+           "esri/symbols/SimpleLineSymbol",
+           "esri/graphic",
+           "esri/tasks/QueryTask",
+           "dojo/_base/array",
+           "dojo/domReady!"], function(Map, FeatureLayer, GraphicsLayer, esriRequest, Color, QueryTaskLocationProvider, Query, SimpleFillSymbol, SimpleLineSymbol, Graphic, QueryTask, array) {
+      
+    var requestOpts = {
+      url: "./election-data.json",
+      handleAs: "json"
+    };
+      
+    esriRequest(requestOpts).then(function(response){
+      return array.map(response, function(item, i){ 
+        item.FIPS = item.FIPS.toString();
+        if(item.FIPS.length <= 4){
+          item.FIPS = "0" + item.FIPS;
+        }
+        if(item.STATE_ABB === "UT"){
+          console.log("UT: ", item.COUNTY);
+        }  
+          
+        return new Graphic({
+          attributes: item
+        })
+      });
+    }).then(startLP);
+      
+    
+    function test(data){
+      console.log("graphics: ", data);
+    }
+      
+    
+      
+    map = new Map("map", {
+      basemap: "gray"
+    });
+      
+    electionLayer = new GraphicsLayer();
+    
+    //generalized counties esri: http://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Counties_Generalized/FeatureServer/0  
+    var countiesUrl = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/US_Esri_Census/FeatureServer/4";
+      
+//    var electionUrl = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/US_elect_county_2012/FeatureServer/0"
+    
+    var fl = new FeatureLayer(countiesUrl,{
+      visible: false,
+      outFields: ["FIPS", "NAME"]
+    });
+    map.addLayers([fl, electionLayer]);
+      
+    fl.on("load", function(evt){
+      map.setExtent(fl.fullExtent);    
+    });
+      
+      
+      
+    function startLP(graphics){
+      var qt = new QueryTask(countiesUrl);
+      console.log("startLP called", graphics);
+      
+      //table field: 'FIPS'; FS field: 'FIPS'  
+      qtlp = new QueryTaskLocationProvider({
+        queryTask: qt,
+        unicode: true,
+        whereFields: {
+          "FIPS": "FIPS"
+        },
+        queryParameters: {
+          outFields: ["FIPS", "NAME"],
+          returnGeometry: true
+        }
+      });
+        
+      console.log("querytasklocprov", qtlp);    
+
+      qtlp.on("load", function(){
+        console.log("qtlp loaded");
+        qtlp.locate(graphics).then(function(results){
+        console.log("joined results: ", results);
+            
+        var counties = results.features;    
+        
+        counties.forEach(function(graphic, i){
+          if(graphic.attributes.TOT_ROMNEY > graphic.attributes.TOT_OBAMA)
+            graphic.symbol = new SimpleFillSymbol().setColor(new Color("red")).setOutline(null);
+          else
+            graphic.symbol = new SimpleFillSymbol().setColor(new Color("blue")).setOutline(null);  
+            
+          electionLayer.add(graphic);    
+        }); 
+        
+        
+      }, function(err){
+        console.log("didn't locate: ", err);
+      });   
+      });
+    }
+      
+    map.on("click", function(evt){
+      console.log(evt.graphic);    
+    });
+//     
+  });
+</script>
+</head>
+
+<body>
+  <div id="map"></div>
+</body>
+</html>

@@ -51,32 +51,40 @@ require([
     zoom: 5
   });
 
-  var layerUrl = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/ArcGIS/rest/services/US_Esri_Census/FeatureServer/4";
+  var layerUrl = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/election_county_2008/FeatureServer/0";
 
   //Create the PopupTemplate to be used to display demographic info
  //Create the PopupTemplate to be used to display demographic info
   var template = new PopupTemplate({
-    "title": "{NAME} County, {STATE_NAME}",
+    "title": "{COUNTY}, {STATE}",
     "fieldInfos": [
       {
-        "fieldName": "POP2013",
-        "label": "2013 Population",
+        "fieldName": "DEM_PER",
+        "label": "% voted for Obama",
         "visible": true,
         "format": {
           "places": 0,
           "digitSeparator": true
         }
       }, {
-        "fieldName": "MALES",
-        "label": "Men",
+        "fieldName": "REP_PER",
+        "label": "% voted for McCain",
         "visible": true,
         "format": {
           "places": 0,
           "digitSeparator": true
         }
       }, {
-        "fieldName": "FEMALES",
-        "label": "Women",
+        "fieldName": "OTHER_PER",
+        "label": "% voted for other candidates",
+        "visible": true,
+        "format": {
+          "places": 0,
+          "digitSeparator": true
+        }
+      }, {
+        "fieldName": "TOTAL",
+        "label": "Total turnout",
         "visible": true,
         "format": {
           "places": 0,
@@ -90,34 +98,36 @@ require([
         "type": "piechart",
         "caption": "",
         "value": {
-          "fields": ["MALES", "FEMALES"]
+          "fields": ["DEM_TOT", "REP_TOTAL", "OTHER_TOTAL"]
         }
       }
     ]
   });
 
-//  var blue = new Color([20, 158, 206]);
-//  var yellow = new Color([255, 255, 0]);
-//  var red = new Color([237, 81, 81]);
-    
   var blue = new Color([0,0,255]);
   var red = new Color([255,0,0]);
+  var green = new Color([0,255,0]);
 
   //Set the blendRenderer's parameters
   var blendRendererOptions = {
     blendMode: "multiply", //By default, it uses "source-over", uncomment to display different mode
     //See: https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/globalCompositeOperation
-    symbol: new SimpleFillSymbol().setOutline(new SimpleLineSymbol().setColor(new Color([127,127,127,.25])).setWidth(0.1)),
+    symbol: new SimpleFillSymbol().setOutline(new SimpleLineSymbol().setColor(new Color([127,127,127,1])).setWidth(0.1)),
     fields: [
       {
-        field: "MALES",
-        label: "Blue",
-        color: red
-      }, {
-        field: "FEMALES",
-        label: "yellow",
+        field: "DEM_TOT",
+        label: "Democrat",
         color: blue
+      }, {
+        field: "REP_TOTAL",
+        label: "Republican",
+        color: red
       }
+      , {
+        field: "OTHER_TOTAL",
+        label: "Other",
+        color: green
+      }    
     ],
     opacityStops: [
       {
@@ -129,25 +139,28 @@ require([
         opacity: 1
       }
     ],
-    normalizationField: "POP2013"
+    normalizationField: "TOTAL"
   };
 
   renderer = new BlendRenderer(blendRendererOptions);
     
 //  renderer.setVisualVariables([{
 //    type: "opacityInfo",
-//    field: "POP13_SQMI",
-//    maxDataValue: 72000,
-//    minDataValue: 1,
-//    stops: [{value: 1, opacity: 0.3},
-//            {value: 258, opacity: 0.5},
-//            {value: 1750, opacity: 1}]  
+//    field: "TOTAL",
+//    maxDataValue: 3400000,
+//    minDataValue: 79,
+//    stops: [{value: 79, opacity: 0},
+//            {value: 41000, opacity: 0.5},
+//            {value: 150000, opacity: 0.7},
+//            {value: 270000, opacity: 0.85},
+//            {value: 3000000, opacity: 1}]  
 //  }]);
 
   layer = new FeatureLayer(layerUrl, {
-    outFields: ["FEMALES", "POP2013", "MALES", "NAME", "STATE_NAME", "POP13_SQMI"],
+    outFields: ["STATE", "COUNTY", "DEM_TOT", "DEM_PER", "REP_TOTAL", "REP_PER", "OTHER_TOTAL", "OTHER_PER", "TOTAL"],
     opacity: 1,
-    infoTemplate: template
+    infoTemplate: template,
+    maxAllowableOffset: 100000
   });
 
   layer.setRenderer(renderer);
@@ -156,15 +169,17 @@ require([
   on(dom.byId("mode"), "change", function(evt){
      blendRendererOptions.blendMode = evt.target.value;
      var updateRenderer = new BlendRenderer(blendRendererOptions);
-     updateRenderer.setVisualVariables([{
-    type: "opacityInfo",
-    field: "POP13_SQMI",
-    maxDataValue: 72000,
-    minDataValue: 1,
-    stops: [{value: 1, opacity: 0.3},
-            {value: 258, opacity: 0.5},
-            {value: 1750, opacity: 1}]  
-  }]);  
+//     updateRenderer.setVisualVariables([{
+//    type: "opacityInfo",
+//    field: "TOTAL",
+//    maxDataValue: 3400000,
+//    minDataValue: 79,
+//    stops: [{value: 79, opacity: 0},
+//            {value: 41000, opacity: 0.5},
+//            {value: 150000, opacity: 0.7},
+//            {value: 270000, opacity: 0.85},
+//            {value: 3000000, opacity: 1}]  
+//  }]);  
      layer.setRenderer(updateRenderer);
      layer.redraw();
   });
@@ -175,13 +190,13 @@ require([
 <body class="claro">
   <div id="map">
      <div id="meta">
-        <h3>Men vs. Women</h3>
+        <h3>2008 U.S. Presidential Election Results</h3>
         <br>
         <br>This map depicts the populations of men vs. women by U.S. county (2013).
         <ul>
-         <li>Blue: Male dominance</li>
-         <li>Yellow: Female dominance</li>
-         <li>Shades of Gray: No clear dominance</li>
+         <li>Blue: Obama</li>
+         <li>Red: McCain</li>
+         <li>Green: Other candidates</li>
         </ul>
         The more opaque the color, the higher the concentration for that demographic.
          <br><br>Change the <strong>blendMode</strong> here: 
