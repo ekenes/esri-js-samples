@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+<title>Location Provider - Election</title>
+<link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+<style>
+  html, body, #map {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+</style>
+<script src="http://js.arcgis.com/3.14/"></script>
+<script>
+  var map, qtlp;
+
+  require(["esri/map", 
+           "esri/layers/FeatureLayer",
+           "esri/request",
+           "esri/tasks/locationproviders/QueryTaskLocationProvider",
+           "esri/tasks/query",
+           "esri/graphic",
+           "esri/tasks/QueryTask",
+           "dojo/_base/array",
+           "dojo/domReady!"], function(Map, FeatureLayer, esriRequest, QueryTaskLocationProvider, Query, Graphic, QueryTask, array) {
+      
+    var requestOpts = {
+      url: "./election-data.json",
+      handleAs: "json"
+    };
+      
+    esriRequest(requestOpts).then(function(response){
+      return array.map(response, function(item, i){
+         item.FIPS = item.FIPS.toString();
+         return item;
+      });
+    }).then(test);
+      
+    
+    function test(data){
+      console.log("graphics: ", data);
+        
+      
+    }
+      
+    
+      
+    map = new Map("map", {
+      basemap: "gray"
+    });
+    
+   
+    
+   
+      
+//    
+      
+  });
+</script>
+</head>
+
+<body>
+  <div id="map"></div>
+</body>
+</html>
