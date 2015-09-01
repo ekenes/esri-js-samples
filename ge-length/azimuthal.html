@@ -52,6 +52,8 @@ require(["esri/map",
        "esri/graphic",
        "esri/Color",
        "esri/layers/GraphicsLayer",
+       "esri/layers/WMTSLayer",
+       "esri/layers/WMTSLayerInfo",     
        "esri/layers/ArcGISDynamicMapServiceLayer",
        "esri/symbols/SimpleLineSymbol",
        "esri/symbols/SimpleMarkerSymbol",
@@ -59,10 +61,24 @@ require(["esri/map",
        "esri/geometry/Polyline",
        "esri/geometry/Point",
        "esri/tasks/LengthsParameters",
-       "esri/tasks/GeometryService",     
+       "esri/tasks/GeometryService",
+       "esri/config",      
        "dojo/dom",
        "dojo/on",
-       "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, ArcGISDynamicMapServiceLayer, SimpleLineSymbol, SimpleMarkerSymbol, geometryEngine, Line, Point, LengthsParameters, GeometryService, dom, on) {
+       "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, WMTSLayer, WMTSLayerInfo, ArcGISDynamicMapServiceLayer, SimpleLineSymbol, SimpleMarkerSymbol, geometryEngine, Line, Point, LengthsParameters, GeometryService, esriConfig, dom, on) {
+    
+    esriConfig.defaults.io.proxyUrl = "/proxy/";
+    var topoInfo = new WMTSLayerInfo({
+          identifier: "arcticsdi_wmts",   //europa
+          tileMatrixSet: "EPSG:3575",  //polar  3575
+          format: "png"
+    });
+    var topoOptions = {
+          serviceMode: "KVP",
+          layerInfo: topoInfo,
+          opacity: 1
+        };
+//    var azimuthLyr = new WMTSLayer("http://opencache.statkart.no/gatekeeper/gk/gk.open_wmts?Version=1.0.0&service=wmts&request=getcapabilities", topoOptions);
     
     var gs = new GeometryService("http://sampleserver6.arcgisonline.com/arcgis/rest/services/Utilities/Geometry/GeometryServer");
     azimuthLyr = new ArcGISDynamicMapServiceLayer("http://maps.ngdc.noaa.gov/arcgis/rest/services/arctic_ps/arctic_basemap/MapServer");
@@ -133,7 +149,7 @@ require(["esri/map",
 
 <body>
 <div id="map">
-<div class="mainStyle" id="title"><h2>Geodesic Length vs. Planar Length</h2></div>
+<div class="mainStyle" id="title"><h2>Measurement in Azimuthal Equidistant projection</h2></div>
 <div class="mainStyle" id="results"><span id="instructions">Click the map to draw a line to the north pole.</span><br><br>
     <span id="content">
         GE Planar Length: <span id="planarResult"></span> mi
