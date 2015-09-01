@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
     
-<title>Goode's Homosoline</title>
+<title>UTM Measurement</title>
 
 <link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
 
@@ -18,9 +18,10 @@
 #results{
   top: 120px;
   right: 20px;
+  width: 300px;
 }
     
-#gsResult, #geResult, #difference{
+#geResult, #gsResult, #difference{
   font-weight: 900;
 }
         
@@ -35,8 +36,8 @@
 .mainStyle{
   position: absolute;
   z-index: 99;
-  background-color: black;
-  color: white;
+  background-color: whitesmoke;
+  color: black;
   border-radius: 8px;
   border-width: medium;
   padding: 15px;
@@ -47,38 +48,62 @@
 
 <script src="http://js.arcgis.com/3.14/"></script>  
 <script>
-var map, geoGraphic, homosolineSR, homosolineLyr;
+var map, geoGraphic, homosolineSR, euroLayer;
 
 require(["esri/map",
        "esri/graphic",
        "esri/Color",
        "esri/layers/GraphicsLayer",
-       "esri/layers/ArcGISDynamicMapServiceLayer",
+       "esri/layers/FeatureLayer",
+       "esri/layers/WMTSLayer",
+       "esri/layers/WMTSLayerInfo",
+       "esri/symbols/SimpleFillSymbol",
        "esri/symbols/SimpleLineSymbol",
        "esri/geometry/geometryEngine",
-       "esri/geometry/Polyline",         
+       "esri/geometry/Polyline",
+       "esri/renderers/SimpleRenderer",
        "esri/tasks/LengthsParameters",
        "esri/tasks/GeometryService",     
+       "esri/config",     
        "dojo/dom",
        "dojo/on",
-       "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, ArcGISDynamicMapServiceLayer, SimpleLineSymbol, geometryEngine, Line, LengthsParameters, GeometryService, dom, on) {
+       "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, FeatureLayer, WMTSLayer, WMTSLayerInfo, SimpleFillSymbol, SimpleLineSymbol, geometryEngine, Line, SimpleRenderer, LengthsParameters, GeometryService, esriConfig, dom, on) {
+    
+    esriConfig.defaults.io.proxyUrl = "/proxy/";
     
     var gs = new GeometryService("http://sampleserver6.arcgisonline.com/arcgis/rest/services/Utilities/Geometry/GeometryServer");
-
-    homosolineLyr = new ArcGISDynamicMapServiceLayer("http://maps.esri.com/apl4/rest/services/UC2012/UC2012_ServerCartogram/MapServer");
     
+    var topoInfo = new WMTSLayerInfo({
+          identifier: "europa",   //europa
+          tileMatrixSet: "EPSG:25832",  //UTM Zone 32N  25832
+          format: "png"
+    });
+    var topoOptions = {
+          serviceMode: "KVP",
+          layerInfo: topoInfo,
+          opacity: 1
+        };
+    var euroLayer = new WMTSLayer("http://opencache.statkart.no/gatekeeper/gk/gk.open_wmts?Version=1.0.0&service=wmts&request=getcapabilities", topoOptions);
     map = new Map("map");    
-    map.addLayer(homosolineLyr);
     
-    on(homosolineLyr, "load", function(evt){
-      map.setExtent(homosolineLyr.fullExtent);
+    var zoneGrid = new FeatureLayer("http://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/World_UTM_Grid/FeatureServer/0", {
+      definitionExpression: "ZONE = 32"
+    });
+    
+    var zoneSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color([255,0,0]), 2), Color([255,0,0, 0.2]));
+    zoneGrid.setRenderer(new SimpleRenderer(zoneSym));
+    
+    map.addLayers([euroLayer, zoneGrid]);
+    
+    on(euroLayer, "load", function(evt){
+      map.setExtent(euroLayer.fullExtent);
     });
     
     var defaultLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("black"), 4);
     var lineLayer = new GraphicsLayer();
     map.addLayers([lineLayer]);
 
-        //Function for creating drawing line
+    //Function for creating drawing line
     function drawLine(pt1, pt2){
       var pt1Cor = [pt1.x, pt1.y];
       var pt2Cor = [pt2.x, pt2.y];
@@ -119,7 +144,7 @@ require(["esri/map",
     });
 
     on(map, "dbl-click", function(evt){
-      dom.byId("instructions").innerHTML = "Click the map to begin drawing a line.";    
+      dom.byId("instructions").innerHTML = "Click the map to begin drawing a line. Planar measurements inside UTM Zone 32N (shaded in red) will be accurate; if using planar measurement outside the zone, the measurement loses accuracy the further outside the zone the geometry is located.";    
       if(newLine){
           newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
           gsMeasure(newLine.geometry);
@@ -132,7 +157,6 @@ require(["esri/map",
       }
     });
     
-    
     function gsMeasure(geom){
       var params = new LengthsParameters();
       params.geodesic = true;
@@ -142,14 +166,13 @@ require(["esri/map",
         
       gs.lengths(params, function(response){
          dom.byId("gsResult").innerHTML = numberWithCommas(Math.round(response.lengths[0] * 100) / 100);
-         dom.byId("difference").innerHTML = numberWithCommas((Math.round((response.lengths[0] - geMeasure(geom)) * 100)/100)); 
+         dom.byId("difference").innerHTML = numberWithCommas((Math.round((response.lengths[0] - geometryEngine.planarLength(geom, "miles")) * 100)/100));  
       });
     }
     
     function geMeasure(geom){
        var result = geometryEngine.planarLength(geom, "miles");
        dom.byId("geResult").innerHTML = numberWithCommas(Math.round(result * 100) / 100);
-       return result;
     }
     
   function numberWithCommas(x) {
@@ -162,8 +185,8 @@ require(["esri/map",
 
 <body>
 <div id="map">
-<div class="mainStyle" id="title"><h2>Length in Goode's Homosoline</h2></div>
-<div class="mainStyle" id="results"><span id="instructions">Click the map to begin drawing a line.</span><br><br>
+<div class="mainStyle" id="title"><h2>Length in UTM Zone 32N</h2></div>
+<div class="mainStyle" id="results"><span id="instructions">Click the map to begin drawing a line. Planar measurements inside UTM Zone 32N (shaded in red) will be accurate; if using planar measurement outside the zone, the measurement loses accuracy the further outside the zone the geometry is located.</span><br><br>
 GE Planar Length: <span id="geResult"></span> mi
 <br>GS Length (geodesic): <span id="gsResult"></span> mi  
 <br>Difference: <span id="difference"></span> mi     

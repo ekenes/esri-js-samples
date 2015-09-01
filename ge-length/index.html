@@ -83,10 +83,6 @@ map = new Map("map", {
 });    
     
   var defaultLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("black"), 4);
-  var highLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("red"), 4);
-  var medHighLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255,102,0]), 4);
-  var mediumLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("yellow"), 4);
-  var lowLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("green"), 4);
   var geodesicSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255,255,255,0.2]), 4);
   var lineLayer = new GraphicsLayer();
   var labelLayer = new GraphicsLayer();
@@ -142,6 +138,7 @@ map = new Map("map", {
         
         var gcsGeom = webMercatorUtils.webMercatorToGeographic(newLine.geometry);
         var geoGeom = geodesicUtils.geodesicDensify(gcsGeom, 100000);
+//        var geoGeom = geometryEngine.densify(newLine.geometry, 100000, "meters");
         geoGraphic = new Graphic(geoGeom, geodesicSym);
         map.graphics.add(geoGraphic);
 
@@ -164,11 +161,11 @@ map = new Map("map", {
     }
 
     function publishResults(){
-        if(lineLayer.graphics.length === 1){
-            dom.byId("finalList").style.visibility = "visible";
-        }
+      if(lineLayer.graphics.length === 1){
+        dom.byId("finalList").style.visibility = "visible";
+      }
 
-        dom.byId("finalList").innerHTML = "<h3 style='color:" + dom.byId("perstyle").style.color + "'>Line " + lineLayer.graphics.length + "</h3>" + dom.byId("content").innerHTML + "<hr>" + dom.byId("finalList").innerHTML;
+      dom.byId("finalList").innerHTML = "<h3 style='color:" + dom.byId("perstyle").style.color + "'>Line " + lineLayer.graphics.length + "</h3>" + dom.byId("content").innerHTML + "<hr>" + dom.byId("finalList").innerHTML;
     }      
 
     on(map, "dbl-click", function(evt){
@@ -205,29 +202,6 @@ map = new Map("map", {
 
   function reclassLineError(ratio){
       var symbol;
-      
-      
-//      if(ratio < 5){
-//          symbol = lowLineSym;
-//          dom.byId("perstyle").style.color = "green";
-//          dom.byId("planarstyle").style.color = "green";
-//      }
-//      if(ratio > 5 && ratio < 20){
-//          symbol = mediumLineSym;
-//          dom.byId("perstyle").style.color = "yellow";
-//          dom.byId("planarstyle").style.color = "yellow";
-//      }
-//      if(ratio > 20 && ratio < 40){
-//          symbol = medHighLineSym;
-//          dom.byId("perstyle").style.color = "orange";
-//          dom.byId("planarstyle").style.color = "orange";
-//      }
-//      if(ratio > 40){
-//          symbol = highLineSym;
-//          dom.byId("perstyle").style.color = "red";
-//          dom.byId("planarstyle").style.color = "red";
-//      }
-      
       var r = 255;
       var g = 255;
       var b = 255;
