@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+    
+<title>GE: length (poles)</title>
+
+<link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+
+<style>
+  html, body, #map {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+#results{
+  top: 120px;
+  right: 20px;
+  width: 300px;
+  height: 100px;
+}       
+    
+#title{
+  top: 20px;
+  width: 50%; 
+  height: 50px;;
+  padding-top: 5px;
+  text-align: center;
+  margin: 0 0 0 25%;
+}
+.mainStyle{
+  position: absolute;
+  z-index: 99;
+  background-color: black;
+  color: whitesmoke;
+  border-radius: 8px;
+  border-width: medium;
+  border-color: cornflowerblue;
+  padding: 15px;
+  opacity: 0.75;
+}    
+
+</style>
+
+<script src="http://js.arcgis.com/3.14/"></script>  
+<script>
+var map, geoGraphic, homosolineSR, azimuthLyr, northPole;
+
+require(["esri/map",
+       "esri/graphic",
+       "esri/Color",
+       "esri/layers/GraphicsLayer",
+       "esri/layers/ArcGISDynamicMapServiceLayer",
+       "esri/symbols/SimpleLineSymbol",
+       "esri/symbols/SimpleMarkerSymbol",
+       "esri/geometry/geometryEngine",
+       "esri/geometry/Polyline",
+       "esri/geometry/Point",
+       "esri/tasks/LengthsParameters",
+       "esri/tasks/GeometryService",     
+       "dojo/dom",
+       "dojo/on",
+       "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, ArcGISDynamicMapServiceLayer, SimpleLineSymbol, SimpleMarkerSymbol, geometryEngine, Line, Point, LengthsParameters, GeometryService, dom, on) {
+    
+    var gs = new GeometryService("http://sampleserver6.arcgisonline.com/arcgis/rest/services/Utilities/Geometry/GeometryServer");
+    azimuthLyr = new ArcGISDynamicMapServiceLayer("http://maps.ngdc.noaa.gov/arcgis/rest/services/arctic_ps/arctic_basemap/MapServer");
+    map = new Map("map");    
+    map.addLayer(azimuthLyr);
+    
+    on(map, "load", function(){
+      northPole = new Point(0,0, map.spatialReference);
+      map.graphics.add(new Graphic(northPole, new SimpleMarkerSymbol()));    
+    });
+    
+    on(azimuthLyr, "load", function(evt){
+      map.setExtent(azimuthLyr.fullExtent);
+    });
+    
+    var defaultLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("black"), 4);
+    var lineLayer = new GraphicsLayer();
+    map.addLayers([lineLayer]);
+
+        //Function for creating drawing line
+    function drawLine(pt1, pt2){
+      var pt1Cor = [pt1.x, pt1.y];
+      var pt2Cor = [pt2.x, pt2.y];
+      var lineJSON = {
+        paths: [[pt1Cor, pt2Cor]],
+        spatialReference: pt1.spatialReference
+      };
+      var polyLine = new Line(lineJSON);
+      return polyLine;
+    }
+
+    on(map, "click", function(evt){
+       lineLayer.clear();
+       var pt = evt.mapPoint;    
+       var line = drawLine(northPole, pt);
+       lineLayer.add(new Graphic(line, defaultLineSym));
+       getDistance(northPole, pt);
+       getGEplanarLength(line);
+       gsMeasure(line);
+    });
+    
+    function getDistance(pt1, pt2){
+      dom.byId("distanceResult").innerHTML = numberWithCommas(Math.round(geometryEngine.distance(pt1, pt2, "miles") * 100) / 100);
+    }
+    
+    function getGEplanarLength(geom){
+      dom.byId("planarResult").innerHTML = numberWithCommas(Math.round(geometryEngine.planarLength(geom, "miles") * 100) / 100);
+    }
+    
+    function gsMeasure(geom){
+      var params = new LengthsParameters();
+      params.geodesic = true;
+      params.calculationType = "geodesic";
+      params.lengthUnit = GeometryService.UNIT_STATUTE_MILE;
+      params.polylines = [geom];
+        
+      gs.lengths(params, function(response){
+         dom.byId("gsResult").innerHTML = numberWithCommas(Math.round(response.lengths[0] * 100) / 100);  
+      });
+    }
+
+    function numberWithCommas(x) {
+      return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+});
+</script>
+</head>
+
+<body>
+<div id="map">
+<div class="mainStyle" id="title"><h2>Geodesic Length vs. Planar Length</h2></div>
+<div class="mainStyle" id="results"><span id="instructions">Click the map to draw a line to the north pole.</span><br><br>
+    <span id="content">
+        GE Planar Length: <span id="planarResult"></span> mi
+        <br>GE distance: <span id="distanceResult"></span> mi
+        <br>GS Length: <span id="gsResult"></span> mi
+    </span>
+</div>  
+</div>
+</body>
+</html>

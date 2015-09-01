@@ -20,6 +20,7 @@
   right: 20px;
   width: 300px;
   height: 100px;
+  visibility: hidden;
 }
         
 #finalList{
@@ -64,6 +65,7 @@ require(["esri/map",
        "esri/layers/GraphicsLayer",
        "esri/layers/ArcGISDynamicMapServiceLayer",
        "esri/symbols/SimpleLineSymbol",
+       "esri/symbols/SimpleMarkerSymbol",
        "esri/symbols/Font",
        "esri/symbols/TextSymbol",
        "esri/geometry/geometryEngine",
@@ -78,21 +80,18 @@ require(["esri/map",
        "esri/tasks/ProjectParameters",
        "esri/tasks/LengthsParameters",
        "esri/tasks/GeometryService",     
-       
 
        "dojo/dom",
        "dojo/on",
-       "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, ArcGISDynamicMapServiceLayer, SimpleLineSymbol, Font, TextSymbol, geometryEngine, Line, Point, screenUtils, geodesicUtils, webMercatorUtils,  ClassBreaksRenderer, SpatialReference, 
+       "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, ArcGISDynamicMapServiceLayer, SimpleLineSymbol, SimpleMarkerSymbol, Font, TextSymbol, geometryEngine, Line, Point, screenUtils, geodesicUtils, webMercatorUtils,  ClassBreaksRenderer, SpatialReference, 
                                     ProjectParameters, LengthsParameters, GeometryService, dom, on) {
     
     var gs = new GeometryService("http://sampleserver6.arcgisonline.com/arcgis/rest/services/Utilities/Geometry/GeometryServer");
     
     homosolineSR = new SpatialReference(54052);
-    
     homosolineLyr = new ArcGISDynamicMapServiceLayer("http://maps.esri.com/apl4/rest/services/UC2012/UC2012_ServerCartogram/MapServer");
     
     map = new Map("map");    
-    
     map.addLayer(homosolineLyr);
     
     on(homosolineLyr, "load", function(evt){
@@ -102,7 +101,6 @@ require(["esri/map",
   var defaultLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("black"), 4);
   var lineLayer = new GraphicsLayer();
   var labelLayer = new GraphicsLayer();
-//  var geodesicLayer = new GraphicsLayer();
   map.addLayers([lineLayer, labelLayer]);
 
         //Function for creating drawing line
@@ -117,8 +115,8 @@ require(["esri/map",
       return polyLine;
     }
 
-        var clicks = 0;  
-          var newLine = null;
+    var clicks = 0;  
+    var newLine = null;
     on(map, "click", function(evt){
         
         console.log(evt.mapPoint);
@@ -132,46 +130,39 @@ require(["esri/map",
             newLine = new Graphic(lineGeom, defaultLineSym);
             lineLayer.add(newLine);
             placeLabel(newLine.geometry);
-
-            dom.byId("geostyle").style.visibility = "visible";
-            dom.byId("diffstyle").style.visibility = "visible";
-            dom.byId("planarstyle").style.visibility = "visible";
-
         }
         if(clicks > 1){
           //Add additional line paths for each click (can be "buggy" at times) don't click too fast
           newLine.geometry.addPath([newLine.geometry.paths[newLine.geometry.paths.length-1][1], evt.mapPoint]);
           lineLayer.redraw();
         }
-
         return;
     });
 
     on(map, "mouse-move", function(evt){
     if(newLine){
-        map.graphics.clear();
         newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
-
-        gsMeasure(newLine.geometry);
-
-//        updateResults(lengthResults);
-
         lineLayer.redraw();
     }
     });
 
-    function updateResults(result){
-        dom.byId("geodesicResult").innerHTML = numberWithCommas(Math.round(result.geodesic * 100) / 100);
-        dom.byId("planarResult").innerHTML = numberWithCommas(Math.round(result.planar * 100) / 100);
-        dom.byId("differenceResult").innerHTML = numberWithCommas(Math.round(result.difference * 100) / 100);
-    }
+//    function updateResults(result){
+//        dom.byId("geodesicResult").innerHTML = numberWithCommas(Math.round(result.geodesic * 100) / 100);
+//        dom.byId("planarResult").innerHTML = numberWithCommas(Math.round(result.planar * 100) / 100);
+//        dom.byId("differenceResult").innerHTML = numberWithCommas(Math.round(result.difference * 100) / 100);
+//    }
 
-    function publishResults(){
+    function publishResults(result){
         if(lineLayer.graphics.length === 1){
             dom.byId("finalList").style.visibility = "visible";
         }
+        
+        dom.byId("geodesicResult").innerHTML = numberWithCommas(Math.round(result.geodesic * 100) / 100)
+        dom.byId("planarResult").innerHTML = numberWithCommas(Math.round(result.planar * 100) / 100)
+        dom.byId("differenceResult").innerHTML = numberWithCommas(Math.round(result.difference * 100) / 100)
 
-        dom.byId("finalList").innerHTML = "<h3 style='color:" + dom.byId("perstyle").style.color + "'>Line " + lineLayer.graphics.length + "</h3>" + dom.byId("content").innerHTML + "<hr>" + dom.byId("finalList").innerHTML;
+        dom.byId("finalList").innerHTML = "<h3>Line " + (lineLayer.graphics.length-1) + "</h3>" 
+        + "<hr>" + dom.byId("finalList").innerHTML;
     }
     
     
@@ -180,6 +171,7 @@ require(["esri/map",
       dom.byId("instructions").innerHTML = "Click the map to begin drawing a line.";    
       if(newLine){
           newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
+          gsMeasure(newLine.geometry);
           lineLayer.redraw();
           
           newLine = null;    
@@ -220,40 +212,16 @@ require(["esri/map",
 
   function lengthRatio(lineGeom, gsLength, geGeodesicLength){
       var linePlanarLength = geometryEngine.planarLength(lineGeom, "miles"); //planar length in miles  9093
+      
 
-      updateResults({
+      publishResults({
               planar: linePlanarLength,
               geodesic: geGeodesicLength,
               difference: gsLength
              });
   }
 
-  function reclassLineError(ratio){
-      var symbol;
-      
-      var r = 255;
-      var g = 255;
-      var b = 255;
-      
-      if(ratio < 5){
-          r = Math.round((ratio / 5) * 255);
-          g = 255;
-          b = 0;
-      }
-      if(ratio >= 5){
-          r = 255;
-          g = Math.round(255 - ((ratio - 5) * 3.4));
-          b = 0;
-      }
-      
-      dom.byId("perstyle").style.color = "rgb(" + r + "," + g + "," + b + ")";
-      dom.byId("planarstyle").style.color = "rgb(" + r + "," + g + "," + b + ")";
-      symbol = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([r,g,b]), 4);
-      
-      return symbol;
-  }
-
-  function placeLabel(lineGeom, ratio){
+  function placeLabel(lineGeom){
       var beginMapXY = lineGeom.paths[0][0];
       var labelPoint = new Point(beginMapXY[0], beginMapXY[1], map.spatialReference);
 
@@ -272,8 +240,6 @@ require(["esri/map",
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
 
-  dom.byId("geostyle").style.color = "green";
-  dom.byId("diffstyle").style.color = "red";
 });
 </script>
 </head>
@@ -283,12 +249,13 @@ require(["esri/map",
 <div class="mainStyle" id="title"><h2>Geodesic Length vs. Planar Length</h2></div>
 <div class="mainStyle" id="results"><span id="instructions">Click the map to begin drawing a line.</span><br><br>
     <span id="content">
-        GE Geodesic Length (WGS-84): <span id="geostyle" style="visibility:hidden;"><span id="geodesicResult"></span> mi</span>
-        <br>GE Planar Length: <span id="planarstyle" style="visibility:hidden;"><span id="planarResult"></span> mi</span>
-        <br>GS Length: <span id="diffstyle" style="visibility:hidden;"><span id="differenceResult"></span> mi</span>
+        
     </span>
 </div>  
-    <div class="mainStyle" id="finalList"></div>
+    <div class="mainStyle" id="finalList">
+        GE Geodesic Length (WGS-84): <span id="geostyle" style="visibility:hidden;"><span id="geodesicResult"></span> mi</span>
+        <br>GE Planar Length: <span id="planarstyle" style="visibility:hidden;"><span id="planarResult"></span> mi</span>
+        <br>GS Length: <span id="diffstyle" style="visibility:hidden;"><span id="differenceResult"></span> mi</span></div>
 </div>
 </body>
 </html>
