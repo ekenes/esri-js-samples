@@ -69,7 +69,7 @@ require(["esri/map",
        "dojo/on",
        "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, FeatureLayer, WMTSLayer, WMTSLayerInfo, SimpleFillSymbol, SimpleLineSymbol, geometryEngine, Line, SimpleRenderer, LengthsParameters, GeometryService, esriConfig, dom, on) {
     
-    esriConfig.defaults.io.proxyUrl = "../proxy/proxy.php";
+    esriConfig.defaults.io.proxyUrl = "http://norwayparishes.com/proxy/PHP/proxy.php";
     
     var gs = new GeometryService("http://sampleserver6.arcgisonline.com/arcgis/rest/services/Utilities/Geometry/GeometryServer");
     
