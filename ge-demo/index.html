@@ -73,8 +73,10 @@ require(["esri/map",
     
   //Instructions for using the app. Will update based on user behavior    
   var drawInstructions = "Click outside the selected feature to begin drawing cutting line. Double-click to finish line and make final cut.";
-  var initInstructions = "Choose an operation below then click to select a feature.";
+  var initInstructions = "Click to select a feature.";
   var mergeInstructions = "Select another polygon to merge into the selected feature.";
+  var addInstructions = "Click to begin drawing a new feature. Polygons must have at least 3 vertices.";
+  var deleteInstructions = "Click to delete a feature.";
   dom.byId("instructions").innerHTML = initInstructions;
   map = new Map("map", {
     basemap: "satellite",
@@ -404,18 +406,22 @@ require(["esri/map",
     if(addOpt.checked){
       activateAdd();
     }
+    dom.byId("instructions").innerHTML = addInstructions;
   });
     
   on(cutOpt, "click", function(evt){
     deactivateAdd();
+    dom.byId("instructions").innerHTML = initInstructions;  
   });
     
   on(mergeOpt, "click", function(evt){
     deactivateAdd();
+    dom.byId("instructions").innerHTML = initInstructions;
   });
     
   on(deleteOpt, "click", function(evt){
     deactivateAdd();
+    dom.byId("instructions").innerHTML = deleteInstructions;
   });    
     
   on(drawPolygon, "draw-end", function(evt){
