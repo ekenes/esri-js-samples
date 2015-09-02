@@ -45,7 +45,7 @@ var dojoConfig = {
 
 <script src="http://js.arcgis.com/3.14/"></script>
 <script>
-var map;
+var map, orchardLayer;
 require(["esri/map",
          "esri/graphic",
          "esri/graphicsUtils",
@@ -54,23 +54,20 @@ require(["esri/map",
          "esri/geometry/Polyline",
          "esri/geometry/Point",
          "esri/SpatialReference",
-         
+         "esri/toolbars/draw",
          "esri/symbols/SimpleFillSymbol",
          "esri/symbols/SimpleLineSymbol",
          "esri/symbols/TextSymbol",
          "esri/symbols/Font",
          "esri/Color",
          "esri/renderers/SimpleRenderer",
-         
-         "esri/layers/FeatureLayer",
          "esri/layers/GraphicsLayer",
          "data/orchards",  //Feature layer representing an apple orchard
-         
          "dojo/on",
          "dojo/_base/array",
          "dojo/dom",
          "dojo/domReady!"
-], function(Map, Graphic, graphicsUtils, Extent, geometryEngine, Line, Point, SpatialReference, SimpleFillSymbol, SimpleLineSymbol, TextSymbol, Font, Color, SimpleRenderer, FeatureLayer, GraphicsLayer, orchards, on, array, dom) {
+], function(Map, Graphic, graphicsUtils, Extent, geometryEngine, Line, Point, SpatialReference, Draw, SimpleFillSymbol, SimpleLineSymbol, TextSymbol, Font, Color, SimpleRenderer, GraphicsLayer, orchards, on, array, dom) {
     
   var initExtent = new Extent(-13056650, 6077558, -13055709, 6077938, new SpatialReference({wkid:3857}));
     
@@ -92,9 +89,8 @@ require(["esri/map",
   var renderer = new SimpleRenderer(orchardSym);
     
   //Get FeatureLayer created from FeatureCollection stored on the client through data/orchards
-  var orchardLayer = orchards;  
+  orchardLayer = orchards;  
   orchardLayer.setRenderer(renderer);
-  map.addLayer(orchardLayer);
     
   //Create graphics layer for labeling
   var displayLabels = new GraphicsLayer();
@@ -107,9 +103,12 @@ require(["esri/map",
 
   //Create GraphicsLayer for cutting line   
   var cutGraphic1, cutGraphic2;
- 
-  map.addLayer(selectionLayer);
-  map.addLayer(displayLabels);  
+
+  map.addLayers([orchardLayer, selectionLayer, displayLabels]);
+    
+  //Initialize Draw polygon tool
+  var drawPolygon = new Draw(map, { showTooltips: true });
+  drawPolygon.setFillSymbol(new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, cutterSym, new Color([255, 255, 255, 0.25])));
 
   //Calculates the area of the input geometry using GeometryEngine.geodesicArea() and converts it to a string
   function calcArea(geom){
@@ -148,6 +147,8 @@ require(["esri/map",
   function selectFeature(evt){
     if(cutOpt.checked){
       disableMerge();
+      disableAdd();
+      disableDelete();
       dom.byId("instructions").innerHTML = drawInstructions;    
       if(!disableDraw){
           return;
@@ -160,6 +161,8 @@ require(["esri/map",
     }
     if(mergeOpt.checked){
       disableCut();
+      disableAdd();
+      disableDelete();
       selectedGraphic = new Graphic(evt.graphic.geometry, selectionSym);
       selectionLayer.add(selectedGraphic);
       dom.byId("instructions").innerHTML = mergeInstructions;
@@ -174,9 +177,16 @@ require(["esri/map",
   //cut and merge options    
   var cutOpt = dom.byId("cutOpt");
   var mergeOpt = dom.byId("mergeOpt");
+  var addOpt = dom.byId("addOpt");   
+  var deleteOpt = dom.byId("deleteOpt");    
    
   //click handler    
   on(map, "click", mapClick);
+
+  on(map, "layers-add-result", function(evt){
+    var geoms = graphicsUtils.getGeometries(orchardLayer.graphics);
+    labelAreas(geoms);
+  });
     
   function initCut(){
     cutter = null;  //reset cutter to null each time cut is intialized
@@ -222,7 +232,30 @@ require(["esri/map",
     }
     if(mergeOpt.checked){
        activateMerge(evt);
-    } 
+    }
+    if(addOpt.checked){
+       disableCut();
+       disableMerge();
+       disableDelete();
+    }
+    if(deleteOpt.checked){
+       activateDelete(evt);
+    }
+  }
+    
+  //Delete features when clicked    
+  function activateDelete(evt){
+    var feature = evt.graphic.geometry;
+    if(feature){
+      array.forEach(orchardLayer.graphics, function(item, i){
+        if(item && geometryEngine.equals(item.geometry, feature)){
+          orchardLayer.remove(item);
+          displayLabels.remove(displayLabels.graphics[i]);
+        }    
+      });
+    } else{
+      alert("Select a feature to delete.");
+    }
   }
    
   //Activate cutting tool    
@@ -271,6 +304,7 @@ require(["esri/map",
     
  //Finish drawing line on double-click event 
  on(map, "dbl-click", function(evt){
+   if(cutOpt.checked){
      map.enableMapNavigation();
      disableDraw = true;
      map.graphics.clear();
@@ -286,9 +320,15 @@ require(["esri/map",
       }
       clearSelectedFeatures();
       dom.byId("instructions").innerHTML = initInstructions;
-      var orchardGeoms = graphicsUtils.getGeometries(orchardLayer.graphics);
-      labelAreas(orchardGeoms);
       enableMerge();
+      enableAdd();
+      enableDelete();
+   }
+   if(addOpt.checked){
+     drawPolygon.finishDrawing();
+   }
+   var orchardGeoms = graphicsUtils.getGeometries(orchardLayer.graphics);
+   labelAreas(orchardGeoms);     
   });
     
   //cut the polygon with the line drawn on map
@@ -355,8 +395,78 @@ require(["esri/map",
     orchardLayer.add(new Graphic(mergedGeometry, orchardSym));
     labelAreas(graphicsUtils.getGeometries(orchardLayer.graphics));
     dom.byId("instructions").innerHTML = initInstructions;
-    enableCut(); 
+    enableCut();
+    enableAdd();
+    enableDelete();
   }
+    
+  on(addOpt, "click", function(evt){
+    if(addOpt.checked){
+      activateAdd();
+    }
+  });
+    
+  on(cutOpt, "click", function(evt){
+    deactivateAdd();
+  });
+    
+  on(mergeOpt, "click", function(evt){
+    deactivateAdd();
+  });
+    
+  on(deleteOpt, "click", function(evt){
+    deactivateAdd();
+  });    
+    
+  on(drawPolygon, "draw-end", function(evt){
+    enableCut();
+    enableMerge();
+    enableDelete();
+    deactivateAdd();
+    activateAdd();
+    var geom = evt.geometry;
+    if(geom.rings[0].length <= 3){
+      alert("Polygon must have at least three vertices.");
+      return;
+    }  
+    
+    var topoTest = testTopology(geom);
+    if(topoTest === "within"){
+      alert("New feature must not be completely within existing features.");
+    }
+    if(typeof topoTest === "object"){
+      orchardLayer.add(new Graphic(topoTest, orchardSym));
+    }
+  });
+    
+  function testTopology(feature){
+      var newfeature, combined;
+      var allGeoms = graphicsUtils.getGeometries(orchardLayer.graphics);
+    if(allGeoms.length > 0){
+      combined = geometryEngine.union(allGeoms);
+      if(geometryEngine.within(feature, combined)){
+        return "within";
+      }
+      if(geometryEngine.intersects(combined, feature)){
+        newfeature = geometryEngine.difference(feature, combined);
+      }
+      else{
+        newfeature = feature;
+      }
+    }
+    else{
+      newfeature = feature;
+    }
+    return newfeature;
+  }
+    
+  function activateAdd(){
+    drawPolygon.activate(Draw.POLYGON);
+  }
+    
+  function deactivateAdd(){
+    drawPolygon.deactivate();
+  }    
 
   //Function for offseting geometries by 10 feet    
   function offsetGeoms(polys){
@@ -379,7 +489,23 @@ require(["esri/map",
   function enableCut(){
     cutOpt.disabled = false;
     dom.byId("cutLabel").style.color = "black";  
+  }
+  function disableAdd(){
+    addOpt.disabled = true;
+    dom.byId("addLabel").style.color = "gray";
+  }
+  function enableAdd(){
+    addOpt.disabled = false;
+    dom.byId("addLabel").style.color = "black";  
   } 
+  function disableDelete(){
+    deleteOpt.disabled = true;
+    dom.byId("deleteLabel").style.color = "gray";
+  }
+  function enableDelete(){
+    deleteOpt.disabled = false;
+    dom.byId("deleteLabel").style.color = "black";  
+  }     
   on(displayLabels, 'graphic-node-add', function (graphic) {
     graphic.node.style.textShadow = "1px 1px 1px white, 1px -1px 1px white, -1px 1px 1px white, -1px -1px 1px white";
   });    
@@ -392,7 +518,9 @@ require(["esri/map",
     <div class="mainStyle" id="title"><h2>Apple Orchards</h2></div>
     <div class="mainStyle" id="results"><span id="instructions"></span><br><br>
     <input type="radio" name="operation" id="cutOpt" checked><span id="cutLabel">Cut Features</span><br><br>
-    <input type="radio" name="operation" id="mergeOpt"><span id="mergeLabel">Merge Features</span><br><br>    
+    <input type="radio" name="operation" id="mergeOpt"><span id="mergeLabel">Merge Features</span><br><br>
+    <input type="radio" name="operation" id="addOpt"><span id="addLabel">Add Features</span><br><br>
+    <input type="radio" name="operation" id="deleteOpt"><span id="deleteLabel">Delete Features</span><br><br>     
   </div>
 </div>
 </body>
