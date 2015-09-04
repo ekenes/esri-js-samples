@@ -56,18 +56,19 @@ require(["esri/map",
  
   var LandType = function(){
     return {
-      graphics: [],
+      geoms: [],
       geom: null,
-      sym: null
+      area: null,
+      type: null,
+      sym: null,
+      color: null,
+      highlight: null,
+      label: null
     };
   };
 
-  var intersectingLands = {
-    bankjones: new LandType()
-  };
-    
- 
-   
+  var intersectingLands = [];
+
   //Set up map, layers, and properties    
   var initExtent = new Extent(-12525064, 4509990, -12329386, 4621283, new SpatialReference({wkid:3857}));
   map = new Map("map", {
@@ -102,6 +103,7 @@ require(["esri/map",
   
   function createBuffer(evt){
     if(buffOpt.checked){
+      intersectingLands = [];
       map.graphics.clear();
       var centerPt = evt.mapPoint;
       //Get buffer of map click point
@@ -123,9 +125,9 @@ require(["esri/map",
       } 
       map.graphics.add(new Graphic(buffGeom, buffSymFade));
 
-      var privateLand = getLand(buffGeom);
+      var landCategories = getLand(buffGeom);
 //      var publicLand = getPublicLand(buffGeom, privateLand.geom);
-//      generateChart(privateLand, publicLand);  
+      generateChart(landCategories);  
     }
     else{
       return;
@@ -134,148 +136,318 @@ require(["esri/map",
     
   function getLand(geom){
     var privateLandGraphics = landLyr.graphics;
+//    var keep = [];
 //    var privateLandGeoms = graphicsUtils.getGeometries(privateLandGraphics);
     //Only work with private land that intersects the buffer (essentially a select by location)  
     array.forEach(privateLandGraphics, function(item, i){
-      if(geometryEngine.intersects(item.graphic, geom)){
-        return item;
+      if(geometryEngine.intersects(item.geometry, geom)){
+        if(intersectingLands.length === 0){  
+          var parcel = new LandType();
+          parcel.geoms.push(item.geometry);
+          parcel.sym = classify(item);
+          parcel.type = item.attributes.STATE_LGD;
+          intersectingLands.push(parcel);
+            console.log("intersecting item 1: ", intersectingLands);
+        }
+        else{
+          array.forEach(intersectingLands, function(land, j){
+            if(item.attributes.STATE_LGD === land.type){
+              land.geoms.push(item.geometry);
+                console.log("intersecting item duplicate no. : ", j, " ", intersectingLands);
+            }
+            else{
+              var parcel = new LandType();
+              parcel.geoms.push(item.geometry);
+              parcel.sym = classify(item);
+              parcel.type = item.attributes.STATE_LGD;
+              intersectingLands.push(parcel);
+                console.log("intersecting type: #", j," ", intersectingLands);
+            }
+          });
+        }
+          
+            
       }
     });
-    if (priInBuffer.length > 0){
-      //merge all the private land features that intersects buffer into one feature
-      var privateUnion = geometryEngine.union(priInBuffer);
-      //get intersection of buffer and merge (cookie cutter)
-      var privateIntersect = geometryEngine.intersect(privateUnion, geom);
-      return {
-        geom: privateIntersect,
-        area: calcArea(privateIntersect)  //get the area of the private land
-      }  
-    }
-    else{
-      return {
-        geom: null,
-        area: 0
+      
+    array.forEach(intersectingLands, function(item, i){
+      if(item.geoms.length > 1){
+        var union = geometryEngine.union(item.geoms); 
+        item.geom = geometryEngine.intersect(geom, union);
       }
-    } 
+      item.geom = geometryEngine.intersect(geom, item.geoms[0]);
+      item.area = calcArea(item.geom);
+      item.label = item.type + " (sq miles)";
+      item.value = item.area;
+      item.color = item.sym.color.toHex();
+      item.highlight = setHighlight(item.sym.color);
+    });
+      
+    console.log("intersecting lands: ", intersectingLands);
+      
+    return intersectingLands;
+  }
+    
+  function setHighlight(color){
+    color.r += 10;
+    color.b += 10;
+    color.g += 10;
+      
+    if(color.r > 255)
+      color.r = 255;
+    if(color.g > 255)
+      color.g = 255;
+    if(color.b > 255)
+      color.b = 255;
+      
+    return color.toHex();
   }
     
   function classify(graphic){
+    var feature, symJson, symbol;
     var type = graphic.attributes.STATE_LGD;
       if(type === "Bureau of Land Management"){
-          
+         symJson = {
+           Style: "esriSFSSolid", 
+           Color: [254, 230, 121, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         };
       }
       if(type === "Bureau of Reclamation"){
-          
+         symJson = {
+           Style: "esriSFSSolid", 
+           Color: [255, 255, 179, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         }; 
       }
       if(type === "Bankhead-Jones Land Use Lands"){
-          
+         symJson = {
+           Style: "esriSFSSolid", 
+           Color: [252, 205, 207, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         }; 
       }
       if(type === "National Recreation Area"){
-          
+         symJson = {
+           Style: "esriSFSSolid", 
+           Color: [205, 137, 102, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         }; 
       }
       if(type === "National Parks, Monuments & Historic Sites"){
-          
+        symJson = {
+           Style: "esriSFSSolid", 
+           Color: [202, 166, 222, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         };  
       }
       if(type === "National Forest"){
-          
+         symJson = {
+           Style: "esriSFSSolid", 
+           Color: [137, 205, 102, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         };  
       }
       if(type === "National Wilderness Area"){
-          
+         symJson = {
+           Style: "esriSFSSolid", 
+           Color: [38, 115, 0, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         };  
       }
       if(type === "National Wildlife Refuge"){
-          
+         symJson = {
+           Style: "esriSFSSolid", 
+           Color: [127, 204, 167, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         }; 
       }
       if(type === "Other Federal"){
-          
+        symJson = {
+           Style: "esriSFSSolid", 
+           Color: [230, 204, 179, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         };  
       }
       if(type === "Military Reservations and Corps of Engineers"){
-          
+         symJson = {
+           Style: "esriSFSSolid", 
+           Color: [251, 180, 206, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         }; 
       }
       if(type === "Private"){
-          
+        symJson = {
+           Style: "esriSFSSolid", 
+           Color: [0, 0, 0, 0],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [0, 0, 0, 0], 
+                Width: 0.5
+             }
+         };  
       }
       if(type === "State Trust Lands"){
-          
+         symJson = {
+           Style: "esriSFSSolid", 
+           Color: [115, 178, 255, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         }; 
       }
       if(type === "State Sovereign Land"){
-          
+        symJson = {
+           Style: "esriSFSSolid", 
+           Color: [173, 201, 222, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         };  
       }
       if(type === "State Parks and Recreation"){
-          
+        symJson = {
+           Style: "esriSFSSolid", 
+           Color: [136, 147, 186, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         };  
       }
       if(type === "State Wildlife Reserve/Management Area"){
-          
+        symJson = {
+           Style: "esriSFSSolid", 
+           Color: [194, 184, 143, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         };  
       }
       if(type === "Other State"){
-          
+        symJson = {
+           Style: "esriSFSSolid", 
+           Color: [190, 255, 232, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         };  
       }
       if(type === "Tribal Lands"){
-          
+        symJson = {
+           Style: "esriSFSSolid", 
+           Color: [253, 180, 108, 255],
+           Outline:
+             {
+                Style: "esriSLSSolid", 
+                Color: [254, 230, 121, 255], 
+                Width: 0.5
+             }
+         };  
       }
+      
+      console.log("each symbol: ", new SimpleFillSymbol(symJson));
+      
+      return new SimpleFillSymbol(symJson);
   }    
-    
-  function getPublicLand(buffer, privateLand){
-    if(privateLand){
-      //most land that isn't private is public (city, county, state, or federally owned)     
-      var publicLand = geometryEngine.difference(buffer, privateLand);
-      return {
-        geom: publicLand,
-        area: calcArea(publicLand)
-      }  
-    } else {
-      return {
-        geom: buffer,
-        area: calcArea(buffer)
-      }
-    }
-  }
 
   function calcArea(geom){
     return (Math.round(geometryEngine.geodesicArea(geom, "square-miles")*100) / 100);
   }
     
-  function generateChart(pvtData, pubData){
-    if(pvtData.geom)
-      map.graphics.add(new Graphic(pvtData.geom, privateSym));
-    if(pubData.geom)
-      map.graphics.add(new Graphic(pubData.geom, publicSym));
+  function generateChart(objs){
+    array.forEach(objs, function(item, i){
+      map.graphics.add(new Graphic(item.geom, item.sym));
+    });  
     map.graphics.add(new Graphic(buffGeom, buffSym));
     if(!pieChart){
-      var data = [
-      {
-        label: "Private Land (sq miles)",
-        value: pvtData.area,
-        color: "#8A8A8A",
-        highlight: "#B5B5B5"
-      },
-      {
-        label: "Public Land (sq miles)",
-        value: pubData.area,
-        color: "#99F095",
-        highlight: "#A1FF9C"  
-      }
-    ];
+      var data = objs;
       
-    var opts = {
-    segmentShowStroke : true,
-    segmentStrokeColor : "#fff",
-    segmentStrokeWidth : 2,
-    percentageInnerCutout : 0,
-    animationSteps : 100,
-    animationEasing : "easeOutBounce",
-    animateRotate : true,
-    animateScale : false 
-    };
+      var opts = {
+        segmentShowStroke : true,
+        segmentStrokeColor : "#fff",
+        segmentStrokeWidth : 2,
+        percentageInnerCutout : 0,
+        animationSteps : 100,
+        animationEasing : "easeOutBounce",
+        animateRotate : true,
+        animateScale : false 
+      };
     
-    var ctx = document.getElementById("myChart").getContext("2d");
-    pieChart = new Chart(ctx).Pie(data, opts);  
+      var ctx = document.getElementById("myChart").getContext("2d");
+      pieChart = new Chart(ctx).Pie(data, opts);  
     }
     else{
       //update private land data
-      pieChart.segments[0].value = pvtData.area;
-      //update public land data
-      pieChart.segments[1].value = pubData.area;
-      pieChart.update();
+//      pieChart.segments[0].value = pvtData.area;
+//      //update public land data
+//      pieChart.segments[1].value = pubData.area;
+//      pieChart.update();
     }
   }
     
