@@ -64,7 +64,7 @@ require(["esri/map",
        "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, ArcGISDynamicMapServiceLayer, SimpleLineSymbol, geometryEngine, Line, LengthsParameters, GeometryService, dom, on) {
     
     var gs = new GeometryService("http://sampleserver6.arcgisonline.com/arcgis/rest/services/Utilities/Geometry/GeometryServer");
-
+    var loading = dom.byId("loadingImg");
     homosolineLyr = new ArcGISDynamicMapServiceLayer("http://maps.esri.com/apl4/rest/services/UC2012/UC2012_ServerCartogram/MapServer");
     
     map = new Map("map");    
@@ -152,9 +152,22 @@ require(["esri/map",
        return result;
     }
     
-  function numberWithCommas(x) {
-    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  }
+    function numberWithCommas(x) {
+      return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+    
+    on(map, "update-start", showLoading);
+    on(map, "update-end", hideLoading);
+    
+    function showLoading() {
+      esri.show(loading);
+      map.disableMapNavigation();
+    }
+
+    function hideLoading(error) {
+      esri.hide(loading);
+      map.enableMapNavigation();
+    } 
 
 });
 </script>
@@ -162,6 +175,7 @@ require(["esri/map",
 
 <body>
 <div id="map">
+<img id="loadingImg" src="http://developers.arcgis.com/javascript/samples/map_showloading/images/loading.gif" style="position:absolute; right:49%; top:49%; z-index:100;" />    
 <div class="mainStyle" id="title"><h2>Length in Goode's Homosoline</h2></div>
 <div class="mainStyle" id="results"><span id="instructions">Click the map to begin drawing a line.</span><br><br>
 GE Planar Length: <span id="geResult"></span> mi
