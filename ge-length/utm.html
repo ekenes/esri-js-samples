@@ -70,9 +70,8 @@ require(["esri/map",
        "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, FeatureLayer, WMTSLayer, WMTSLayerInfo, SimpleFillSymbol, SimpleLineSymbol, geometryEngine, Line, SimpleRenderer, LengthsParameters, GeometryService, esriConfig, dom, on) {
     
     esriConfig.defaults.io.proxyUrl = "http://norwayparishes.com/proxy/PHP/proxy.php";
-    
     var gs = new GeometryService("http://sampleserver6.arcgisonline.com/arcgis/rest/services/Utilities/Geometry/GeometryServer");
-    
+    var loading = dom.byId("loadingImg");
     var topoInfo = new WMTSLayerInfo({
           identifier: "europa",   //europa
           tileMatrixSet: "EPSG:25832",  //UTM Zone 32N  25832
@@ -178,6 +177,19 @@ require(["esri/map",
   function numberWithCommas(x) {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
+  
+  on(map, "update-start", showLoading);
+  on(map, "update-end", hideLoading);
+    
+  function showLoading() {
+    esri.show(loading);
+    map.disableMapNavigation();
+  }
+
+  function hideLoading(error) {
+    esri.hide(loading);
+    map.enableMapNavigation();
+  }    
 
 });
 </script>
@@ -185,6 +197,7 @@ require(["esri/map",
 
 <body>
 <div id="map">
+<img id="loadingImg" src="http://developers.arcgis.com/javascript/samples/map_showloading/images/loading.gif" style="position:absolute; right:49%; top:49%; z-index:100;" />
 <div class="mainStyle" id="title"><h2>Length in UTM Zone 32N</h2></div>
 <div class="mainStyle" id="results"><span id="instructions">Click the map to begin drawing a line. Planar measurements inside UTM Zone 32N (shaded in red) will be accurate; if using planar measurement outside the zone, the measurement loses accuracy the further outside the zone the geometry is located.</span><br><br>
 GE Planar Length: <span id="geResult"></span> mi
