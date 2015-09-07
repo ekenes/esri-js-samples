@@ -36,7 +36,7 @@ html, body, #map {
 
 <script src="http://js.arcgis.com/3.14/"></script>
 <script>
-var map, landLyr, utahLyr, pieChart, buffGeom;
+var map, landLyr, utahLyr, waterLyr, pieChart, buffGeom;
 require(["esri/map",
          "./Chart-js/Chart.js",
          "esri/graphic",
@@ -46,13 +46,14 @@ require(["esri/map",
          "esri/SpatialReference",
          "esri/symbols/SimpleFillSymbol",
          "esri/symbols/SimpleLineSymbol",
+         "esri/toolbars/draw",
          "esri/Color",
          "esri/layers/FeatureLayer",
          "dojo/on",
          "dojo/_base/array",
          "dojo/dom",
          "dojo/domReady!"
-], function(Map, Chart, Graphic, graphicsUtils, Extent, geometryEngine, SpatialReference, SimpleFillSymbol, SimpleLineSymbol, Color, FeatureLayer, on, array, dom) {
+], function(Map, Chart, Graphic, graphicsUtils, Extent, geometryEngine, SpatialReference, SimpleFillSymbol, SimpleLineSymbol, Draw, Color, FeatureLayer, on, array, dom) {
    
   //Set up map, layers, and properties    
   var initExtent = new Extent(-12525064, 4509990, -12329386, 4621283, new SpatialReference({wkid:3857}));
@@ -66,6 +67,7 @@ require(["esri/map",
  
   var landUrl = "http://tlamap.trustlands.utah.gov/arcgis/rest/services/UT_SITLA_LandOwnership/MapServer/0";
   var statesUrl = "http://sampleserver6.arcgisonline.com/arcgis/rest/services/Census/MapServer/3";
+  var waterUrl = "http://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Detailed_Water_Bodies/FeatureServer/0";
   landLyr = new FeatureLayer(landUrl, {
     opacity: 0.5,
     definitionExpression: "STATE_LGD = 'Private'"
@@ -74,7 +76,11 @@ require(["esri/map",
     definitionExpression: "STATE_NAME = 'Utah'",
     opacity: 0
   });
-  map.addLayers([utahLyr, landLyr]);
+  waterLyr = new FeatureLayer(waterUrl, {
+    opacity: 0
+  });
+  waterLyr.setMinScale(4000000);
+  map.addLayers([utahLyr, waterLyr, landLyr]);
     
   //Layer symbology    
   var buffSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_NULL, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255, 255, 255, 1]), 3), null);
@@ -85,6 +91,7 @@ require(["esri/map",
   //map event handlers  
   on(map, "click", createBuffer);
   on(map, "mouse-drag", createBuffer);
+  var drawPolygon = new Draw(map, { showTooltips: true });    
   
   function createBuffer(evt){
     if(buffOpt.checked){
@@ -96,7 +103,7 @@ require(["esri/map",
       var within = geometryEngine.within(buffGeom, utahLyr.graphics[0].geometry);
       //check if buffer overlaps Utah    
       var overlaps = geometryEngine.overlaps(buffGeom, utahLyr.graphics[0].geometry);
-        
+
       if(!within && overlaps){
          //If buffer overlaps Utah, then only get the portion within Utah  
          buffGeom = geometryEngine.intersect(buffGeom, utahLyr.graphics[0].geometry);
@@ -110,7 +117,9 @@ require(["esri/map",
 
       var privateLand = getPrivateLand(buffGeom);
       var publicLand = getPublicLand(buffGeom, privateLand.geom);
-      generateChart(privateLand, publicLand);  
+      generateChart(privateLand, publicLand);   
+    } else if(drawOpt.checked){
+      map.graphics.clear();
     }
     else{
       return;
@@ -169,17 +178,18 @@ require(["esri/map",
       map.graphics.add(new Graphic(pvtData.geom, privateSym));
     if(pubData.geom)
       map.graphics.add(new Graphic(pubData.geom, publicSym));
-    map.graphics.add(new Graphic(buffGeom, buffSym));
+    if(!drawOpt.checked)
+      map.graphics.add(new Graphic(buffGeom, buffSym));
     if(!pieChart){
       var data = [
       {
-        label: "Private Land (sq miles)",
+        label: "Private (sq mi)",
         value: pvtData.area,
         color: "#8A8A8A",
         highlight: "#B5B5B5"
       },
       {
-        label: "Government Land (sq miles)",
+        label: "Government (sq mi)",
         value: pubData.area,
         color: "#99F095",
         highlight: "#A1FF9C"  
@@ -209,33 +219,114 @@ require(["esri/map",
     }
   }
     
+//  function removeWater(private, public){
+//    map.graphics.clear();
+//    var privAdj, pubAdj;  
+//    var waterGeoms = graphicsUtils.getGeometries(waterLyr.graphics);
+//    var waterGeom = geometryEngine.union(waterGeoms);
+//    if(geometryEngine.intersects(waterGeom, private)){
+//      privAdj = geometryEngine.difference(private, waterGeom);
+//    }
+//    if(geometryEngine.intersects(waterGeom, public)){
+//      pubAdj = geometryEngine.difference(public, waterGeom)
+//    }
+//    if(!geometryEngine.intersects(waterGeom, public) && !geometryEngine.intersects(waterGeom, private))
+//      return;
+//    hideLoading();
+//    generateChart({
+//      geom: privAdj,
+//      area: calcArea(privAdj)
+//    }, {
+//      geom: pubAdj,
+//      area: calcArea(pubAdj)
+//    });
+//  }
+    
   var buffOpt = dom.byId("buffOpt");
-  var navOpt = dom.byId("navOpt");    
+  var navOpt = dom.byId("navOpt");
+  var drawOpt = dom.byId("drawOpt");
+//  var waterOpt = dom.byId("waterOpt");
     
   on(buffOpt, "click", function(evt){
     if(buffOpt.checked){
       map.disableMapNavigation();
+      drawPolygon.deactivate();
     }
   });
     
   on(navOpt, "click", function(evt){
     if(navOpt.checked){
       map.enableMapNavigation();
+      drawPolygon.deactivate();
     }
-  });    
+  });
+    
+  on(drawOpt, "click", function(evt){
+    if(drawOpt.checked){
+      drawPolygon.activate(Draw.POLYGON);
+    }
+  });
+    
+//  on(waterOpt, "click", function(evt){
+//    showLoading();
+//    if(map.graphics.graphics.length === 4){
+//      var privateGeom = map.graphics.graphics[1].geometry;
+//      var publicGeom = map.graphics.graphics[2].geometry;   
+//    }
+//    removeWater(privateGeom, publicGeom);
+//  });    
+    
+  on(drawPolygon, "draw-end", function(evt){  
+    drawPolygon.deactivate();
+    drawPolygon.activate(Draw.POLYGON);
+    var geom = evt.geometry;
+    if(geom.rings[0].length <= 3){
+      alert("Polygon must have at least three vertices.");
+      return;
+    }
+      
+    var within = geometryEngine.within(geom, utahLyr.graphics[0].geometry);
+    //check if buffer overlaps Utah    
+    var overlaps = geometryEngine.overlaps(geom, utahLyr.graphics[0].geometry);
+    if(!within && overlaps){
+      //If buffer overlaps Utah, then only get the portion within Utah  
+      geom = geometryEngine.intersect(geom, utahLyr.graphics[0].geometry);
+    }
+    if(!within && !overlaps){
+      //If buffer is completely outside Utah, then warn the user
+      console.log("outside of utah!");          
+      return;
+    }  
+    var privateLand = getPrivateLand(geom);
+    var publicLand = getPublicLand(geom, privateLand.geom);
+    generateChart(privateLand, publicLand);
+  });  
+     
+  var loading = dom.byId("loadingImg");    
+  function showLoading() {
+    esri.show(loading);
+  }
+
+  function hideLoading(error) {
+    esri.hide(loading);
+  }
+  hideLoading();
+//  on(map, "update-end", hideLoading);    
     
 });
 </script>
 </head>
 
 <body>
-  <div id="map">
+  <div id="map"><img id="loadingImg" src="http://developers.arcgis.com/javascript/samples/map_showloading/images/loading.gif" style="position:absolute; right:49%; top:49%; z-index:100;" />
     <div class="mainStyle" id="results"><h2 id="title">Utah Land Ownership</h2>
     <canvas id="myChart" width="250" height="250"></canvas><br><br>
     Click or drag on the map to view private and government-owned land within 10 miles of the mouse click.
     Hover over the pie chart to view the area of each ownership type within the 10-mile buffer. 
-    <br><br><input type="radio" name="operation" id="buffOpt" checked>View Land Ownership
+    <br><br><input type="radio" name="operation" id="buffOpt" checked>View ownership by map click
+    <br><br><input type="radio" name="operation" id="drawOpt">View ownership by polygon   
     <br><br><input type="radio" name="operation" id="navOpt">Navigate Map 
+<!--    <br><br><button type="button" id="waterOpt">Remove water bodies</button>      -->
   </div>
 </div>
 </body>
