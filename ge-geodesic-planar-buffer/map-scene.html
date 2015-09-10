@@ -11,9 +11,30 @@
     margin: 0;
     height: 100%;
   }
-  #viewDiv{
-    width: 100%;
+  .viewDivBase{
+    padding: 0;
+    margin: 0;
     height: 100%;
+    width: 49.9%;
+  }
+  #viewDiv2d{
+    float: left;
+  }
+  #viewDiv3d{
+    float: right;
+  }
+  .title{
+    top: 0;
+    right: 0;
+    text-align: center;
+    position: absolute;
+    z-index: 99;
+    background-color: white;
+    padding: 6px;
+    opacity: 0.75;
+  }
+  #mapTitle{
+    right: 50%;
   }
   #legend{
     position: absolute;
@@ -25,15 +46,24 @@
     opacity: 0.75;  
   }
 </style>
+    
+<script>
+  var dojoConfig = { 
+    paths: {
+      ViewUtils: location.pathname.replace(/\/[^/]+$/, "") + "./",
+    }
+  };
+</script>    
 
 <link rel="stylesheet" href="https://js.arcgis.com/4.0beta1/esri/css/esri.css">
 <script src="https://js.arcgis.com/4.0beta1/"></script>
 
 <script>
-var map, view2d, point, wmPoint, geodesicBuffer, planarBuffer, sceneViewWatch, mapViewWatch;
+var map, view2d, view3d, point, wmPoint, geodesicBuffer, planarBuffer, sceneViewWatch, mapViewWatch;
 
 require([
   "esri/Map",
+  "esri/views/SceneView",
   "esri/views/MapView",
   "esri/layers/GraphicsLayer",
   "esri/Graphic",
@@ -44,10 +74,12 @@ require([
   "esri/geometry/geometryEngine",
   "esri/geometry/Point",
   "esri/geometry/support/webMercatorUtils",
+  "esri/core/watchUtils",
   "dojo/domReady!"
 ],
 function(
   Map,
+  SceneView,
   MapView,
   GraphicsLayer,
   Graphic,
@@ -57,15 +89,23 @@ function(
   SimpleFillSymbol,
   geometryEngine,
   Point,
-  webMercatorUtils
+  webMercatorUtils,
+  watchUtils 
 ) {
 
   map = new Map({
     basemap: "gray"
   });
 
+  view3d = new SceneView({
+    container: "viewDiv3d",
+    map: map,
+    zoom: 4,
+    center: [0,72]
+  });
+
   view2d = new MapView({
-    container: "viewDiv",
+    container: "viewDiv2d",
     map: map,
     zoom: 3,
     center: [0,72]
@@ -77,11 +117,14 @@ function(
 
   var bufferLayer = new GraphicsLayer();
   var pointLayer = new GraphicsLayer();
+
   map.add([bufferLayer, pointLayer]);
 
+  var sr = new SpatialReference(4326);
+
   var pointSym = new SimpleMarkerSymbol({
-    color: [0,0,0],
-    size: 4
+    color: [255,255,255],
+    size: 8
   });
 
   var geoSym = new SimpleFillSymbol({
@@ -108,11 +151,12 @@ function(
   addPoints();
 
   function addPoints(){
+
     for(var lat = -80; lat <= 80; lat+=10){
       point = new Point({
         x: 0,
         y: lat,
-        spatialReference: new SpatialReference({wkid: 4326})
+        spatialReference: sr
       });
       pointLayer.add(new Graphic({
         geometry: point,
@@ -127,18 +171,18 @@ function(
       wmPoint = webMercatorUtils.geographicToWebMercator(point);    
 
       /********************************************************************
-      * GeodesicBuffer calculates the true distance to buffer a point,
+      * Geodesic Buffer calculates the true distance to buffer a point,
       * minimizing the distortion that exists when buffering points away
       * from a projection's line of tangency. This distortion is evident
       * in the 2D view of this application. This map uses a Web Mercator
       * spatial reference, which has a line of tangency at the equator.
-      * Geodesic and planar buffers created on the equator have no distortion in their
-      * shape or size. The further geodesic buffers are created away from the equator, the
-      * more distorted they will be in their shape, but their size will remain accurate.
+      * Buffers created on the equator have very little distortion in their
+      * shape. The further buffers are created away from the equator, the
+      * more distorted they will be in their shape.
       *
       * If using a standard planar buffer, the shape of the buffers won't
-      * distort, but their size and areas will be very distorted
-      * (smaller than their true size) as they move away from the equator.
+      * distort in 2D views, but their size and areas will be very distorted
+      * as they move away from the equator.
       ********************************************************************/
       geodesicBuffer = geometryEngine.geodesicBuffer(point, 560, "kilometers");
       bufferLayer.add(new Graphic({
@@ -153,14 +197,55 @@ function(
       }));    
     }
   }
+  
+  /*****************************
+  * sync both views
+  ******************************/
+    
+   view2d.then(function(){
+     watchUtils.when(view2d, "interacting", function(val){
+        if(view2d.animation)
+          view2d.animation.stop();
+        mapViewWatch.resume();
+        sceneViewWatch.pause();
+     });
+ 
+     mapViewWatch = watchUtils.pausable(view2d, "viewpoint", function(val){
+       var vp = view2d.createViewpoint({
+         center: view2d.center,
+         scale: view2d.scale
+       });  
+       view3d.animateTo(vp);
+     });   
+   });
+   
+   view3d.then(function(){
+      watchUtils.whenTrueOnce(view3d, "updating", function(val){
+        mapViewWatch.pause();
+      });
+       
+      sceneViewWatch = watchUtils.pausable(view3d, "camera", function(val){
+        var vp = view3d.createViewpoint(view3d.camera);
+        view2d.animateTo(vp); 
+      });  
+       
+     watchUtils.when(view3d, "interacting", function(val){
+        mapViewWatch.pause();
+        sceneViewWatch.resume();
+     });       
+   });
 });
 </script>
 </head>
 
 <body>
-<div id="viewDiv">
+<div class="viewDivBase" id="viewDiv2d">
+  <div id="mapTitle" class="title">MapView</div>
   <div id="legend">Orange rings denote Euclidean buffers. 
       <br><br>Green rings denote geodesic buffers.</div>    
+</div>
+<div class="viewDivBase" id="viewDiv3d">
+  <div id="sceneTitle" class="title">SceneView</div>
 </div>
 </body>
 
