@@ -16,20 +16,20 @@
     padding: 0;
   }
 #results{
-  top: 120px;
-  right: 20px;
+  top: 100px;
+  left: 20px;
   width: 300px;
   height: 100px;
 }
         
 #finalList{
-  bottom: 20px;
+  top: 240px;
   left: 20px;
   width: 300px;
-  max-height: 80%; 
-    z-index: 30;
-    visibility: hidden;
-    overflow-y: auto;
+  max-height: 60%; 
+  z-index: 30;
+  visibility: hidden;
+  overflow-y: auto;
 }        
     
 #title{
@@ -50,7 +50,11 @@
   border-color: cornflowerblue;
   padding: 15px;
   opacity: 0.75;
-}    
+}
+#geostyle, #diffstyle, #planarstyle, #perstyle{
+  font-weight: bolder;
+  color: beige;
+}
 
 </style>
 
@@ -165,7 +169,7 @@ map = new Map("map", {
         dom.byId("finalList").style.visibility = "visible";
       }
 
-      dom.byId("finalList").innerHTML = "<h3 style='color:" + dom.byId("perstyle").style.color + "'>Line " + lineLayer.graphics.length + "</h3>" + dom.byId("content").innerHTML + "<hr>" + dom.byId("finalList").innerHTML;
+      dom.byId("finalList").innerHTML = "<h3>Line " + lineLayer.graphics.length + "</h3>" + dom.byId("content").innerHTML + "<hr>" + dom.byId("finalList").innerHTML;
     }      
 
     on(map, "dbl-click", function(evt){
@@ -205,22 +209,11 @@ map = new Map("map", {
       var r = 255;
       var g = 255;
       var b = 255;
-      
-      if(ratio < 5){
-          r = Math.round((ratio / 5) * 255);
-          g = 255;
-          b = 0;
-      }
-      if(ratio >= 5){
-          r = 255;
-          g = Math.round(255 - ((ratio - 5) * 3.4));
-          b = 0;
-      }
+      g = Math.round(2/ratio * 255);
+      b = Math.round(2/ratio * 255);
       
       dom.byId("perstyle").style.color = "rgb(" + r + "," + g + "," + b + ")";
-      dom.byId("planarstyle").style.color = "rgb(" + r + "," + g + "," + b + ")";
       symbol = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([r,g,b]), 4);
-      
       return symbol;
   }
 
@@ -242,9 +235,6 @@ map = new Map("map", {
   function numberWithCommas(x) {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
-
-  dom.byId("geostyle").style.color = "green";
-  dom.byId("diffstyle").style.color = "red";
 });
 </script>
 </head>
