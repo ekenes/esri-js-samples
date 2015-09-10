@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+    
+<title>UTM Measurement</title>
+
+<link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+
+<style>
+  html, body, #map {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: darkgray;
+  }
+#results{
+  top: 120px;
+  right: 20px;
+  width: 300px;
+}
+    
+#geResult, #gsResult, #difference{
+  font-weight: 900;
+}
+        
+#title{
+  top: 20px;
+  width: 50%; 
+  height: 50px;;
+  padding-top: 5px;
+  text-align: center;
+  margin: 0 0 0 25%;
+}
+.mainStyle{
+  position: absolute;
+  z-index: 99;
+  background-color: whitesmoke;
+  color: black;
+  border-radius: 8px;
+  border-width: medium;
+  padding: 15px;
+  opacity: 0.95;
+}    
+
+</style>
+
+<script src="http://js.arcgis.com/3.14/"></script>  
+<script>
+var map, geoGraphic, homosolineSR, euroLayer;
+
+require(["esri/map",
+       "esri/graphic",
+       "esri/Color",
+       "esri/symbols/TextSymbol",
+       "esri/symbols/Font",
+       "esri/geometry/Extent",
+       "esri/SpatialReference",
+       "esri/layers/GraphicsLayer",
+       "esri/layers/FeatureLayer",
+       "esri/layers/ArcGISDynamicMapServiceLayer", 
+       "esri/layers/ArcGISTiledMapServiceLayer",     
+       "esri/layers/WMTSLayer",
+       "esri/layers/WMTSLayerInfo",
+       "esri/symbols/SimpleFillSymbol",
+       "esri/symbols/SimpleLineSymbol",
+       "esri/symbols/SimpleMarkerSymbol",
+       "esri/geometry/geometryEngine",
+       "esri/geometry/Polyline",
+       "esri/renderers/SimpleRenderer",
+       "esri/tasks/LengthsParameters",
+       "esri/tasks/GeometryService",     
+       "esri/config",     
+       "dojo/dom",
+       "dojo/on",
+       "dojo/domReady!"], function(Map, Graphic, Color, TextSymbol, Font, Extent, SpatialReference, GraphicsLayer, FeatureLayer, ArcGISDynamicMapServiceLayer, ArcGISTiledMapServiceLayer, WMTSLayer, WMTSLayerInfo, SimpleFillSymbol, SimpleLineSymbol, SimpleMarkerSymbol, geometryEngine, Line, SimpleRenderer, LengthsParameters, GeometryService, esriConfig, dom, on) {
+
+    var gs = new GeometryService("http://sampleserver6.arcgisonline.com/arcgis/rest/services/Utilities/Geometry/GeometryServer");
+
+    var spSr = new SpatialReference(102271);  //2790     102271
+    var initExtent = new Extent(-421523, -16731, 1073489, 773172, spSr);
+    map = new Map("map", {
+          extent: initExtent                      
+          });    
+    
+    var zoneGrid = new FeatureLayer("http://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_State_Plane_Zones_NAD83/FeatureServer/0", {
+      definitionExpression: "ZONE = 'IL_E'"
+    });
+    
+    var usStates = new FeatureLayer("http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Cartographic_Boundary_Files_-_States_(20m)/FeatureServer/0", {
+      outFields: ["*"]
+    });
+    
+    var usCities = new FeatureLayer("http://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Major_Cities/FeatureServer/0", {
+      definitionExpression: "POP2007 > 100000"
+    });
+    
+    var natGeo = new ArcGISTiledMapServiceLayer("http://services.arcgisonline.com/arcgis/rest/services/NatGeo_World_Map/MapServer");
+    
+    var zoneSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color([255,0,0]), 2), Color([255,0,0, 0.5]));
+    zoneGrid.setRenderer(new SimpleRenderer(zoneSym));
+    
+    var stateSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255,255,255,0.3]), 1.5), Color([0,0,0, 0.8]));
+    usStates.setRenderer(new SimpleRenderer(stateSym));
+    var defaultLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255,255,153]), 4);
+    var lineLayer = new GraphicsLayer();
+    map.addLayers([usStates, zoneGrid, lineLayer]);
+    
+    var labelFont = new Font(14, Font.STYLE_NORMAL, Font.VARIANT_NORMAL, Font.WEIGHT_NORMAL, "Sans-serif");
+    var labelSym = new TextSymbol("state name", labelFont, new Color([255,255,255,0.5]));
+    labelSym.setKerning(true);
+    
+    on(usStates, "update-end", function(evt){
+      map.graphics.clear();
+      var states = evt.target.graphics;
+      states.forEach(function(item, i){
+        var stateName = item.attributes.NAME;
+        labelSym.setText(stateName);
+        var label = new Graphic(item.geometry.getCentroid(), labelSym);
+        map.graphics.add(label);
+      });
+    });
+
+    //Function for creating drawing line
+    function drawLine(pt1, pt2){
+      var pt1Cor = [pt1.x, pt1.y];
+      var pt2Cor = [pt2.x, pt2.y];
+      var lineJSON = {
+          paths: [[pt1Cor, pt2Cor]],
+          spatialReference: pt1.spatialReference
+      };
+      var polyLine = new Line(lineJSON);
+      return polyLine;
+    }
+
+    var clicks = 0;  
+    var newLine = null;
+    on(map, "click", function(evt){
+        clicks++;  //increment map clicking var for line construction purposes
+        if(clicks === 1){
+            lineLayer.clear();
+            dom.byId("instructions").innerHTML = "Double-click to finish the line.";
+            map.disableMapNavigation();
+
+            var lineGeom = drawLine(evt.mapPoint, evt.mapPoint);
+            newLine = new Graphic(lineGeom, defaultLineSym);
+            lineLayer.add(newLine);
+        }
+        if(clicks > 1){
+          //Add additional line paths for each click (can be "buggy" at times) don't click too fast
+          newLine.geometry.addPath([newLine.geometry.paths[newLine.geometry.paths.length-1][1], evt.mapPoint]);
+          lineLayer.redraw();
+        }
+        return;
+    });
+
+    on(map, "mouse-move", function(evt){
+      if(newLine){
+        newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
+        lineLayer.redraw();
+      }
+    });
+
+    on(map, "dbl-click", function(evt){
+      dom.byId("instructions").innerHTML = "Click the map to begin drawing a line. Planar measurements inside the State Plane Illinois East zone (shaded in red) will be accurate; if using planar measurement outside the zone, the measurement loses accuracy the further outside the zone the geometry is located.";    
+      if(newLine){
+          newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
+          gsMeasure(newLine.geometry);
+          geMeasure(newLine.geometry);
+          lineLayer.redraw();
+          
+          newLine = null;    
+          clicks = 0;
+          map.enableMapNavigation();
+      }
+    });
+    
+    function gsMeasure(geom){
+      var params = new LengthsParameters();
+      params.geodesic = true;
+      params.calculationType = "geodesic";
+      params.lengthUnit = GeometryService.UNIT_STATUTE_MILE;
+      params.polylines = [geom];
+        
+      gs.lengths(params, function(response){
+         dom.byId("gsResult").innerHTML = numberWithCommas(Math.round(response.lengths[0] * 100) / 100);
+         dom.byId("difference").innerHTML = numberWithCommas((Math.round((response.lengths[0] - geometryEngine.planarLength(geom, "miles")) * 100)/100));  
+      });
+    }
+    
+    function geMeasure(geom){
+       var result = geometryEngine.planarLength(geom, "miles");
+       dom.byId("geResult").innerHTML = numberWithCommas(Math.round(result * 100) / 100);
+    }
+    
+  function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+});
+</script>
+</head>
+
+<body>
+<div id="map">
+<div class="mainStyle" id="results"><h2>Planar Length</h2><h3>State Plane - Illinois East</h3><span id="instructions">Click the map to begin drawing a line. Planar measurements inside the State Plane Illinois East zone (shaded in red) will be accurate; if using planar measurement outside the zone, the measurement loses accuracy the further outside the zone the geometry is located.</span><br><br>
+GE Planar Length: <span id="geResult"></span> mi
+<br>GS Length (geodesic): <span id="gsResult"></span> mi  
+<br>Difference: <span id="difference"></span> mi     
+</div>  
+</div>
+</body>
+</html>
