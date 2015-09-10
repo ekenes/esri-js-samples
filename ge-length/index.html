@@ -88,10 +88,12 @@ map = new Map("map", {
     
   var defaultLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("black"), 4);
   var geodesicSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255,255,255,0.2]), 4);
+  var equatorSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_DASH, new Color([255,255,255,0.3]), 5);
+  var eqLayer = new GraphicsLayer();
   var lineLayer = new GraphicsLayer();
   var labelLayer = new GraphicsLayer();
   var geodesicLayer = new GraphicsLayer();
-  map.addLayers([lineLayer, labelLayer, geodesicLayer]);
+  map.addLayers([lineLayer, labelLayer, geodesicLayer, eqLayer]);
 
         //Function for creating drawing line
     function drawLine(pt1, pt2){
@@ -104,9 +106,14 @@ map = new Map("map", {
       var polyLine = new Line(lineJSON);
       return polyLine;
     }
+    
+    on(map, "load", function(){
+      var equator = drawLine(new Point(-180,0), new Point(180,0));
+      eqLayer.add(new Graphic(equator, equatorSym));
+    });
 
-        var clicks = 0;  
-          var newLine = null;
+    var clicks = 0;  
+    var newLine = null;
     on(map, "click", function(evt){
         clicks++;  //increment map clicking var for line construction purposes
 
