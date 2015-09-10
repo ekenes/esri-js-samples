@@ -82,10 +82,18 @@ require(["esri/map",
   var buffSymFade = new SimpleFillSymbol(SimpleFillSymbol.STYLE_NULL, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255, 255, 255, 0.4]), 10), null);
   var privateSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([0, 0, 0]), 0.5), new Color([138, 138, 138, 0.7]));
   var publicSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([0, 0, 0]), 0.5), new Color([161, 255, 156, 0.7]));
-   
+  var update = 0;
   //map event handlers  
   on(map, "click", createBuffer);
   on(map, "mouse-drag", createBuffer);
+  on(map, "update-end", function(){
+    update++;
+    if(update === 1){
+      var fakeEvt = {};
+      fakeEvt.mapPoint = map.extent.getCenter();
+      createBuffer(fakeEvt);  
+    }
+  });
   var drawPolygon = new Draw(map, { showTooltips: true });    
   
   function createBuffer(evt){
