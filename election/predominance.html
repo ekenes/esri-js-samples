@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+    <title>Simple Map</title>
+    <link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+    <style>
+      html, body, #map {
+        height: 100%;
+        margin: 0;
+      }
+      #info {
+        background-color: #000;
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        padding: 10px;
+        font-family: Segoe UI;
+        color: #fff;
+      }
+    </style>
+    <script src="http://js.arcgis.com/3.14/"></script>
+    <script>
+      require([
+        "esri/map", "esri/layers/FeatureLayer", "esri/styles/type",
+        "esri/renderers/UniqueValueRenderer", "esri/symbols/SimpleFillSymbol", "esri/symbols/SimpleLineSymbol", "esri/symbols/SimpleMarkerSymbol", "esri/InfoTemplate",
+        "dojo/_base/array", "esri/Color", "esri/dijit/Legend", "dojo/domReady!"
+      ], function(Map, FeatureLayer, esriStylesType, UniqueValueRenderer, SimpleFillSymbol, SimpleLineSymbol, SimpleMarkerSymbol, InfoTemplate, array, Color, Legend) {
+
+        var map = new Map("map", {
+          basemap: "gray",  //"topo"
+          center: [-96.5,40],
+          zoom: 5
+        });
+        
+        var schemes = esriStylesType.getSchemes({theme:"default", basemap: map.getBasemap(), geometryType:"polygon"});
+        
+
+        var layerUrl = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/election_county_2008/FeatureServer/0";
+        var normalizeField = "TOTAL";
+        var predominateInfo = {
+          title:"2008 Presidential Election Results",
+          fields:[
+            {field:"REP_TOTAL", label: "McCain"},
+            {field:"DEM_TOT", label: "Obama"},
+            {field:"OTHER_TOTAL", label: "Other candidates"}
+          ]
+        };
+
+        var fields = array.map(predominateInfo.fields,function(predominateField){return predominateField.field});
+
+        var infoTemplateDescription = "";
+        array.forEach(predominateInfo.fields,function(predominateField){
+          infoTemplateDescription +=  "<b>"+predominateField.label+"</b> ${"+predominateField.field+":NumberFormat}<br>";
+        });
+        
+        //infoTemplateDescription +=  "<b>Total Population </b> ${Total:NumberFormat}";
+
+        var renderer = new UniqueValueRenderer(createSymbol(schemes.primaryScheme.noDataColor), function(graphic){
+          var maxField = "Other";
+          var max = 0;
+          array.forEach(fields, function(field){
+            if (graphic.attributes[field] > max) {
+              maxField = field;
+              max = graphic.attributes[field];
+            } else if (graphic.attributes[field]===max) {
+              maxField = "Other";
+            };
+          });
+          return maxField;
+        });
+        array.forEach(predominateInfo.fields, function(predominateField, i){
+            console.log(schemes);
+          renderer.addValue({ value: predominateField.field, symbol: createSymbol(schemes.primaryScheme.colors[i]), label: predominateField.label });
+        });
+
+        renderer.setVisualVariables([{
+          type: "opacityInfo",          
+          field:function(graphic){
+            var sum = 0;
+            var value = 0;
+            array.forEach(predominateInfo.fields, function(predominateField){
+              sum += graphic.attributes[predominateField.field];
+            });
+            if(sum !== 0) {
+              value = graphic.attributes[this.getUniqueValueInfo(graphic).value] / sum;
+            }
+            return value; 
+          },
+          stops:[{value:.5, opacity: 0}, {value:0.67, opacity: 1}]  //Anything at 50% is transparent full color at 2:1 ratio of winner:losers
+        }]);
+
+        layer = new FeatureLayer(layerUrl, {
+          outFields: fields, //"*", //fields.concat(normalizeField),
+          infoTemplate: new InfoTemplate(null,infoTemplateDescription),
+          opacity:1
+        });
+
+        layer.on("load", function(){
+          var legend = new Legend({
+            map: map,
+            layerInfos: [{
+              layer: layer,
+              title: "2008 U.S. Presidential Election Results"
+            }]
+          }, "legend");
+          legend.startup();
+        });
+
+        layer.setRenderer(renderer);
+        map.addLayer(layer);
+
+        function createSymbol(color){
+          return new SimpleFillSymbol().setColor(new Color(color)).setOutline(new SimpleLineSymbol().setColor(new Color([127,127,127,.25])).setWidth(0.1));
+        };
+
+      });
+    </script>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="info"><div id="legend"></div></div>
+  </body>
+</html>
