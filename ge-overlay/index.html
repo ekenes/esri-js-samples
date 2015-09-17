@@ -32,6 +32,12 @@ html, body, #map {
   padding: 15px;
   opacity: 0.8;
 }
+.pvt{
+  color: #8A8A8A
+}
+.pub{
+  color: #99F095;
+}
 </style>
 
 <script src="http://js.arcgis.com/3.14/"></script>
@@ -211,13 +217,17 @@ require(["esri/map",
     };
     
     var ctx = document.getElementById("myChart").getContext("2d");
-    pieChart = new Chart(ctx).Pie(data, opts);  
+    pieChart = new Chart(ctx).Pie(data, opts);
+    pvtPer.innerHTML = 100*Math.round(100*pvtData.area / (pubData.area + pvtData.area))/100 + "%";   
+    pubPer.innerHTML = 100*Math.round(100*pubData.area / (pubData.area + pvtData.area))/100 + "%";    
     }
     else{
       //update private land data
       pieChart.segments[0].value = pvtData.area;
+      pvtPer.innerHTML = 100*Math.round(100*pvtData.area / (pubData.area + pvtData.area))/100 + "%";
       //update public land data
       pieChart.segments[1].value = pubData.area;
+      pubPer.innerHTML = 100*Math.round(100*pubData.area / (pubData.area + pvtData.area))/100 + "%";
       pieChart.update();
     }
   }
@@ -225,6 +235,8 @@ require(["esri/map",
   var buffOpt = dom.byId("buffOpt");
   var navOpt = dom.byId("navOpt");
   var drawOpt = dom.byId("drawOpt");
+  var pvtPer = dom.byId("privatePer");
+  var pubPer = dom.byId("publicPer");
     
   on(buffOpt, "click", function(evt){
     if(buffOpt.checked){
@@ -291,6 +303,9 @@ require(["esri/map",
   <div id="map"><img id="loadingImg" src="http://developers.arcgis.com/javascript/samples/map_showloading/images/loading.gif" style="position:absolute; right:49%; top:49%; z-index:100;" />
     <div class="mainStyle" id="results"><h2 id="title">Utah Land Ownership</h2>
     <canvas id="myChart" width="250" height="250"></canvas><br><br>
+    <span class="pvt">Private land: <span id="privatePer"></span></span><br>
+    <span class="pub">Public land: <span id="publicPer"></span></span>
+    <br><br>
     Click or drag on the map to view private and government-owned land within 10 miles of the mouse click.
     Hover over the pie chart to view the area of each ownership type within the 10-mile buffer. 
     <br><br><input type="radio" name="operation" id="buffOpt" checked>View ownership by map click
