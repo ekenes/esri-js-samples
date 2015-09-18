@@ -218,16 +218,16 @@ require(["esri/map",
     
     var ctx = document.getElementById("myChart").getContext("2d");
     pieChart = new Chart(ctx).Pie(data, opts);
-    pvtPer.innerHTML = 100*Math.round(100*pvtData.area / (pubData.area + pvtData.area))/100 + "%";   
-    pubPer.innerHTML = 100*Math.round(100*pubData.area / (pubData.area + pvtData.area))/100 + "%";    
+    pvtPer.innerHTML = Math.round(10000*pvtData.area / (pubData.area + pvtData.area))/100 + "%";   
+    pubPer.innerHTML = Math.round(10000*pubData.area / (pubData.area + pvtData.area))/100 + "%";    
     }
     else{
       //update private land data
       pieChart.segments[0].value = pvtData.area;
-      pvtPer.innerHTML = 100*Math.round(100*pvtData.area / (pubData.area + pvtData.area))/100 + "%";
+      pvtPer.innerHTML = Math.round(10000*pvtData.area / (pubData.area + pvtData.area))/100 + "%";
       //update public land data
       pieChart.segments[1].value = pubData.area;
-      pubPer.innerHTML = 100*Math.round(100*pubData.area / (pubData.area + pvtData.area))/100 + "%";
+      pubPer.innerHTML = Math.round(10000*pubData.area / (pubData.area + pvtData.area))/100 + "%";
       pieChart.update();
     }
   }
