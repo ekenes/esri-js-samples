@@ -52,6 +52,7 @@ require(["esri/map",
          "esri/SpatialReference",
          "esri/symbols/SimpleFillSymbol",
          "esri/symbols/SimpleLineSymbol",
+         "esri/renderers/SimpleRenderer",
          "esri/toolbars/draw",
          "esri/Color",
          "esri/layers/FeatureLayer",
@@ -59,7 +60,7 @@ require(["esri/map",
          "dojo/_base/array",
          "dojo/dom",
          "dojo/domReady!"
-], function(Map, Chart, Graphic, graphicsUtils, Extent, geometryEngine, SpatialReference, SimpleFillSymbol, SimpleLineSymbol, Draw, Color, FeatureLayer, on, array, dom) {
+], function(Map, Chart, Graphic, graphicsUtils, Extent, geometryEngine, SpatialReference, SimpleFillSymbol, SimpleLineSymbol, SimpleRenderer, Draw, Color, FeatureLayer, on, array, dom) {
    
   //Set up map, layers, and properties    
   var initExtent = new Extent(-12525064, 4509990, -12329386, 4621283, new SpatialReference({wkid:3857}));
@@ -81,13 +82,16 @@ require(["esri/map",
     definitionExpression: "STATE_NAME = 'Utah'",
     opacity: 0
   });
+    
+  var pvtRenderer = new SimpleRenderer(new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color("black"), 0), new Color([211,222,4,1])));
+  landLyr.setRenderer(pvtRenderer);
   map.addLayers([utahLyr, landLyr]);
     
   //Layer symbology    
   var buffSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_NULL, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255, 255, 255, 1]), 3), null);
   var buffSymFade = new SimpleFillSymbol(SimpleFillSymbol.STYLE_NULL, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255, 255, 255, 0.4]), 10), null);
-  var privateSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([0, 0, 0]), 0.5), new Color([138, 138, 138, 0.7]));
-  var publicSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([0, 0, 0]), 0.5), new Color([161, 255, 156, 0.7]));
+  var privateSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color([0, 0, 0]), 0), new Color([138, 138, 138, 0.7]));
+  var publicSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color([0, 0, 0]), 0), new Color([161, 255, 156, 0.7]));
   var update = 0;
   //map event handlers  
   on(map, "click", createBuffer);
