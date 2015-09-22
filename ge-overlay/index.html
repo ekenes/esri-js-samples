@@ -75,7 +75,7 @@ require(["esri/map",
   var landUrl = "http://tlamap.trustlands.utah.gov/arcgis/rest/services/UT_SITLA_LandOwnership/MapServer/0";
   var statesUrl = "http://sampleserver6.arcgisonline.com/arcgis/rest/services/Census/MapServer/3";
   landLyr = new FeatureLayer(landUrl, {
-    opacity: 0.5,
+    opacity: 0.3,
     definitionExpression: "STATE_LGD = 'Private'"
   });
   utahLyr = new FeatureLayer(statesUrl, {
