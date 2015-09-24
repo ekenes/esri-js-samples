@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+<title>U.S. College Attendance (2015)</title>
+<link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+<style>
+  html, body, #map {
+    height: 100%;
+    margin: 0;
+  }
+  #info {
+    background-color: #000;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    padding: 10px;
+    font-family: Segoe UI;
+    color: #fff;
+    width: 200px;
+  }
+</style>
+<script src="http://js.arcgis.com/3.14/"></script>
+<script>
+  require([
+    "esri/map", 
+    "esri/layers/FeatureLayer", 
+    "esri/styles/type",
+    "esri/renderers/UniqueValueRenderer", 
+    "esri/symbols/SimpleFillSymbol", 
+    "esri/symbols/SimpleLineSymbol", 
+    "esri/symbols/SimpleMarkerSymbol", 
+    "esri/InfoTemplate",
+    "dojo/_base/array", 
+    "esri/Color", 
+    "esri/dijit/Legend", 
+    "dojo/domReady!"
+  ], function(Map, FeatureLayer, esriStylesType, UniqueValueRenderer, SimpleFillSymbol, 
+              SimpleLineSymbol, SimpleMarkerSymbol, InfoTemplate, array, Color, Legend) {
+
+    var map = new Map("map", {
+      basemap: "gray",  //"topo"
+      center: [-96.5,40],
+      zoom: 5
+    });
+
+    var schemes = esriStylesType.getSchemes({theme:"default", basemap: map.getBasemap(), geometryType:"polygon"});
+    console.log(schemes.primaryScheme);
+    var layerUrl = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/us_county_educational_attainment_pop/FeatureServer/0";
+
+    var renderer = new UniqueValueRenderer(createSymbol(schemes.primaryScheme.noDataColor), "ATT_COL_DOM");
+    renderer.addValue({
+      value: "Population 25+ that attended college",
+      description: "Majority of population (25+) attended college",
+      symbol: createSymbol({ a: 1, r: 0, g: 112, b: 255}),
+      label: "Majority of population (25+) attended college"
+    });
+    renderer.addValue({
+      value: "Population 25+ that never attended college",
+      description: "Majority of population (25+) never attended college",
+      symbol: createSymbol({ a: 1, r: 255, g: 0, b: 0}),
+      label: "Majority of population (25+) never attended college"
+    });
+      
+    renderer.setVisualVariables([{
+      type: "opacityInfo",
+      field: "ATE_COL_DOM_PER",
+      maxDataValue: 87.7,
+      minDataValue: 0,
+      stops: [
+        { value: 50, opacity: 0.1}, { value: 75, opacity: 1}
+      ]
+    }]);
+
+    var infoTitle = "Population 25 and older by college attendance";
+    var infoContent = "<b>Attended at least some college:</b> ${ATT_COL}<br><b>Never attended college:</b> ${NO_COL}";
+    layer = new FeatureLayer(layerUrl, {
+      outFields: ["ATT_COL_DOM", "ATE_COL_DOM_PER", "ATT_COL", "NO_COL", "EDUCBASECY", "TOTPOP_CY"],
+      infoTemplate: new InfoTemplate(infoTitle, infoContent),
+      opacity:1
+    });
+
+    layer.on("load", function(){
+      var legend = new Legend({
+        map: map,
+        layerInfos: [{
+          layer: layer,
+          title: "U.S. Counties by whether or not the majority of the population (25 years and older) attended college"
+        }]
+      }, "legend");
+      legend.startup();
+    });
+
+    layer.setRenderer(renderer);
+    map.addLayer(layer);
+
+    function createSymbol(color){
+      return new SimpleFillSymbol().setColor(new Color(color)).setOutline(new SimpleLineSymbol().setColor(new Color([127,127,127,.25])).setWidth(0));
+    };
+
+  });
+</script>
+</head>
+<body>
+<div id="map"></div>
+<div id="info"><div id="legend"></div></div>
+</body>
+</html>
