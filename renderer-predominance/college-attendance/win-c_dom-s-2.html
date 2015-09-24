@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+<title>U.S. College Attendance (2015)</title>
+<link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+<style>
+  html, body, #map {
+    height: 100%;
+    margin: 0;
+  }
+  #info {
+    background-color: #000;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    padding: 10px;
+    font-family: Segoe UI;
+    color: #fff;
+    width: 200px;
+  }
+</style>
+<script src="http://js.arcgis.com/3.14/"></script>
+<script>
+  require([
+    "esri/map",   
+    "esri/arcgis/utils", 
+    "esri/dijit/Legend", 
+    "dojo/domReady!"
+  ], function(Map, arcgisUtils, Legend) {
+  arcgisUtils.createMap("ef3393913750418cbf9ab4963b7ee22f","map").then(function(response){
+  var map = response.map;
+
+  //add the legend. Note that we use the utility method getLegendLayers to get 
+  //the layers to display in the legend from the createMap response.
+  var legendLayers = arcgisUtils.getLegendLayers(response); 
+  var legendDijit = new Legend({
+    map: map,
+    layerInfos: legendLayers
+  },"legend");
+  legendDijit.startup();
+  });
+});
+</script>
+</head>
+<body>
+<div id="map"></div>
+<div id="info"><div id="legend"></div></div>
+</body>
+</html>
