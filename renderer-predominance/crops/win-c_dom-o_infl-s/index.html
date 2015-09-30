@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+<title>U.S. Crop harvest (2007)</title>
+<link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+<link rel="stylesheet" href="http://js.arcgis.com/3.14/dijit/themes/claro/claro.css">
+<style>
+  html, body, #map {
+    height: 100%;
+    margin: 0;
+  }
+  #info {
+    background-color: #000;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    padding: 10px;
+    font-family: Segoe UI;
+    color: #fff;
+    width: 200px;
+  }
+</style>
+<script src="http://js.arcgis.com/3.14/"></script>
+<script>
+  require([
+    "esri/map",   
+    "esri/arcgis/utils", 
+    "esri/dijit/Legend", 
+    "dojo/domReady!"
+  ], function(Map, arcgisUtils, Legend) {
+  arcgisUtils.createMap("55e5319b0da84eb89ddbfc3dd7e872fc","map").then(function(response){
+  var map = response.map;
+
+  //add the legend. Note that we use the utility method getLegendLayers to get 
+  //the layers to display in the legend from the createMap response.
+//  var legendLayers = arcgisUtils.getLegendLayers(response); 
+//  var legendDijit = new Legend({
+//    map: map,
+//    layerInfos: legendLayers
+//  },"legend");
+//  legendDijit.startup();
+  });
+});
+</script>
+</head>
+<body class="claro">
+<div id="map"></div>
+<div id="info"><div id="legend">U.S. Counties by dominant crop harvested (2007)
+    <p><ul><li>Red - Vegetables</li>
+    <li>Purple - Wheat</li>
+    <li>Yellow - Corn</li>
+    <li>Blue - Soybeans</li>
+    <li>Green - Cotton</li>
+    <li>Black - Tie</li></ul></p></div></div>
+</body>
+</html>
