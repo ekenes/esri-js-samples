@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+<title>U.S. College Attendance (2015)</title>
+<link rel="stylesheet" href="http://jsdev.arcgis.com/3.15/esri/css/esri.css">
+<link rel="stylesheet" href="http://jsdev.arcgis.com/3.15/dijit/themes/claro/claro.css">
+<style>
+  html, body, #map {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  #info {
+    background-color: #000;
+    position: absolute;
+    z-index: 92;
+    left: 0px;
+    bottom: 0px;
+    padding: 10px;
+    font-family: Segoe UI;
+    color: #fff;
+    width: 200px;
+  }
+</style>
+<script src="http://jsdev.arcgis.com/3.15/"></script>
+<script>
+var map, cropsLyr, legend, renderer;
+  require([
+    "esri/map",
+    "esri/layers/FeatureLayer",
+    "esri/symbols/SimpleMarkerSymbol",
+    "esri/symbols/SimpleLineSymbol",
+    "esri/Color",
+    "esri/renderers/UniqueValueRenderer",
+    "esri/dijit/Legend",
+    "esri/dijit/PopupTemplate",
+    "dojo/domReady!"
+  ], function(Map, FeatureLayer, SimpleMarkerSymbol, SimpleLineSymbol, Color, UniqueValueRenderer, Legend, PopupTemplate
+) {
+  var url = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/US_county_crops_2007_clean/FeatureServer/0";      
+
+  map = new Map("map", {
+    zoom: 5,
+    center: [-100, 40],
+    basemap: "gray"
+  });
+
+  var cropsPopup = new PopupTemplate({
+    title: "{COUNTY}, {STATE}",
+    description: "<b>{DOM_CROP_ACRES}</b> is the dominant crop in {COUNTY} making up <b>{DOM_PER_HARVEST}%</b> of the total crop harvest. This county harvested a total of {TOT_CROP_ACRES} acres of crops in 2007.",
+    fieldInfos: [{
+      fieldName: "DOM_CROP_ACRES",
+      label: "Dominant crop"
+    }, {
+      fieldName: "DOM_PER_HARVEST",
+      label: "Acreage of dominant crop as % of total harvested acres",
+      format: { places: 0, digitSeparator: true }  
+    }, {
+      fieldName: "TOT_CROP_ACRES",
+      label: "Total crop harvest (acres)",
+      format: { places: 0, digitSeparator: true }  
+    }, {
+      fieldName: "M172_07",
+      label: "Harvested wheat (acres)",
+      format: { places: 0, digitSeparator: true }  
+    }, {
+      fieldName: "M188_07",
+      label: "Harvested cotton (acres)",
+      format: { places: 0, digitSeparator: true }  
+    }, {
+      fieldName: "M193_07",
+      label: "Harvested soybeans (acres)",
+      format: { places: 0, digitSeparator: true }  
+    }, {
+      fieldName: "M217_07",
+      label: "Harvested vegetables (acres)",
+      format: { places: 0, digitSeparator: true }  
+    }, {
+      fieldName: "M163_07",
+      label: "Harvested corn (acres)",
+      format: { places: 0, digitSeparator: true }  
+    }],
+    mediaInfos: [{
+      title: "Harvested crops in acres",
+      type: "piechart",
+      value: {
+        fields: ["M172_07", "M188_07", "M193_07", "M217_07", "M163_07"]
+      }
+    }]
+  });      
+      
+  cropsLyr = new FeatureLayer(url, {
+    outFields: ["M172_07", "M188_07", "M193_07", "M217_07", "M163_07", "DOM_CROP_ACRES", "DOM_PER_HARVEST", "COUNTY", "STATE", "TOT_CROP_ACRES"],
+    infoTemplate: cropsPopup,
+    definitionExpression: "TOT_CROP_ACRES > 0"
+  });
+      
+  var defaultSym = new SimpleMarkerSymbol().setOutline(new SimpleLineSymbol().setWidth(0.5).setColor(new Color("white")));
+  var soybeansSym = new SimpleMarkerSymbol().setColor(new Color([0,112,255])).setOutline(new SimpleLineSymbol().setWidth(0.5).setColor(new Color("white")));
+  var cottonSym = new SimpleMarkerSymbol().setColor(new Color([56,168,0])).setOutline(new SimpleLineSymbol().setWidth(0.5).setColor(new Color("white")));
+  var wheatSym = new SimpleMarkerSymbol().setColor(new Color([169,0,230])).setOutline(new SimpleLineSymbol().setWidth(0.5).setColor(new Color("white")));
+  var cornSym = new SimpleMarkerSymbol().setColor(new Color([255,170,0])).setOutline(new SimpleLineSymbol().setWidth(0.5).setColor(new Color("white")));
+  var vegetablesSym = new SimpleMarkerSymbol().setColor(new Color([255,0,0])).setOutline(new SimpleLineSymbol().setWidth(0.5).setColor(new Color("white")));
+      
+  renderer = new UniqueValueRenderer(defaultSym, "DOM_CROP_ACRES");
+  renderer.addValue("Wheat", wheatSym);
+  renderer.addValue("Corn", cornSym);
+  renderer.addValue("Vegetables", vegetablesSym);
+  renderer.addValue("Soybeans", soybeansSym);
+  renderer.addValue("Cotton", cottonSym);
+
+  var sizeVisVar = {
+    type: "sizeInfo",
+    field: "TOT_CROP_ACRES",
+    minDataValue: 5000,
+    maxDataValue: 500000,
+    minSize: {
+      type: "sizeInfo",
+      expression: "view.scale",
+      stops: [
+        { value: 250000000, size: 6 },
+        { value: 6000000, size: 6 },
+        { value: 1000000, size: 4 },
+        { value: 200000, size: 2 },
+        { value: 1000, size: 2 }    
+      ]
+    },
+    maxSize: {
+      type: "sizeInfo",
+      expression: "view.scale",
+      stops: [
+        { value: 250000000, size: 60 },
+        { value: 6000000, size: 60 },
+        { value: 1000000, size: 40 },
+        { value: 200000, size: 20 },
+        { value: 1000, size: 10 }    
+      ] 
+    }
+  };      
+  var opacityVisVar = {
+    type: "opacityInfo",
+    field: "DOM_PER_HARVEST",
+    stops: [
+      { value: 50, opacity: 0.1, label: "< 50%" },
+      { value: 100, opacity: 0.8, label: "100%" }
+    ]
+  }; 
+  renderer.setVisualVariables([sizeVisVar, opacityVisVar]);
+  cropsLyr.setRenderer(renderer);
+
+  map.addLayer(cropsLyr);
+      
+  map.on("load", function(){
+    legend = new Legend({
+      map: map,
+      title: "crops",
+      layerInfos: [
+        {
+          layer: cropsLyr,
+          title: "U.S. counties by dominant crop harvest in acres (2007)"
+        }
+      ]
+    }, "legend");
+    legend.startup();   
+  });      
+});
+</script>
+</head>
+<body class="claro">
+ <div id="map"></div>
+ <div id="info"><div id="legend"></div></div>   
+</body>
+</html>
