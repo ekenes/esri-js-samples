@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Popup Actions</title>
+
+  <style>
+    html,
+    body {
+      padding: 0;
+      margin: 0;
+    }  
+  </style>
+  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.0beta2/dijit/themes/claro/claro.css">    
+  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.0beta2/esri/css/main.css">
+  <script src="https://jsdev.arcgis.com/4.0beta2/"></script>
+
+  <script>
+    var map, view;
+    require([
+      "esri/Map",
+      "esri/PopupTemplate",
+      "esri/layers/FeatureLayer",
+      "esri/views/MapView",
+      "esri/symbols/SimpleFillSymbol",
+      "esri/symbols/SimpleLineSymbol",
+      "esri/renderers/SimpleRenderer",
+      "dojo/domReady!"
+    ], function(
+      Map,
+      PopupTemplate,
+      FeatureLayer,
+      MapView,
+      SimpleFillSymbol, 
+      SimpleLineSymbol, 
+      SimpleRenderer
+    ) {
+        
+      var psUrl = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Puget_Sound_BG_Food/FeatureServer/0";    
+
+      //Create the map
+      map = new Map({
+        basemap: "terrain"
+      });
+
+      //Create the MapView
+      view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-122.317, 47.590],
+        zoom: 12
+      });
+        
+      /*************************************************************
+      * Define actions to be used in popup and popupTemplate
+      **************************************************************/  
+      
+      //zooms out 2 LODs from current location    
+      var zoomOutAction = {
+        title: "Zoom out", 
+        id: "zoom-out",
+        className: "esri-icon-zoom-out-magnifying-glass",
+        action: function(){
+           view.animateTo({
+             center: view.center,
+             zoom: view.zoom - 2
+           });
+        }
+      };
+      //Add this action to the popup so it can always be available in this view    
+      view.popup.actions.push(zoomOutAction);    
+        
+      //Displays stats related to soda/cola consumption    
+      var displaySodaAction = {
+        title: "See soda consumption stats",
+        id: "soda",
+        image: "cola.png",
+        action: displaySoda
+      }
+      
+      //displays stats related to coffee consumption
+      var displayCoffeeAction = {
+        title: "See coffee consumption stats",
+        id: "coffee",
+        image: "coffee.png",
+        action: displayCoffee
+      }
+      
+      //Executes each time the soda icon is clicked
+      function displaySoda(){
+        var feature = view.popup.selectedFeature;
+        //Switch the popup template of the selected feature to the soda template
+        feature.popupTemplate = sodaTemplate;
+        view.popup.set("features", [feature]);  
+      }
+        
+      //Executes each time the coffee icon is clicked    
+      function displayCoffee(){
+        var feature = view.popup.selectedFeature;
+        //Switch the popup template of the selected feature to the coffee template  
+        feature.popupTemplate = coffeeTemplate;
+        view.popup.set("features", [feature]);
+      }
+
+      /*************************************************************
+      * Create two popup templates. One to display information about
+      * coffee consumption and the other to display information about
+      * soda consumption
+      **************************************************************/
+   
+      var coffeeTemplate = new PopupTemplate({
+        title: "Coffee consumption in Greater Seattle",
+        content: "<p>As of 2015, <b>{TOTPOP_CY}</b> lived in this block group.</p>" +
+          "<ul><li>{MP12060a_B} people consumed ground coffee</li>" +
+          "<li>{MP12063a_B} people consumed decaffeinated ground coffee</li>" +
+          "<li>{MP12074a_B} people consumed instant/freeze-dried coffee</li><ul>",
+        fieldInfos: [{
+          fieldName: "MP12063a_B",
+          label: "Used decaffeinated ground coffee",
+          format: {
+            digitSeparator: true,  //Uses a comma separator in large numbers
+            places: 0  //sets the number of decimal places to 0 and rounds up
+          }
+        }, {
+          fieldName: "MP12060a_B",
+          label: "Used ground coffee",
+          format: {
+            digitSeparator: true,
+            places: 0
+          }
+        }, {
+          fieldName: "MP12074a_B",
+          label: "Used instant/freeze-dried coffee",
+          format: {
+            digitSeparator: true,
+            places: 0
+          }
+        }, {
+          fieldName: "TOTPOP_CY",
+          label: "2015 population",
+          format: {
+            digitSeparator: true,
+            places: 0
+          }
+        }]
+      });
+      //Add the soda action to the coffee template to allow
+      //users to view soda information after reading coffee stats
+      coffeeTemplate.actions.push(displaySodaAction);    
+        
+      var sodaTemplate = new PopupTemplate({
+        title: "Cola consumption in Greater Seattle",
+        content: "<p>As of 2015, <b>{TOTPOP_CY}%</b> lived in this block group.</p>" +
+          "<ul><li>{MP12077a_B} people consumed regular cola</li>" +
+          "<li>{MP12078a_B} people consumed consumed diet cola</li>",
+        fieldInfos: [{
+          fieldName: "MP12077a_B",
+          label: "Drank cola (reg)",
+          format: {
+            digitSeparator: true,  //Uses a comma separator in large numbers
+            places: 0  //sets the number of decimal places to 0 and rounds up
+          }
+        }, {
+          fieldName: "MP12078a_B",
+          label: "Drank diet cola in /6 mos",
+          format: {
+            digitSeparator: true,
+            places: 0
+          }
+        }, {
+          fieldName: "TOTPOP_CY",
+          label: "2015 population",
+          format: {
+            digitSeparator: true,
+            places: 0
+          }
+        }]
+      });   
+      //Add the coffee action to the soda template to allow
+      //users to view soda information after reading coffee stats     
+      sodaTemplate.actions.push(displayCoffeeAction); 
+
+      //Reference the popupTemplate instance in the 
+      //popupTemplate property of FeatureLayer
+      coffeeLyr = new FeatureLayer({
+        url: psUrl,
+        outFields: ["*"],
+        popupTemplate: coffeeTemplate
+      });
+        
+      //Set the renderer on the layer based on % coffee drinkers that drink decaf    
+      var renderer = new SimpleRenderer({
+        symbol: new SimpleFillSymbol({
+          outline: new SimpleLineSymbol({
+            width: 0.3,
+            color: [255,255,255]
+          })
+        }),
+        visualVariables: [{
+          type: "colorInfo",
+          field: "MP12063a_B",
+          normalizationField: "MP12060a_B",
+          theme: "high-to-low",
+          colors: ["#ffffe5", "#662506"],
+          minDataValue: 0.06,
+          maxDataValue: 0.15
+        }]
+      });
+      coffeeLyr.renderer = renderer;
+      map.add(coffeeLyr);
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>

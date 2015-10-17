@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Identify with Popup</title>
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+}
+.esri-popup .esri-popup-header .esri-title {
+  font-size: 18px;
+  font-weight: bolder;
+}
+.esri-popup .esri-popup-body .esri-popup-content {
+  font-size: 14px;
+}  
+</style>
+
+<link rel="stylesheet" href="https://jsdev.arcgis.com/4.0beta2/esri/css/main.css">
+<script src="https://jsdev.arcgis.com/4.0beta2/"></script>
+
+<script>
+var map, view, identifyTask, params, parcelsLyr;
+
+require([
+  "esri/Map",
+  "esri/views/MapView",
+  "esri/PopupTemplate",
+  "esri/layers/ArcGISTiledLayer",
+  "esri/symbols/SimpleFillSymbol",
+  "esri/symbols/SimpleLineSymbol",
+  "esri/tasks/IdentifyTask",
+  "esri/tasks/support/IdentifyParameters",
+  "esri/widgets/Popup",
+  "dojo/_base/array",
+  "dojo/on",
+  "dojo/dom",
+  "dojo/dom-construct",
+  "dojo/domReady!"
+], function(
+  Map, MapView, PopupTemplate, ArcGISTiledLayer, SimpleFillSymbol,
+  SimpleLineSymbol, IdentifyTask, IdentifyParameters, Popup,
+  arrayUtils, on, dom, domConstruct
+) {
+
+  //URL to the map service where the identify will be performed    
+  var popURL = "http://services.arcgisonline.com/arcgis/rest/services/Demographics/USA_2000-2010_Population_Change/MapServer";
+
+  //Add the map service as a tiled layer for fast rendering
+  //Tiled layers are composed of non-interactive images. For that reason we'll
+  //use IdentifyTask to query the service to add interactivity to the app
+  parcelsLyr = new ArcGISTiledLayer({
+    url: popURL,
+    opacity: 0.55
+  });
+
+  map = new Map({
+    basemap: "satellite"
+  });
+  map.add(parcelsLyr);
+
+  view = new MapView({
+    map: map,
+    container: "viewDiv",
+    center: [-87.664, 41.856],
+    zoom: 10
+  });
+
+  view.then(function() {
+    //executeIdentifyTask() is called each time the view is clicked
+    on(view, "click", executeIdentifyTask);
+
+    //create identify task for the specified map service
+    identifyTask = new IdentifyTask(popURL);
+
+    //Set the parameters for the Identify  
+    params = new IdentifyParameters();
+    params.tolerance = 3;
+    params.layerIds = [0, 1, 2, 3, 4];
+    params.layerOption = "all";
+    params.width = view.width;
+    params.height = view.height;
+    params.returnGeometry = true;
+
+  });
+
+  //executes each time the view is clicked    
+  function executeIdentifyTask(event) { 
+    //set the geometry to the location of the view click
+    params.geometry = event.mapPoint;
+    params.mapExtent = view.extent;
+    dom.byId("viewDiv").style.cursor = "wait";
+
+    //This function returns a promise that resolves to an array of features
+    //A custom popupTemplate is set for each feature based on the layer it 
+    //originates from
+    identifyTask.execute(params).then(function(response) {
+      return arrayUtils.map(response, function(result) {
+        var feature = result.feature;
+        var layerName = result.layerName;
+
+        feature.attributes.layerName = layerName;
+        if (layerName === 'Block Groups') {
+          var blockGroupTemplate = new PopupTemplate({
+            title: "Block Group: {ID}",
+            content: "<b>Total Population (2012):</b> {2012 Total Population (Esri)}" +
+              "<br><b>2000-2010 Annual growth rate:</b> {2000-2010 Population Annual Compound Growth Rate (U.S. Census)}"
+          });
+          feature.popupTemplate = blockGroupTemplate;
+        }
+        else if (layerName === 'Tracts') {
+          var tractTemplate = new PopupTemplate({
+            title: "Tract: {ID}",
+            content: "<b>Total Population (2012):</b> {2012 Total Population (Esri)}" +
+              "<br><b>2000-2010 Annual growth rate:</b> {2000-2010 Population Annual Compound Growth Rate (U.S. Census)}"
+          });
+          feature.popupTemplate = tractTemplate;
+        }
+        else if (layerName === 'Counties') {
+          var countyTemplate = new PopupTemplate({
+            title: "{Name}, {State Abbreviation}",
+            content: "<b>Total Population (2012):</b> {2012 Total Population (Esri)}" +
+              "<br><b>2000-2010 Annual growth rate:</b> {2000-2010 Population Annual Compound Growth Rate (U.S. Census)}"
+          });
+          feature.popupTemplate = countyTemplate;
+        }
+        else if (layerName === 'States') {
+          var stateTemplate = new PopupTemplate({
+            title: "{Name}",
+            content: "<b>Total Population (2012):</b> {2012 Total Population (Esri)}" +
+              "<br><b>2000-2010 Annual growth rate:</b> {2000-2010 Population Annual Compound Growth Rate (U.S. Census)}"
+          });
+          feature.popupTemplate = stateTemplate;
+        }
+        return feature;
+      });
+    }).then(showPopup); //send the array of features to showPopup()
+
+    //shows the results of the Identify in a popup once the promise is resolved  
+    function showPopup(response) {
+      if (response.length > 0) {
+        view.popup.setFeatures(response);
+        view.popup.show(event.mapPoint);
+      }
+      dom.byId("viewDiv").style.cursor = "auto";    
+    }
+  }
+});
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
