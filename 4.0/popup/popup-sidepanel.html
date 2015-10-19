@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Popup Side panel</title>
+
+  <style>
+    html,
+    body {
+      padding: 0;
+      margin: 0;
+/*      position: absolute;*/
+/*
+      left: 0;
+      top: 0;
+*/
+    }
+      #viewDiv{
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 70%;
+        position: absolute;
+      }
+      body #popupDiv{
+        position: absolute;
+        background-color: aqua;
+        right: 0;
+        top: 0;
+        height: 100%;
+        width: 30%;
+/*        z-index: 36;*/
+        
+      }  
+  </style>
+  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.0beta2/dijit/themes/claro/claro.css">    
+  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.0beta2/esri/css/main.css">
+  <script src="https://jsdev.arcgis.com/4.0beta2/"></script>
+
+  <script>
+    var map, view;
+    require([
+      "esri/Map",
+      "esri/widgets/Popup",
+      "esri/PopupTemplate",
+      "esri/layers/FeatureLayer",
+      "esri/views/MapView",
+      "esri/symbols/SimpleFillSymbol",
+      "esri/symbols/SimpleLineSymbol",
+      "esri/renderers/SimpleRenderer",
+      "dojo/domReady!"
+    ], function(
+      Map,
+      Popup,
+      PopupTemplate,
+      FeatureLayer,
+      MapView,
+      SimpleFillSymbol, 
+      SimpleLineSymbol, 
+      SimpleRenderer
+    ) {
+        
+      var psUrl = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Puget_Sound_BG_Food/FeatureServer/0";    
+
+      //Create the map
+      map = new Map({
+        basemap: "terrain"
+      });
+
+      //Create the MapView
+      view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-122.317, 47.590],
+        zoom: 12
+      });
+        
+      var popup = new Popup({
+        view: view,
+        docked: true,
+        dockOptions: {
+          autoDock: true,
+          dockButtonEnabled: false,
+          dockAtSize: {
+            width: 100000,
+            height: 100000
+          },
+          position: {
+            portrait: "bottom",
+            landscape: "right"
+          }
+        }
+      }, "popupDiv");
+      popup.startup();
+      view.popup = popup;
+
+      /*************************************************************
+      * Create two popup templates. One to display information about
+      * coffee consumption and the other to display information about
+      * soda consumption
+      **************************************************************/
+   
+      var popupTemplate = new PopupTemplate({
+        title: "Weekly spending at grocery stores in Greater Seattle",
+        content: "<p>As of 2015, <b>{TOTPOP_CY}</b> lived in this block group.</p>" +
+          "<ul><li>{MP13001h_B} people spend an average of < $100/week at food stores</li>" +
+          "<li>{MP13002h_B} people spend an average of $100-$149/week at food stores</li>" +
+          "<li>{MP13003h_B} people spend an average of > $150/week at food stores</li><ul>",
+        fieldInfos: [{
+          fieldName: "MP13003h_B",
+          label: "Avg Spent /week by HH at food stores: $150+",
+          format: {
+            digitSeparator: true,  //Uses a comma separator in large numbers
+            places: 0  //sets the number of decimal places to 0 and rounds up
+          }
+        }, {
+          fieldName: "MP13001h_B",
+          label: "Avg Spent /week by HH at food stores: <$100",
+          format: {
+            digitSeparator: true,
+            places: 0
+          }
+        }, {
+          fieldName: "MP13002h_B",
+          label: "Avg Spent /week by HH at food stores: $100-$149",
+          format: {
+            digitSeparator: true,
+            places: 0
+          }
+        }, {
+          fieldName: "TOTPOP_CY",
+          label: "2015 population",
+          format: {
+            digitSeparator: true,
+            places: 0
+          }
+        }, {
+          fieldName: "POPDENS_CY",
+          label: "2015 population density",
+          format: {
+            digitSeparator: true,
+            places: 2
+          }
+        }]
+      });
+   
+      //Reference the popupTemplate instance in the 
+      //popupTemplate property of FeatureLayer
+      spendingLyr = new FeatureLayer({
+        url: psUrl,
+        outFields: ["*"],
+        popupTemplate: popupTemplate
+      });
+        
+      //Set the renderer on the layer based on % coffee drinkers that drink decaf    
+      var renderer = new SimpleRenderer({
+        symbol: new SimpleFillSymbol({
+          outline: new SimpleLineSymbol({
+            width: 0.3,
+            color: [255,255,255]
+          })
+        }),
+        visualVariables: [{
+          type: "colorInfo",
+          field: "MP12063a_B",
+          normalizationField: "MP12060a_B",
+          theme: "high-to-low",
+          colors: ["#ffffe5", "#662506"],
+          minDataValue: 0.06,
+          maxDataValue: 0.15
+        }]
+      });
+      spendingLyr.renderer = renderer;
+      map.add(spendingLyr);
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+    <div id="popupDiv"></div> 
+</body>
+
+</html>

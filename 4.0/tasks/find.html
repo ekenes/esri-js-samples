@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Simple Find</title>
+<style>
+td {
+  padding: 4px;
+}
+#loading{
+  visibility: hidden;
+}
+</style>
+
+<script src="https://jsdev.arcgis.com/4.0beta2/"></script>
+<script>
+var find, params;
+
+require([
+  "esri/tasks/FindTask",
+  "esri/tasks/support/FindParameters",
+  "dojo/_base/array",
+  "dojo/dom",
+  "dojo/on",
+  "dojo/domReady!"
+], function(FindTask, FindParameters, arrayUtils, dom, on) {
+  
+  var loadingImg = dom.byId("loading");
+    
+  //Create new FindTask with MapServer url    
+  find = new FindTask({
+    url: "http://services.arcgisonline.com/arcgis/rest/services/Demographics/USA_2000-2010_Population_Change/MapServer"
+  });
+
+  //Set parameters to only query the Counties layer by name    
+  params = new FindParameters({
+    layerIds: [3],
+    searchFields: ["NAME"]
+  });
+
+  //Executes on each button click    
+  function doFind() {
+    //Display loading gif to provide the user feedback on search progress  
+    loadingImg.style.visibility = "visible";
+    //set the search text to the value of the input box  
+    params.searchText = dom.byId("inputTxt").value;
+    //execute() performs a LIKE SQL query based on the provided text value  
+    //showResults() is called once the promise returned here resolves
+    find.execute(params).then(showResults, rejectedPromise);
+  }
+
+  var resultsTable = dom.byId("tbl");
+
+  //Executes when the promise from find.execute() resolves
+  function showResults(response) {
+    //Clear the cells and rows of the table to make room for new results
+    resultsTable.innerHTML = "";
+
+    //If no results are returned from the task, notify the user  
+    if(response.length === 0){
+      resultsTable.innerHTML = "<i>No results found</i>";
+      loadingImg.style.visibility = "hidden";
+      return;
+    }
+
+    //Set up row for descriptive headers to display results  
+    var topRow = resultsTable.insertRow(0);
+    var cell1 = topRow.insertCell(0);
+    var cell2 = topRow.insertCell(1);
+    var cell3 = topRow.insertCell(2);
+    var cell4 = topRow.insertCell(3);
+    cell1.innerHTML = "<b>County Name</b>";
+    cell2.innerHTML = "<b>State</b>";
+    cell3.innerHTML = "<b>Population (2012)</b>";
+    cell4.innerHTML = "<b>% Population Change (2000 - 2010)</b>";
+
+    //loop through each result in the response and add as a row in the table
+    arrayUtils.forEach(response, function(findResult, i) {
+      //Get each value of the desired attributes    
+      var county = findResult.feature.attributes.Name;
+      var state = findResult.feature.attributes[
+        "State Abbreviation"];
+      var popGrowth = findResult.feature.attributes[
+        "2000-2010 Population Annual Compound Growth Rate (U.S. Census)"
+      ];
+      var pop2012 = findResult.feature.attributes[
+        "2012 Total Population (Esri)"];
+
+      //Add each resulting value to the table as a row    
+      var row = resultsTable.insertRow(i + 1);
+      var cell1 = row.insertCell(0);
+      var cell2 = row.insertCell(1);
+      var cell3 = row.insertCell(2);
+      var cell4 = row.insertCell(3);
+      cell1.innerHTML = county;
+      cell2.innerHTML = state;
+      cell3.innerHTML = pop2012;
+      cell4.innerHTML = popGrowth;
+    });
+    loadingImg.style.visibility = "hidden";
+  }
+
+  //Executes each time the promise from find.execute() is rejected.    
+  function rejectedPromise(err) {
+    console.error("Promise didn't resolve: ", err.message);
+  }
+
+  //execute doFind() when button is clicked    
+  on(dom.byId("findBtn"), "click", doFind);
+});
+</script>
+
+</head>
+<body>
+  Use FindTask on a Map Service to view population change statistics by county name.
+  <br>
+  <br> Find by County Name:
+  <input type="text" id="inputTxt" size="40" value="Spokane" />
+  <input type="button" value="Find" id="findBtn" /> <img id="loading" src="ajax-loader.gif">
+  <br>
+  <br>
+  <table id="tbl"></table>
+</body>
+</html>
