@@ -15,14 +15,18 @@
   }
   #info {
     background-color: #000;
-    position: absolute;
     z-index: 92;
-    left: 0px;
-    bottom: 0px;
+    left: 0;
+    bottom: 0;
+    position: absolute;  
     padding: 10px;
     font-family: Segoe UI;
     color: #fff;
     width: 200px;
+    border-top-right-radius: 8px;
+    opacity: 0.8;
+    max-height: 80%;
+    overflow-y: scroll;
   }
 </style>
 <script src="http://jsdev.arcgis.com/3.15/"></script>
@@ -117,6 +121,7 @@ var map, cropsLyr, legend, renderer;
     field: "TOT_CROP_ACRES",
     minDataValue: 5000,
     maxDataValue: 500000,
+    valueUnit: "unknown",  
     minSize: {
       type: "sizeInfo",
       expression: "view.scale",
