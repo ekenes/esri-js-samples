@@ -17,7 +17,7 @@
   <script src="https://js.arcgis.com/4.0beta2/"></script>
 
   <script>
-    var map, view;
+    var map, view, template;
     require([
       "esri/Map",
       "esri/PopupTemplate",
@@ -30,18 +30,18 @@
       FeatureLayer,
       MapView
     ) {
-
+        
       //Create the map
       map = new Map({
-        basemap: "gray"
+        basemap: "satellite"
       });
 
       //Create the MapView
       view = new MapView({
         container: "viewDiv",
         map: map,
-        center: [-73.950, 40.702],
-        zoom: 11
+        center: [-117.287487, 47.823473],
+        zoom: 20
       });
 
       /*************************************************************
@@ -54,37 +54,16 @@
       * aliases in the popup and legend (not released yet)
       **************************************************************/
         
-      var template = new PopupTemplate({
-        title: "Marriage in NY, Zip Code: {ZIP}",
-        content: "<p>As of 2015, <b>{MARRIEDRATE}%</b> of the population in this zip code is married.</p>" +
-          "<ul><li>{MARRIED_CY} people are married</li>" +
-          "<li>{NEVMARR_CY} have never married</li>" +
-          "<li>{DIVORCD_CY} are divorced</li><ul>",
-        fieldInfos: [{
-          fieldName: "MARRIED_CY",
-          format: {
-            digitSeparator: true,  //Uses a comma separator in large numbers
-            places: 0  //sets the number of decimal places to 0 and rounds up
-          }
-        }, {
-          fieldName: "NEVMARR_CY",
-          format: {
-            digitSeparator: true,
-            places: 0
-          }
-        }, {
-          fieldName: "DIVORCD_CY",
-          format: {
-            digitSeparator: true,
-            places: 0
-          }
-        }]
+      template = new PopupTemplate({
+        title: "Apple tree mountains",
+        content: "Don't care about fields in this app.",
+        showAttachments: false
       });
 
       //Reference the popupTemplate instance in the 
       //popupTemplate property of FeatureLayer
       featureLayer = new FeatureLayer({
-        url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/ArcGIS/rest/services/NYCDemographics1/FeatureServer/0",
+        url: "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/GeometryEngine_test_data/FeatureServer/0",
         outFields: ["*"],
         popupTemplate: template
       });
