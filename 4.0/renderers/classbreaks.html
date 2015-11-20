@@ -1,0 +1,216 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ClassBreaks</title>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta2/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0beta2/"></script>
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+#panel {
+  top: 20px;
+  right: 20px;
+  position: absolute;
+  text-align: center;
+  z-index: 99;
+  background-color: white;
+  border-radius: 8px;
+  padding: 10px;
+  opacity: 0.75;
+}
+</style>
+
+<script>
+require([
+  "esri/layers/FeatureLayer",
+  "esri/Map",
+  "esri/views/SceneView",
+  "esri/PopupTemplate",
+  "esri/renderers/ClassBreaksRenderer",
+  "esri/symbols/ObjectSymbol3DLayer",
+  "esri/symbols/PointSymbol3D",
+  "dojo/dom",
+  "dojo/on",
+  "dojo/domReady!"
+], function (
+  FeatureLayer, Map, SceneView, PopupTemplate, ClassBreaksRenderer, 
+  ObjectSymbol3DLayer, PointSymbol3D, dom, on
+){
+  //Setup the map and SceneView
+  var map = new Map({
+    basemap: "gray"
+  });
+  var view = new SceneView({
+    map: map,
+    container: "viewDiv"
+  });
+    
+  /******************************************************
+  * Set up 5 symbols for the class breaks renderer. Each 
+  * earthquake feature in the layer will be assigned one
+  * of these symbols based on its magnitude.
+  *****************************************************/
+    
+  //This symbol will be used to render quakes with magnitudes between 0-2    
+  var symbol1 = new PointSymbol3D({
+    symbolLayers: [new ObjectSymbol3DLayer({
+      resource: {
+        primitive: "cone"  // cube, cone, diamond, tetrahedron, cylinder
+      },
+      material: {
+        color: [0, 169, 230] // blue
+      },
+      height: 200000,
+      width: 50000  
+    })]
+  });
+    
+  //This symbol will be used to render quakes with magnitudes between 2-4     
+  var symbol2 = new PointSymbol3D({
+    symbolLayers: [new ObjectSymbol3DLayer({
+      resource: {
+        primitive: "cone"
+      },
+      material: {
+        color: [0, 230, 0] // green
+      },
+      height: 400000,
+      width: 70000  
+    })]
+  });
+    
+  //This symbol will be used to render quakes with magnitudes between 4-5     
+  var symbol3 = new PointSymbol3D({
+    symbolLayers: [new ObjectSymbol3DLayer({
+      resource: {
+        primitive: "cone" 
+      },
+      material: {
+        color: [230, 230, 0] // yellow
+      },
+      height: 800000,
+      width: 90000  
+    })]
+  });
+    
+  //This symbol will be used to render quakes with magnitudes between 5-6     
+  var symbol4 = new PointSymbol3D({
+    symbolLayers: [new ObjectSymbol3DLayer({
+      resource: {
+        primitive: "cone" 
+      },
+      material: {
+        color: [230, 152, 0] // orange
+      },
+      height: 1600000,
+      width: 110000  
+    })]
+  });
+    
+  //This symbol will be used to render quakes with magnitudes between 6-10     
+  var symbol5 = new PointSymbol3D({
+    symbolLayers: [new ObjectSymbol3DLayer({
+      resource: {
+        primitive: "cone" 
+      },
+      material: {
+        color: [230, 0, 0] // red
+      },
+      height: 3200000,
+      width: 130000  
+    })]
+  });
+
+  /******************************************************
+  * Create a new instance of ClassBreaksRenderer and base
+  * the breaks on the values of the MAGNITUDE FIELD.
+  *****************************************************/     
+  var renderer = new ClassBreaksRenderer(null, "MAGNITUDE");
+    
+  /******************************************************
+  * Add all five breaks to the renderer based on the value
+  * of the magnitude of each earthquake.
+  *****************************************************/ 
+
+  //Render quakes with magnitudes 0-2 with the symbol defined in symbol1 above
+  renderer.addBreak({
+    minValue: 0,
+    maxValue: 2,
+    symbol: symbol1
+  });
+    
+  //Render quakes with magnitudes 2-4 with the symbol defined in symbol2 above    
+  renderer.addBreak({
+    minValue: 2,
+    maxValue: 4.01,
+    symbol: symbol2
+  });
+    
+  //Render quakes with magnitudes 4-5 with the symbol defined in symbol3 above    
+  renderer.addBreak({
+    minValue: 4.01,
+    maxValue: 5,
+    symbol: symbol3
+  });
+    
+  //Render quakes with magnitudes 5-6 with the symbol defined in symbol4 above    
+  renderer.addBreak({
+    minValue: 5,
+    maxValue: 6,
+    symbol: symbol4
+  });
+    
+  //Render quakes with magnitudes 6-10 with the symbol defined in symbol5 above    
+  renderer.addBreak({
+    minValue: 6,
+    maxValue: 10,
+    symbol: symbol5
+  });
+    
+  //Configure a PopupTemplate so users can view additional
+  //information about each earthquake they select
+  var pTemplate = new PopupTemplate({
+    title: "{LOCATION}",
+    content: "A magnitude <b>{MAGNITUDE}</b> earthquake "
+      + "hit {LOCATION} at {UTC_DATETIME}. For more information "
+      + "about this event, read <a href='{URL}'>this page</a>.",
+    fieldInfos: [{
+      fieldName: "UTC_DATETIME",
+      format: {
+        dateFormat: "shortDateShortTime"  
+      }
+    }]
+  });
+    
+  //Add the earthquakes feature layer to the map    
+  var url = "http://tmservices1.esri.com/arcgis/rest/services/LiveFeeds/Earthquakes/MapServer/0";    
+  var featureLayer = new FeatureLayer({
+    url: url,
+    outFields: ["*"],
+    popupTemplate: pTemplate
+  });
+  map.add(featureLayer);
+    
+  //When the button is clicked, set the class breaks renderer on the layer    
+  on(dom.byId("changeBtn"), "click", function(){
+    featureLayer.renderer = renderer;  
+  });
+});
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+    <div id="panel">Earthquakes<br><br>
+     <button id="changeBtn">Apply 3D Symbology</button>
+  </div>
+</body>
+
+</html>
