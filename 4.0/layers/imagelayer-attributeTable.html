@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Work with an image layer's raster attribute table - 4.0beta2</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.0beta2/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.0beta2/"></script>
+
+  <style>
+    html,
+    body {
+      padding: 0;
+      margin: 0;
+    }
+  </style>
+
+  <script>
+    require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/ArcGISImageLayer",
+        "esri/request",
+        "dojo/domReady!"
+      ],
+      function(
+        Map, MapView,
+        ArcGISImageLayer, esriRequest
+      ) {
+
+        var rasterAttributes;
+
+        /********************
+         * Create image layer
+         ********************/
+
+        var layer = new ArcGISImageLayer({
+          url: "https://sampleserver6.arcgisonline.com/arcgis/rest/services/NLCDLandCover2001/ImageServer",
+          pixelFilter: colorize //applies color to the layer
+        });
+
+        /**************************
+         * Add image layer to map
+         *************************/
+
+        var map = new Map({
+          basemap: "gray",
+          layers: [layer]
+        });
+
+        var view = new MapView({
+          container: "viewDiv",
+          map: map,
+          center: [-100, 40],
+          zoom: 5
+        });
+
+        /**********************************************************
+         * Request the raster attribute table to add color to
+         * the image layer. 
+         * 
+         * Raster attribute tables contain preclassified information
+         * about raster values. Each value has several attributes
+         * containing additional information about the pixel
+         * value including its color, classification, etc.
+         * 
+         * We will use esri/request to request the data from the 
+         * attribute table and apply the RGB values stored in the 
+         * table to their corresponding pixels using pixelFilter.
+         * 
+         * This is a temporary work around for the 
+         * getRasterAttributeTable() method, which will be added in
+         * a future release of the API.
+         *********************************************************/
+        view.then(getAttributeTable);
+
+        //When the layer is loaded, request the attribute table
+        function getAttributeTable() {
+          esriRequest({
+            url: layer.url + "/rasterAttributeTable",
+            content: {
+              f: "pjson"
+            },
+            handleAs: "json"
+          }).then(function(response) {
+            rasterAttributes = response.features;
+          });
+        }
+
+        /**********************************************************
+         * Apply the RGB values stored for each pixel value to the
+         * pixel in a three-band array using the pixelFilter
+         *********************************************************/
+
+        function colorize(pixelData) {
+          if (pixelData === null || pixelData.pixelBlock === null ||
+            pixelData.pixelBlock.pixels === null) {
+            return;
+          }
+
+          //The pixelBlock stores the values of all pixels visible in the view    
+          var pixelBlock = pixelData.pixelBlock;
+
+          //The pixels visible in the view    
+          var pixels = pixelBlock.pixels;
+
+          //The number of pixels in the pixelBlock    
+          var numPixels = pixelBlock.width * pixelBlock.height;
+
+          //Get the pixels from the only band of the data    
+          var band1 = pixels[0];
+
+          //Create empty arrays for each of the RGB bands to set on the pixelBlock    
+          var rBand = [];
+          var gBand = [];
+          var bBand = [];
+
+          //Loop through all the pixels in the view    
+          band1.forEach(function(pixel, i) {
+            //Loop through each attribute in the table  
+            rasterAttributes.forEach(function(feature, k) {
+              var attValue = feature.attributes.Value;
+              //When a match to a raster value is made, apply the
+              //predefined colors to each band
+              if (pixel === attValue) {
+                rBand[i] = feature.attributes.Red;
+                gBand[i] = feature.attributes.Green;
+                bBand[i] = feature.attributes.Blue;
+                return;
+              }
+            });
+          });
+
+          //Color Developed, High Intensity areas with red
+          for (i = 0; i < numPixels; i++) {
+            if (!rBand[i] || !gBand[i] || !bBand[i]) {
+              rBand[i] = 171;
+              gBand[i] = 0;
+              bBand[i] = 0;
+            }
+          }
+
+          //Set the new pixel values on the pixelBlock    
+          pixelData.pixelBlock.pixels = [rBand, gBand, bBand];
+          pixelData.pixelBlock.statistics = null;
+          pixelData.pixelBlock.pixelType = "U8"; //U8 is used for color
+
+          //returns the data to the layer
+          return pixelData;
+        }
+      });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>

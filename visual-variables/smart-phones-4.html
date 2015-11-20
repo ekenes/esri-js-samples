@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+<title>U.S. College Attendance (2015)</title>
+<link rel="stylesheet" href="http://js.arcgis.com/4.0beta2/esri/css/main.css">
+<script src="http://js.arcgis.com/4.0beta2/"></script>
+<style>
+  html, body{
+    margin: 0;
+    padding: 0;
+  }
+</style>
+
+<script>
+  require([
+    "esri/Map",
+    "esri/views/SceneView",
+    "esri/layers/FeatureLayer",
+    "esri/symbols/SimpleMarkerSymbol",
+    "esri/symbols/SimpleLineSymbol",
+    "esri/renderers/SimpleRenderer",
+    "esri/PopupTemplate",
+    "dojo/domReady!"
+  ], function(Map, SceneView, FeatureLayer, SimpleMarkerSymbol, SimpleLineSymbol, SimpleRenderer, PopupTemplate
+) {
+  //URL to the service containing smart phone ownership data      
+  var url = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Enriched%20USA%20ZIP%20Code%20Areas/FeatureServer/0";       
+
+  //Set up a simple PopupTemplate for interactive purposes     
+  //The MP27002a_B field is the number of people who own a smartphone
+  var pTemplate = new PopupTemplate({
+    title: "ZIP Code: {ZIP_CODE} ({NAME})",
+    content: "{MP27002a_B} out of {TOTPOP_CY} people in this zip code own a smart phone.",
+    fieldInfos: [{
+      fieldName: "MP27002a_B",
+      format: { places: 0, digitSeparator: true}
+    }, {
+      fieldName: "TOTPOP_CY",
+      format: { places: 0, digitSeparator: true} 
+    }]
+  });      
+ 
+  /***********************************************************************
+  * Set the visual variables. 
+  * 
+  * Here we define two visual variables - colorInfo and sizeInfo.
+  * The colorInfo visual variable will use color to show the 
+  * percentage of smart phone owners in the zip code. A dark
+  * blue color will show areas where more than 53% of the population
+  * own a smart phone. Pale yellow areas show zip codes where less than
+  * 33% of the population own a smart phone.
+  ***********************************************************************/
+  var colorVisVar = {
+    type: "colorInfo",
+    field: "MP27002a_B",
+    normalizationField: "TOTPOP_CY",
+    minDataValue: 0.33,
+    maxDataValue: 0.53,
+    theme: "high-to-low",
+    colors: ["#FFFCD4", "#0D2644"]
+  }; 
+    
+  /***********************************************************************
+  * The sizeInfo visual variable will be defined based on the population
+  * density of the zip code. 
+  ***********************************************************************/      
+      
+  var sizeVisVar = {
+    type: "sizeInfo",
+    field: "TOTPOP_CY",
+    normalizationField: "SQMI",
+    minDataValue: 4000,  //16000
+    maxDataValue: 23000,  //61000
+    valueUnit: "unknown",  
+    minSize: 6,  //size of the marker in pixels
+    maxSize: 40  //size of the marker in pixels
+  }
+      
+  /***********************************************************************
+  * Define a simple renderer and set the visual variables.
+  * 
+  * Even though the features in this layer are polygons, we will use a 
+  * SimpleMarkerSymbol to symbolize them. This will allow us to use the 
+  * sizeInfo visual variable in the renderer.
+  ***********************************************************************/ 
+  renderer = new SimpleRenderer({
+    //define a default marker symbol with a small outline  
+    symbol: new SimpleMarkerSymbol({
+      outline: new SimpleLineSymbol({
+        color: [128,128,128],
+        width: 0.5
+      })
+    }),
+    //set the colorInfo and sizeInfo visual variables on the renderer
+    visualVariables: [colorVisVar, sizeVisVar]
+  });      
+      
+  //Set the renderer on the feature layer      
+  zipLyr = new FeatureLayer({
+    url: url,
+    outFields: ["*"],
+    popupTemplate: pTemplate,
+    definitionExpression: "NAME='Los Angeles' OR NAME='Beverly Hills'",
+    renderer: renderer,
+    //This prevents the markers from "billboarding" when the view is tilted  
+    elevationInfo: {
+      mode: "onTheGround"
+    }
+  });      
+      
+  map = new Map({
+    basemap: "gray",
+    layers: [zipLyr]
+  });
+      
+  view = new SceneView({
+    container: "viewDiv",
+    map: map,
+    zoom: 12,
+    center: [-118.302, 34.022]
+  });      
+});
+</script>
+</head>
+<body>
+ <div id="viewDiv"></div> 
+</body>
+</html>

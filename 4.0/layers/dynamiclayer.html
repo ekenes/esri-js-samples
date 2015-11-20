@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>ArcGISDynamicLayer - 4.0beta2</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.0beta2/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.0beta2/"></script>
+
+  <style>
+    html,
+    body {
+      padding: 0;
+      margin: 0;
+    }
+  </style>
+
+  <script>
+    require([
+        "esri/Map",
+        "esri/views/SceneView",
+        "esri/layers/ArcGISDynamicLayer",
+        "dojo/domReady!"
+      ],
+      function(
+        Map, SceneView, ArcGISDynamicLayer
+      ) {
+
+        /*****************************************************************
+         * Create an ArcGISDynamicLayer instance pointing to a Map Service
+         * containing data about pool permits in Southern California.
+         *****************************************************************/
+        var permitsLyr = new ArcGISDynamicLayer({
+          url: "https://sampleserver6.arcgisonline.com/arcgis/rest/services/PoolPermits/MapServer"
+        });
+
+        /*****************************************************************
+         * Add the layer to a map
+         *****************************************************************/
+        var map = new Map({
+          basemap: "dark-gray",
+          layers: [permitsLyr]
+        });
+
+        var view = new SceneView({
+          container: "viewDiv",
+          map: map
+        });
+
+        /*****************************************************************
+         * Animate to the layer's full extent when the layer loads.
+         *****************************************************************/
+        permitsLyr.then(function() {
+          view.animateTo(permitsLyr.fullExtent);
+        });
+      });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>

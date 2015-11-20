@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Work with image layer pixel values - 4.0beta2</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.0beta2/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.0beta2/"></script>
+
+  <style>
+    html,
+    body {
+      padding: 0;
+      margin: 0;
+    }
+  </style>
+
+  <script>
+    require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/ArcGISImageLayer",
+        "esri/layers/support/RasterFunction",
+        "dojo/domReady!"
+      ],
+      function(
+        Map, MapView,
+        ArcGISImageLayer, RasterFunction
+      ) {
+
+        //The URL to an image layer representing sea temperature
+        var url =
+          "https://sampleserver6.arcgisonline.com/arcgis/rest/services/ScientificData/SeaTemperature/ImageServer";
+
+        var map = new Map({
+          basemap: "dark-gray"
+        });
+
+        var view = new MapView({
+          container: "viewDiv",
+          map: map,
+          zoom: 3,
+          center: [-32, 28]
+        });
+
+        /******************************************
+         * Set the rendering rule to the 
+         * "None" raster function. This will allow
+         * us to gain access to the temperature 
+         * value assigned to each pixel
+         *****************************************/
+
+        var rf = new RasterFunction({
+          functionName: "None"
+        });
+
+        /**********************************************************
+         * The PixelFilter. This function is used to color the 
+         * pixels. By default, each pixel has one band containing
+         * a temperature value. Without the pixelFilter
+         * the layer would render in a grayscale. We will
+         * replace the single band with three bands - red,
+         * green, and blue to give color to the layer. This 
+         * will overwrite the original temperature value. See
+         * the getTemp() function for converting the RGB values
+         * back to the original temperature value.
+         *********************************************************/
+
+        function colorize(pixelData) {
+          if (pixelData === null || pixelData.pixelBlock === null ||
+            pixelData.pixelBlock.pixels === null) {
+            return;
+          }
+
+          //The pixelBlock stores the values of all pixels visible in the view    
+          var pixelBlock = pixelData.pixelBlock;
+
+          //Get the min and max values of the data in the current view    
+          var minValue = pixelBlock.statistics[0].minValue;
+          var maxValue = pixelBlock.statistics[0].maxValue;
+
+          //The mask is an array that determines which pixels are visible to the client      
+          var mask = pixelBlock.mask;
+
+          //The pixels visible in the view    
+          var pixels = pixelBlock.pixels;
+
+          //The number of pixels in the pixelBlock    
+          var numPixels = pixelBlock.width * pixelBlock.height;
+
+          //Calculate the factor by which to determine the red and blue 
+          //values in the colorized version of the layer
+          var factor = 255.0 / (maxValue - minValue);
+
+          //Get the pixels containing temperature values in the only band of the data    
+          var band1 = pixels[0];
+
+          //Create empty arrays for each of the RGB bands to set on the pixelBlock    
+          var rBand = [];
+          var gBand = [];
+          var bBand = [];
+
+          //Loop through all the pixels in the view    
+          for (i = 0; i < numPixels; i++) {
+            //Get the pixel value (the temperature) recorded at the pixel location   
+            var tempValue = band1[i];
+            //Calculate the red value based on the factor   
+            var red = (tempValue - minValue) * factor;
+
+            //Sets a color between blue (coldest) and red (warmest) in each band
+            rBand[i] = red;
+            gBand[i] = 0;
+            bBand[i] = 255 - red;
+          }
+
+          //Set the new pixel values on the pixelBlock    
+          pixelData.pixelBlock.pixels = [rBand, gBand, bBand];
+          pixelData.pixelBlock.pixelType = "U8"; //U8 is used for color
+
+          //returns the data to the layer
+          return pixelData;
+        }
+
+        var layer = new ArcGISImageLayer({
+          url: url,
+          renderingRule: rf,
+          pixelFilter: colorize
+        });
+        //Add sea temperature layer to the map
+        map.add(layer);
+
+        /******************************************
+         * Get the temperature at the location of 
+         * the mouse each time the view is clicked
+         *****************************************/
+
+        view.on("click", getTemp);
+
+        function getTemp(evt) {
+          //Get the screen coordinates of the mouse location    
+          var screenX = evt.pointers[0].layerX;
+          var screenY = evt.pointers[0].layerY;
+
+          //Get the pixel block of the layer    
+          var pixelBlock = layer.pixelData.pixelBlock;
+
+          //Get the pixel values of the red band in the block
+          var redBand = pixelBlock.pixels[0];
+
+          //Calculate the index number of the pixel in the pixelBlock
+          //at the location of the mouse based on the screen coordinates
+          var pixelIndex = Math.floor(screenY * pixelBlock.width + screenX);
+
+          //The mask is an array that determines which pixels are visible to the client    
+          var mask = pixelBlock.mask;
+
+          //Get the min and max values and calculate the factor    
+          var minValue = pixelBlock.statistics[0].minValue;
+          var maxValue = pixelBlock.statistics[0].maxValue;
+          var factor = 255.0 / (maxValue - minValue);
+
+          //Get the red pixel value at the calculated index and calculate
+          //the temperature based on the red value
+          var redVal = redBand[pixelIndex];
+          var temperature = (redVal / factor) + minValue;
+
+          //Print the pixel value (the temperature) to the user in the popup
+          var result = "Temperature: " + Math.round(temperature * 100) / 100 +
+            " degrees Celcius";
+          view.popup.set("location", evt.mapPoint);
+          view.popup.set("content", result);
+
+          //If the user clicks a region not rendered in the layer, then hide the popup    
+          if (mask[pixelIndex]) {
+            view.popup.set("visible", true);
+          } else {
+            view.popup.set("visible", false);
+          }
+        }
+
+        view.then(function() {
+          //Sets a generic title to the Popup.    
+          view.popup.set("title", "Sea Surface Temperature");
+
+          //Set instructions for the user inside the default popup
+          view.popup.set("content",
+            "Click anywhere in the oceans to view the sea temperature at that location."
+          );
+          view.popup.set("visible", true);
+          view.popup.set("location", view.center);
+        });
+      });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
