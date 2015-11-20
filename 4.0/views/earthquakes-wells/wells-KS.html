@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Local Scene</title>
+<style>
+html, body {
+  padding: 0;
+  margin: 0;
+}
+#homeDiv{
+  left: 10px;
+  top: 120px;
+  z-index: 35;
+  position: absolute;
+}
+</style>
+ 
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta2/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0beta2/"></script>
+ 
+<script>
+  var scene, view;
+  require([
+    "esri/WebScene",
+    "esri/views/SceneView",
+    "esri/layers/FeatureLayer",
+    "esri/layers/GraphicsLayer",
+    "esri/geometry/Point",
+    "esri/geometry/Extent",
+    "esri/geometry/geometryEngine",
+    "esri/PopupTemplate",
+    "esri/geometry/SpatialReference",
+    "esri/renderers/SimpleRenderer",
+    "esri/symbols/ObjectSymbol3DLayer",
+    "esri/symbols/IconSymbol3DLayer",
+    "esri/symbols/PointSymbol3D",
+    "esri/tasks/QueryTask",
+    "esri/tasks/support/Query",
+    "esri/Graphic",
+    "esri/request",
+    "esri/config",
+    "esri/widgets/Home",
+    "dojo/dom",  
+    "dojo/_base/array",
+    "dojo/domReady!"
+  ], function (WebScene, SceneView, FeatureLayer, GraphicsLayer, Point, Extent, geometryEngine, PopupTemplate, SpatialReference, SimpleRenderer, ObjectSymbol3DLayer, IconSymbol3DLayer, PointSymbol3D, QueryTask, Query, Graphic, esriRequest, esriConfig, Home, dom, arrayUtils){
+     
+    esriConfig.request.corsEnabledServers.push("http://earthquake.usgs.gov"); 
+    
+    var lastHour = "http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson";  
+    var last24hrs = "http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson";
+    var last7days = "http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson";
+    var last30days = "http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson";
+   
+    //The clipping extent for the scene  
+    var kansasExtent = new Extent({
+      xmax: -10834217.219947055,
+      xmin: -10932882.111830618,
+      ymax: 4493918.031861138,
+      ymin: 4432667.349743819,
+      spatialReference: new SpatialReference({
+        wkid: 3857   
+      })
+    });  
+      
+    /**************************************************
+    * Create graphics with returned geojson data
+    **************************************************/  
+     
+    //Input the geojson earthquake data from the USGS and return the
+    //features as graphics. Once this method finishes the graphics will
+    //be sent to the addToLayer() function
+    function getData(geojson){
+      return arrayUtils.map(geojson.features, function(feature){
+        if(feature.geometry.coordinates[2] < 0){
+          feature.geometry.coordinates[2] *= -1;
+        }
+        feature.properties.depth = feature.geometry.coordinates[2];
+        return new Graphic({
+          geometry: new Point({
+            latitude: feature.geometry.coordinates[1],
+            longitude: feature.geometry.coordinates[0],
+            z: feature.geometry.coordinates[2] * (-1000),
+            spatialReference: new SpatialReference({
+              wkid: 3857   
+            })
+          }),
+          attributes: feature.properties
+        });
+      });
+    }
+  
+    //Executes if data retrevial was unsuccessful.  
+    function errback(error){
+      console.error("Retreving data failed. ", error);
+    } 
+      
+    /*********************************************************
+    * Renderer properties for symbolizing wells on the surface
+    *********************************************************/ 
+      
+    var wellsSurfaceRenderer = new SimpleRenderer({
+      symbol: new PointSymbol3D({
+        symbolLayers: [new IconSymbol3DLayer({
+          material: { color: "#785226" },
+          resource: { primitive: "x" },
+          size: 4
+        })]
+      })
+    }); 
+      
+    /**************************************************
+    * Renderer for symbolizing wells below the surface
+    **************************************************/  
+      
+    var wellsDepthRenderer = new SimpleRenderer({
+      symbol: new PointSymbol3D({
+        symbolLayers: [new ObjectSymbol3DLayer({
+          resource: { primitive: "cylinder" },
+          material: { color: "#D97604" }
+        })]
+      }),
+      visualVariables: [{
+        type: "sizeInfo",
+        field: "DEPTH",
+        axis: "height",
+        minDataValue: 1,
+        maxDataValue: 10000,
+        minSize: -0.3048,
+        maxSize: -3048
+      }, {
+        type: "sizeInfo",
+        minSize: 50,
+        axis: "width"
+      }]
+    });  
+        
+    /**************************************************
+    * Layers depicting oil and gas wells in Harper County
+    * and Sumner County, Kansas
+    **************************************************/   
+    var wellsUrl = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/HarperSumnerOGWells/FeatureServer/0";  
+      
+    var wellsLyr = new FeatureLayer({
+      url: wellsUrl,
+      definitionExpression: "Status = 'CBM' OR Status = 'EDR' OR Status = 'GAS' OR Status = 'INJ' OR Status = 'O&G' OR Status = 'OIL' OR Status = 'SWD'",
+      outFields: ["*"],
+      popupTemplate: new PopupTemplate({
+        content: "{*}"
+      }),
+      renderer: wellsDepthRenderer,
+      //This keeps the cylinders from poking above the ground     
+      elevationInfo: {
+        mode: "relativeToGround",
+        offset: -100
+      }
+    });
+      
+    var wellsSurfaceLyr = new FeatureLayer({
+      url: wellsUrl,
+      definitionExpression: "Status2 = 'Producing'",
+      outFields: ["*"],
+      popupTemplate: new PopupTemplate({
+        content: "{*}"
+      }),
+      renderer: wellsSurfaceRenderer,
+      //This keeps the wells from rendering below the surface
+      elevationInfo: {
+        mode: "relativeToGround",
+        offset: 100
+      }
+    });
+     
+    /**************************************************
+    * Create a local scene in Oklahoma
+    **************************************************/
+      
+    scene = new WebScene({
+      basemap: "topo",
+      //indicates to create a local scene    
+      viewingMode: "local",
+      //Use the exent defined in clippingArea to define the bounds of the scene    
+      clippingEnabled: true,
+      clippingArea: kansasExtent,
+      layers: [wellsLyr, wellsSurfaceLyr]
+    });
+ 
+    //Create a SceneView
+    view = new SceneView({
+      container: "viewDiv",
+      map: scene,
+      extent: kansasExtent,
+      //Allows for navigating the camera below the surface    
+      constraints: {
+        collision: {
+          enabled: false
+        },
+        tilt: {
+          max: 179.99
+        }
+      },
+      //Turns off atmosphere and stars settings    
+      environment: {
+        atmosphere: "none",
+        stars: "none"
+      }
+    });
+      
+    /********************************************************
+    * Renderer for symbolizing earthquakes below the surface
+    *******************************************************/  
+      
+    //Symbol will be a sphere 
+    var sym = new PointSymbol3D({
+      symbolLayers:[
+        new ObjectSymbol3DLayer({
+          resource:{
+            primitive: "sphere"
+          }
+       })
+      ]
+    }); 
+      
+    //The size of the spheres will coincide with the magnitude
+    //of the earthquake, while the color corresponds with the 
+    //significance of the earthquake
+    var quakesRenderer = new SimpleRenderer({
+      symbol: sym,
+      visualVariables: [{
+         type: "colorInfo",
+         field: "sig",
+         theme: "high-to-low",
+         stops: [{ value: 0, color: "white"},
+                 { value: 500, color: "red"}]
+      }, {
+         type: "sizeInfo",
+         field: "mag",
+         axis: "all",
+         valueUnit: "meters",
+         minDataValue: 1,
+         maxDataValue: 5,
+         minSize: 100,
+         maxSize: 2000
+      }]
+    });
+      
+    /********************************************************
+    * Renderer for symbolizing earthquakes on the surface
+    *******************************************************/    
+      
+    //Quakes will be symbolized as circles
+    var surfaceSym = new PointSymbol3D({
+      symbolLayers: [
+        new IconSymbol3DLayer({
+          material: { color: [179,75,75] },
+          resource: { primitive: "circle" }
+      })]    
+    }); 
+      
+    //Symbol size will vary depending on magnitude of the quake 
+    var quakesSurfaceRenderer = new SimpleRenderer({
+      symbol: surfaceSym,
+      visualVariables: [{
+        type: "sizeInfo",
+        field: "mag",
+        axis: "all",
+        valueUnit: "unknown",
+        minDataValue: 1,
+        maxDataValue: 5,
+        minSize: 3,
+        maxSize: 50
+      }] 
+    });
+      
+    /********************************************************
+    * The popupTemplate that will populate the content of the 
+    * popup when an earthquake feature is selected
+    *******************************************************/     
+
+    var quakeTemplate = new PopupTemplate({
+      title: "{title}",
+      content: "<b>Location:</b> {place}<br>" +
+        "<b>Date and time:</b> {time}<br>" +
+        "<b>Magnitude (0-10): </b> {mag}<br>" +
+        "<b>Intensity (1-10): </b> {mmi}<br>" +
+        "<b>Depth: </b> {depth} km<br>" +
+        "<b>Number who reported feeling the quake: </b> {felt}<br>" +
+        "<b>Significance: </b> {sig}<br><br>" +
+        "<a href='{url}'>View more information provided by the USGS</a>",
+      fieldInfos: [{
+        fieldName: "time",
+        format: {
+          dateFormat: "shortDateShortTime"
+        }
+      }, {
+        fieldName: "felt",
+        format: {
+          digitSeparator: true,
+          places: 0
+        }
+      }],
+      actions: [{
+        className: "esri-icon-ui-zoom-out-magnifying-glass",
+        id: "find-wells",
+        title: "Nearby wells"
+      }]
+    });  
+      
+    /********************************************************
+    * Create earthquakes layers (one on the surface and one
+    * below the surface to show actual location).
+    *******************************************************/
+      
+    //Defines a layer for drawing the exact location of quakes below the surface  
+    quakesDepth = new GraphicsLayer({
+      elevationInfo: {
+        mode: "absoluteHeight"
+      },
+      renderer: quakesRenderer,
+      popupTemplate: quakeTemplate
+    });
+      
+    //Defines a layer for depicting quakes on the surface  
+    quakesSurface = new GraphicsLayer({
+      elevationInfo: {
+        mode: "onTheGround"
+      },
+      renderer: quakesSurfaceRenderer,
+      popupTemplate: quakeTemplate,
+      opacity: 0.6
+    });  
+
+    //Add real-time features to both quakes layers  
+    function addToLayer(graphics){
+      quakesDepth.add(graphics);
+      quakesSurface.add(graphics);
+      scene.add([quakesDepth, quakesSurface]);
+    }
+    
+    /********************************************************
+    * Request earthquake data from the USGS live geoJson feed
+    *******************************************************/  
+
+    view.then(function(){
+      esriRequest({
+        url: last30days,
+        handleAs: "json"
+        //Submit the response to the getData() function
+      }).then(getData, errback).then(addToLayer);  
+    });
+      
+    /********************************************************
+     * Set up action for returning the number of wells within
+     * 10km of the earthquake.
+    *******************************************************/
+      
+    var wellsQTask = new QueryTask({
+      url: wellsUrl
+    });
+      
+    //Default parameters for selecting wells within 10km of click  
+    var wellsBufferParams = new Query({
+       spatialRelationship: "esriSpatialRelIntersects",
+       distance: 10,
+       units: "kilometers",
+       where: "Status2 = 'Producing'"
+    });  
+      
+    view.popup.on("action-click", function(evt){
+      if(evt.action.id === "find-wells"){
+        wellsBufferParams.geometry = view.popup.selectedFeature.geometry;
+        wellsQTask.executeForCount(wellsBufferParams).then(function(response){
+          var results = "<b>" + response + "</b> active wells exist within 10 kilometers of this earthquake."    
+          view.popup.set("content", results);
+        }, function(err){
+          console.log("action failed: ", err);
+        });
+      } else {
+        return;
+      }    
+    });
+      
+    //Set up a home button for resetting the viewpoint to the intial extent  
+    var homeBtn = new Home({
+      view: view    
+    }, dom.byId("homeDiv"));
+    homeBtn.startup();
+  });
+</script>
+</head>
+ 
+<body>
+  <div id="viewDiv"></div>
+  <div id="homeDiv"></div>    
+</body>
+</html> 
