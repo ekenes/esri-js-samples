@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Get started with layers - 4.0beta2</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.0beta2/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.0beta2/"></script>
+
+  <style>
+    html,
+    body {
+      padding: 0;
+      margin: 0;
+    }
+    
+    #layerToggle {
+      top: 20px;
+      right: 20px;
+      position: absolute;
+      z-index: 99;
+      background-color: white;
+      border-radius: 8px;
+      padding: 10px;
+      opacity: 0.75;
+    }
+  </style>
+
+  <script>
+    require([
+        "esri/Map",
+        "esri/views/SceneView",
+        "esri/layers/ArcGISTiledLayer",
+        "dojo/dom",
+        "dojo/on",
+        "dojo/domReady!"
+      ],
+      function(
+        Map, SceneView, ArcGISTiledLayer, dom, on
+      ) {
+
+        /*****************************************************************
+         * Create two ArcGISTiledLayer instances. One pointing to a 
+         * cached map service depicting U.S. male population and the other
+         * pointing to a layer of roads and highways.
+         *****************************************************************/
+        var transportationLyr = new ArcGISTiledLayer({
+          url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer",
+          //This property can be used to uniquely identify the layer
+          id: "streets"
+        });
+
+        var popLyr = new ArcGISTiledLayer({
+          url: "https://services.arcgisonline.com/arcgis/rest/services/Demographics/USA_Population_by_Sex/MapServer",
+          id: "male-population",
+          //controls the opacity of the layer    
+          opacity: 0.7
+        });
+
+        /*****************************************************************
+         * Layers may be added to the map in the map's constructor
+         *****************************************************************/
+        var map = new Map({
+          basemap: "dark-gray",
+          layers: [popLyr]
+        });
+
+        /*****************************************************************
+         * Or they may be added to the map using map.add()
+         *****************************************************************/
+        map.add(transportationLyr);
+
+        var view = new SceneView({
+          container: "viewDiv",
+          map: map
+        });
+
+        /*****************************************************************
+         * The map handles the layers' data while the view and layer views
+         * take care of renderering the layers
+         *****************************************************************/
+        view.on("layer-view-create", function(evt) {
+          if (evt.layer.id === "male-population") {
+            //Explore the properties of the population layer's layer view here   
+            console.log("LayerView for male population created!", evt.layerView);
+          }
+          if (evt.layer.id === "streets") {
+            //Explore the properties of the transportation layer's layer view here   
+            console.log("LayerView for streets created!", evt.layerView);
+          }
+        });
+
+        /*****************************************************************
+         * Layers are promises that resolve when loaded, or when all their
+         * properties may be accessed. Once the population layer has loaded,
+         * the view will animate to it's initial extent.
+         *****************************************************************/
+        popLyr.then(function() {
+          view.animateTo(popLyr.initialExtent);
+        });
+
+        var streetsLyrToggle = dom.byId("streetsLyr");
+
+        /*****************************************************************
+         * The visible property on the layer can be used to toggle the 
+         * layer's visibility in the view. When the visibility is turned off
+         * the layer is still part of the map, which means you can access 
+         * its properties and perform analysis even though it isn't visible.
+         *******************************************************************/
+        on(streetsLyrToggle, "change", function() {
+          if (streetsLyrToggle.checked) {
+            transportationLyr.visible = true;
+          } else {
+            transportationLyr.visible = false;
+          }
+        });
+      });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+  <span id="layerToggle">
+    <input type="checkbox" id="streetsLyr" checked> Transportation
+  </span>
+</body>
+
+</html>
