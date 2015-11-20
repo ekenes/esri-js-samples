@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Create a local scene - 4.0beta2</title>
+  <style>
+    html,
+    body {
+      padding: 0;
+      margin: 0;
+    }
+    
+    #homeDiv {
+      left: 10px;
+      top: 120px;
+      z-index: 35;
+      position: absolute;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.0beta2/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.0beta2/"></script>
+
+  <script>
+    require([
+      "esri/WebScene",
+      "esri/views/SceneView",
+      "esri/layers/FeatureLayer",
+      "esri/geometry/Extent",
+      "esri/PopupTemplate",
+      "esri/geometry/SpatialReference",
+      "esri/renderers/SimpleRenderer",
+      "esri/symbols/ObjectSymbol3DLayer",
+      "esri/symbols/IconSymbol3DLayer",
+      "esri/symbols/PointSymbol3D",
+      "esri/tasks/QueryTask",
+      "esri/tasks/support/Query",
+      "esri/widgets/Home",
+      "dojo/domReady!"
+    ], function(WebScene, SceneView, FeatureLayer, Extent,
+      PopupTemplate, SpatialReference, SimpleRenderer, ObjectSymbol3DLayer,
+      IconSymbol3DLayer, PointSymbol3D, QueryTask, Query, Home
+    ) {
+
+      var wellsUrl =
+        "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/HarperSumnerOGWells/FeatureServer/0";
+      var quakesUrl =
+        "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/ks_earthquakes_since_2000/FeatureServer/0";
+
+      //The clipping extent for the scene  
+      var kansasExtent = new Extent({
+        xmax: -10834217,
+        xmin: -10932882,
+        ymax: 4493918,
+        ymin: 4432667,
+        spatialReference: new SpatialReference({
+          wkid: 3857
+        })
+      });
+
+      /********************************************************
+       * The popupTemplate that will populate the content of the 
+       * popup when a well feature is selected
+       *******************************************************/
+
+      var wellsTemplate = new PopupTemplate({
+        title: "WELL",
+        content: "<b>API No.:</b> {API_NUMBER}<br>" +
+          "<b>Lease: </b> {LEASE}<br>" +
+          "<b>Operator: </b> {CURR_OPERATOR} km<br>" +
+          "<b>Drilled: </b> {SPUD}<br>" +
+          "<b>Completed: </b> {COMPLETION}<br>" +
+          "<b>Status: </b> {STATUS2}<br>" +
+          "<b>Depth: </b> {DEPTH} meters<br>",
+        fieldInfos: [{
+          fieldName: "SPUD",
+          format: {
+            dateFormat: "shortDate"
+          }
+        }, {
+          fieldName: "COMPLETION",
+          format: {
+            dateFormat: "shortDate"
+          }
+        }, {
+          fieldName: "DEPTH",
+          format: {
+            places: 0,
+            digitSeparator: true
+          }
+        }]
+      });
+
+      /*********************************************************
+       * Renderer properties for symbolizing wells on the surface
+       *********************************************************/
+
+      var wellsSurfaceRenderer = new SimpleRenderer({
+        symbol: new PointSymbol3D({
+          symbolLayers: [new IconSymbol3DLayer({
+            material: {
+              color: "#785226"
+            },
+            resource: {
+              primitive: "x"
+            },
+            size: 4
+          })]
+        })
+      });
+
+      /**************************************************
+       * Renderer for symbolizing wells below the surface
+       **************************************************/
+
+      var wellsDepthRenderer = new SimpleRenderer({
+        symbol: new PointSymbol3D({
+          symbolLayers: [new ObjectSymbol3DLayer({
+            resource: {
+              primitive: "cylinder"
+            }
+          })]
+        }),
+        visualVariables: [{
+          type: "sizeInfo",
+          field: "DEPTH",
+          axis: "height",
+          minDataValue: 1,
+          maxDataValue: 10000,
+          minSize: -0.3048,
+          maxSize: -3048
+        }, {
+          type: "sizeInfo",
+          minSize: 50,
+          axis: "width"
+        }, {
+          type: "colorInfo",
+          field: "SPUD",
+          theme: "high-to-low",
+          stops: [{
+                value: 1374735600000,
+                color: "white"
+              }, //from mid-2013
+              {
+                value: 1447056100000,
+                color: "red"
+              }
+            ] //to Nov 2015
+        }]
+      });
+
+      /**************************************************
+       * Layers depicting oil and gas wells in Harper County
+       * and Sumner County, Kansas
+       **************************************************/
+
+      //Layer for depicting wells below the surface  
+      var wellsLyr = new FeatureLayer({
+        url: wellsUrl,
+        definitionExpression: "Status = 'CBM' OR Status = 'EOR' OR Status = 'GAS' OR Status = 'INJ' OR Status = 'O&G' OR Status = 'OIL' OR Status = 'SWD'",
+        outFields: ["*"],
+        popupTemplate: wellsTemplate,
+        renderer: wellsDepthRenderer,
+        //This keeps the cylinders from poking above the ground     
+        elevationInfo: {
+          mode: "relativeToGround",
+          offset: -100
+        }
+      });
+
+      //Layer for depicting well locations on the surface  
+      var wellsSurfaceLyr = new FeatureLayer({
+        url: wellsUrl,
+        definitionExpression: "Status = 'CBM' OR Status = 'EDR' OR Status = 'GAS' OR Status = 'INJ' OR Status = 'O&G' OR Status = 'OIL' OR Status = 'SWD'",
+        outFields: ["*"],
+        popupTemplate: wellsTemplate,
+        renderer: wellsSurfaceRenderer,
+        elevationInfo: {
+          mode: "onTheGround"
+        }
+      });
+
+      /********************************************************
+       * Renderer for symbolizing earthquakes below the surface
+       * 
+       * Earthquakes will be symbolized as spheres. The size of 
+       * each will coincide with the magnitude of the earthquake, 
+       * while the color will indicate the date at which the 
+       * earthquake occured. The more white the color, the older the
+       * earthquake. The deeper the red, the more recent the 
+       * earthquake occurred.
+       *******************************************************/
+
+      var quakesRenderer = new SimpleRenderer({
+        symbol: new PointSymbol3D({
+          symbolLayers: [new ObjectSymbol3DLayer({
+            resource: {
+              primitive: "sphere"
+            }
+          })]
+        }),
+        visualVariables: [{
+          type: "colorInfo",
+          field: "date_evt",
+          theme: "high-to-low",
+          stops: [{
+                value: 1374735600000,
+                color: "white"
+              }, //from mid-2013
+              {
+                value: 1447056100000,
+                color: "red"
+              }
+            ] //to Nov. 2015
+        }, {
+          type: "sizeInfo",
+          field: "mag",
+          axis: "all",
+          valueUnit: "meters",
+          minDataValue: 2,
+          maxDataValue: 5,
+          minSize: 100,
+          maxSize: 2000
+        }]
+      });
+
+      /********************************************************
+       * Renderer for symbolizing earthquakes on the surface
+       *******************************************************/
+
+      //Quakes will be symbolized as circles
+      var surfaceSym = new PointSymbol3D({
+        symbolLayers: [
+          new IconSymbol3DLayer({
+            material: {
+              color: [179, 75, 75]
+            },
+            resource: {
+              primitive: "circle"
+            }
+          })
+        ]
+      });
+
+      //Symbol size will vary depending on magnitude of the quake 
+      var quakesSurfaceRenderer = new SimpleRenderer({
+        symbol: surfaceSym,
+        visualVariables: [{
+          type: "sizeInfo",
+          field: "mag",
+          axis: "all",
+          valueUnit: "unknown",
+          minDataValue: 2,
+          maxDataValue: 5,
+          minSize: 3,
+          maxSize: 50
+        }]
+      });
+
+      /********************************************************
+       * The popupTemplate that will populate the content of the 
+       * popup when an earthquake feature is selected
+       *******************************************************/
+
+      var quakeTemplate = new PopupTemplate({
+        title: "{place}",
+        content: "<b>Date and time:</b> {date_evt}<br>" +
+          "<b>Magnitude (0-10): </b> {mag}<br>" +
+          "<b>Depth: </b> {depth} km<br>",
+        fieldInfos: [{
+          fieldName: "date_evt",
+          format: {
+            dateFormat: "shortDateShortTime"
+          }
+        }],
+        actions: [{
+          id: "find-wells",
+          title: "Nearby wells"
+        }]
+      });
+
+      /********************************************************
+       * Create earthquakes layers (one on the surface and one
+       * below the surface to show actual location).
+       *******************************************************/
+
+      //Defines a layer for drawing the exact location of quakes below the surface  
+      var quakesDepthLyr = new FeatureLayer({
+        url: quakesUrl,
+        //Show only quakes of magnitude 2.0 or higher    
+        definitionExpression: "mag >= 2",
+        outFields: ["*"],
+        renderer: quakesRenderer,
+        popupTemplate: quakeTemplate,
+        returnZ: true,
+        elevationInfo: {
+          mode: "relativeToGround"
+        }
+      });
+
+      //Defines a layer for depicting quakes on the surface  
+      var quakesSurfaceLyr = new FeatureLayer({
+        url: quakesUrl,
+        definitionExpression: "mag >= 2",
+        outFields: ["*"],
+        renderer: quakesSurfaceRenderer,
+        popupTemplate: quakeTemplate,
+        opacity: 0.6,
+        elevationInfo: {
+          mode: "onTheGround"
+        }
+      });
+
+      /********************************************************************
+       * Create a local scene in south central Kansas
+       * 
+       * To create a local scene, you must set the viewingMode to "local".
+       * To define a small, localized area for the view, set 
+       * the clippingEnabled and clippingArea properties. 
+       ********************************************************************/
+
+      var scene = new WebScene({
+        basemap: "topo",
+        //indicates to create a local scene    
+        viewingMode: "local",
+        //Use the exent defined in clippingArea to define the bounds of the scene    
+        clippingEnabled: true,
+        clippingArea: kansasExtent,
+        layers: [quakesDepthLyr, quakesSurfaceLyr, wellsLyr,
+          wellsSurfaceLyr
+        ]
+      });
+
+      /********************************************************************
+       * Assign the scene to a SceneView. Disabling the collision property of 
+       * the constraints will allow the user to navigate the view's camera
+       * below the surface.
+       ********************************************************************/
+      var view = new SceneView({
+        container: "viewDiv",
+        map: scene,
+        extent: kansasExtent,
+        //Allows for navigating the camera below the surface    
+        constraints: {
+          collision: {
+            enabled: false
+          },
+          tilt: {
+            max: 179.99
+          }
+        },
+        //Turns off atmosphere and stars settings    
+        environment: {
+          atmosphere: "none",
+          stars: "none"
+        }
+      });
+
+      /********************************************************
+       * Set up action for returning the number of wells within
+       * 10km of the earthquake.
+       *******************************************************/
+
+      var wellsQTask = new QueryTask({
+        url: wellsUrl
+      });
+
+      //Default parameters for selecting wells within 10km of click  
+      var wellsBufferParams = new Query({
+        spatialRelationship: "esriSpatialRelIntersects",
+        distance: 10,
+        units: "kilometers",
+        where: "Status = 'CBM' OR Status = 'EDR' OR Status = 'GAS' OR Status = 'INJ' OR Status = 'O&G' OR Status = 'OIL' OR Status = 'SWD'"
+      });
+
+      view.popup.on("action-click", function(evt) {
+        if (evt.action.id === "find-wells") {
+          wellsBufferParams.geometry = view.popup.selectedFeature.geometry;
+          wellsQTask.executeForCount(wellsBufferParams).then(function(
+            response) {
+            var results = "<b>" + response +
+              "</b> active wells exist within 10 kilometers of this earthquake.";
+            view.popup.set("content", results);
+          }, function(err) {
+            console.log("action failed: ", err);
+          });
+        } else {
+          return;
+        }
+      });
+
+      //Set up a home button for resetting the viewpoint to the intial extent  
+      var homeBtn = new Home({
+        view: view
+      }, "homeDiv");
+      homeBtn.startup();
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+  <div id="homeDiv"></div>
+</body>
+</html>
