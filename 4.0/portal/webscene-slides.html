@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Work with slides in a WebScene - 4.0beta2</title>
+
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    
+    #slidesDiv {
+      position: absolute;
+      z-index: 50;
+      top: 0px;
+      right: 0px;
+      background-color: black;
+      opacity: 0.8;
+      color: snow;
+      padding: 10px;
+      border-radius: 10px;
+      visibility: hidden;
+      max-height: 85%;
+      overflow-y: scroll;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.0beta2/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.0beta2/"></script>
+
+  <script>
+    require([
+      "esri/views/SceneView",
+      "esri/portal/PortalItem",
+      "esri/WebScene",
+      "dojo/dom-construct",
+      "dojo/dom",
+      "dojo/on",
+      "dojo/dom-style",
+      "dojo/query",
+      "dojo/domReady!"
+    ], function(
+      SceneView, PortalItem, WebScene, domConstruct, dom, on, domStyle,
+      query
+    ) {
+
+      /*********************************************************************
+       * Create a new WebScene referencing a WebScene ID from ArcGIS Online
+       * or an on premise portal.
+       *********************************************************************/
+      var scene = new WebScene({
+        portalItem: new PortalItem({
+          id: "51c67be4a5ea4da6948a40210ddfab1a"
+        })
+      });
+
+      /*********************************************************************
+       * Reference the WebScene in a SceneView instance.
+       *********************************************************************/
+      var view = new SceneView({
+        map: scene,
+        container: "viewDiv"
+      });
+
+      view.then(function() {
+
+        /*********************************************************************
+         * The slides will be placed in the 'slidesDiv' <div> element.
+         *********************************************************************/
+        dom.byId("slidesDiv").style.visibility = "visible";
+
+        /*********************************************************************
+         * The slides are a collection inside the presentation property of 
+         * the WebScene.
+         *********************************************************************/
+        var slides = scene.presentation.slides;
+        //loop through each slide in the collection  
+        slides.forEach(function(slide, i) {
+
+          /*********************************************************************
+           * Create a new <span> element for each slide.
+           *********************************************************************/
+          domConstruct.create("span", {
+            //assign the ID of the slide to the <span> element  
+            id: slide.id,
+            //Place the title of the slide in the <span> element  
+            innerHTML: slide.title.text + "<br>"
+          }, dom.byId("slidesDiv")); //place the new span inside the "slidesDiv"  
+
+          /*********************************************************************
+           * Create a new <img> element and place it inside the newly created <span>.
+           * This will reference the thumbnail from the slide
+           *********************************************************************/
+          domConstruct.create("img", {
+            //Set the src URL of the image to the thumbnail URL of the slide  
+            src: slide.thumbnail.url,
+            //Assign the image an ID using the slide number  
+            id: "image_" + i,
+            //Set the title property of the image to the title of the slide
+            title: slide.title.text
+          }, dom.byId(slide.id)); //Place the image inside the new <span> element
+          dom.byId(slide.id).innerHTML += "<br>";
+
+          /*********************************************************************
+           * Set up a click event handler on the newly created slide. When clicked,
+           * the code defined below will execute. 
+           *********************************************************************/
+          on(dom.byId(slide.id), "click", function() {
+            query("img").style({
+              "box-shadow": null,
+              "border-style": null,
+              "border-width": null,
+              "border-color": null
+            });
+            //Set a border to the selected slide to indicate it has been selected  
+            domStyle.set(dom.byId("image_" + i), {
+              "box-shadow": "0px 0px 12px #ffffff",
+              "border-style": "solid",
+              "border-width": "thin",
+              "border-color": "white"
+            });
+
+            /******************************************************************
+             * Applies a slide's settings to the SceneView.
+             * 
+             * Each slide has a viewpoint and visibleLayers property that define 
+             * the point of view or camera for the slide and the layers that should
+             * be visible to the user when the slide is selected. This method
+             * allows the user to animate to the given slide's viewpoint and turn
+             * on its visible layers and basemap layers in the view.
+             ******************************************************************/
+            slide.applyTo(view);
+          });
+          //Change the cursor to a pointer style when hovering the mouse
+          //over a slide's thumbnail image.
+          on(dom.byId(slide.id), "mouseover", function() {
+            dom.byId(slide.id).style.cursor = "pointer";
+          });
+        });
+      });
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+  <div id="slidesDiv"></div>
+</body>
+
+</html>
