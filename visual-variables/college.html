@@ -44,15 +44,17 @@ var map, collegeLyr, legend, renderer;
     "dojo/domReady!"
   ], function(Map, FeatureLayer, SimpleMarkerSymbol, SimpleLineSymbol, Color, UniqueValueRenderer, Legend, PopupTemplate
 ) {
+      
+  //Servie url      
   var url = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/us_county_educational_attainment_pop/FeatureServer/0";      
 
   map = new Map("map", {
     zoom: 5,
-    center: [-100, 40],
+    center: [-96.5,40],
     basemap: "gray"
   });
    
-  //Set the PopupTemplate so users can compare the stats by county      
+  //Define PopupTemplate for the layer      
   var collegePopup = new PopupTemplate({
     title: "{COUNTY}, {STATE}",
     description: "<b>{ATT_COL}</b> adults (ages 25+) in {COUNTY} have attended at least some college in their lifetime. <b>{NO_COL}</b> adults in the same age group have never attended any college courses.",
@@ -62,7 +64,7 @@ var map, collegeLyr, legend, renderer;
       format: { places: 0, digitSeparator: true }  
     }, {
       fieldName: "EDUCBASECY",
-      label: "total adult population",
+      label: "Total adult population",
       format: { places: 0, digitSeparator: true }  
     }, {
       fieldName: "NO_COL",
@@ -87,7 +89,7 @@ var map, collegeLyr, legend, renderer;
     infoTemplate: collegePopup
   });
   
-  //Set the default symbol to a SimpleMarkerSymbol so counties
+  //Set the default symbols to a SimpleMarkerSymbol so counties
   //are renderered with sizeable circles
   var defaultSym = new SimpleMarkerSymbol().setOutline(new SimpleLineSymbol().setWidth(0.3).setColor(new Color([128,128,128,0.5])));      
   var attColSym = new SimpleMarkerSymbol().setColor(new Color("#4daf4a")).setOutline(new SimpleLineSymbol().setWidth(0.3).setColor(new Color([128,128,128,0.5])));
