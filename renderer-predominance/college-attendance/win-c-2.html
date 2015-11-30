@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
 <title>U.S. College Attendance (2015)</title>
-<link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+<link rel="stylesheet" href="http://js.arcgis.com/3.15/esri/css/esri.css">
 <style>
   html, body, #map {
     height: 100%;
@@ -12,82 +12,122 @@
   }
   #info {
     background-color: #000;
-    position: absolute;
+    z-index: 92;
     left: 0;
     bottom: 0;
+    position: absolute;  
     padding: 10px;
     font-family: Segoe UI;
     color: #fff;
     width: 200px;
+    border-top-right-radius: 8px;
+    opacity: 0.8;
+    max-height: 80%;
+    overflow-y: scroll;
   }
 </style>
-<script src="http://js.arcgis.com/3.14/"></script>
+<script src="http://js.arcgis.com/3.15/"></script>
 <script>
   require([
     "esri/map", 
     "esri/layers/FeatureLayer", 
-    "esri/styles/type",
     "esri/renderers/UniqueValueRenderer", 
     "esri/symbols/SimpleFillSymbol", 
-    "esri/symbols/SimpleLineSymbol", 
-    "esri/symbols/SimpleMarkerSymbol", 
-    "esri/InfoTemplate",
-    "dojo/_base/array", 
+    "esri/symbols/SimpleLineSymbol",  
+    "esri/dijit/PopupTemplate",
     "esri/Color", 
     "esri/dijit/Legend", 
     "dojo/domReady!"
-  ], function(Map, FeatureLayer, esriStylesType, UniqueValueRenderer, SimpleFillSymbol, 
-              SimpleLineSymbol, SimpleMarkerSymbol, InfoTemplate, array, Color, Legend) {
+  ], function(Map, FeatureLayer, UniqueValueRenderer, SimpleFillSymbol, 
+              SimpleLineSymbol, PopupTemplate, Color, Legend) {
 
     var map = new Map("map", {
-      basemap: "gray",  //"topo"
+      basemap: "gray",
       center: [-96.5,40],
       zoom: 5
     });
 
-    var schemes = esriStylesType.getSchemes({theme:"default", basemap: map.getBasemap(), geometryType:"polygon"});
+    //Service URL  
     var layerUrl = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/us_county_educational_attainment_pop/FeatureServer/0";
+      
+    //Define PopupTemplate for the layer     
+    var collegePopup = new PopupTemplate({
+      title: "{COUNTY}, {STATE}",
+      description: "<b>{ATT_COL}</b> adults (ages 25+) in {COUNTY} have attended at least some college in their lifetime. <b>{NO_COL}</b> adults in the same age group have never attended any college courses.",
+      fieldInfos: [{
+        fieldName: "ATE_COL_DOM_PER",
+        label: "Majority group percentage",
+        format: { places: 0, digitSeparator: true }  
+      }, {
+        fieldName: "EDUCBASECY",
+        label: "total adult population",
+        format: { places: 0, digitSeparator: true }  
+      }, {
+        fieldName: "NO_COL",
+        label: "Never attended any college",
+        format: { places: 0, digitSeparator: true }  
+      }, {
+        fieldName: "ATT_COL",
+        label: "Adults who attended at least some college",
+        format: { places: 0, digitSeparator: true }  
+      }],
+      mediaInfos: [{
+        title: "Adults who attended college versus those who didn't",
+        type: "piechart",
+        value: {
+          fields: ["ATT_COL", "NO_COL"]
+        }
+      }]
+    });  
+      
+    //Set the symbols for each category
+    var defaultSym = new SimpleFillSymbol().setOutline(new SimpleLineSymbol().setWidth(0.3).setColor(new Color([128,128,128,0.5])));      
+    var attColSym = new SimpleFillSymbol().setColor(new Color("#4daf4a")).setOutline(new SimpleLineSymbol().setWidth(0.3).setColor(new Color([128,128,128,0.5])));
+    var noColSym = new SimpleFillSymbol().setColor(new Color("#984ea3")).setOutline(new SimpleLineSymbol().setWidth(0.3).setColor(new Color([128,128,128,0.5])));  
 
-    var renderer = new UniqueValueRenderer(createSymbol(schemes.primaryScheme.noDataColor), "ATT_COL_DOM");
+    /******************************************************************
+    * Define a UniqueValue renderer and set the symbols for 
+    * each category based on whether or not the majority of
+    * the adults in the county attended at least some college.
+    * 
+    * Each county is assigned a color - either green (majority
+    * attended at least some college) or purple (the majority 
+    * did not attended any college).
+    ******************************************************************/
+    var renderer = new UniqueValueRenderer(defaultSym, "ATT_COL_DOM");
     renderer.addValue({
       value: "Population 25+ that attended college",
-      description: "Majority of population (25+) attended college",
-      symbol: createSymbol(schemes.primaryScheme.colors[1]),
-      label: "Majority of population (25+) attended college"
+      label: "Majority of adults attended at least some college",
+      symbol: attColSym
     });
     renderer.addValue({
       value: "Population 25+ that never attended college",
-      description: "Majority of population (25+) never attended college",
-      symbol: createSymbol(schemes.primaryScheme.colors[0]),
-      label: "Majority of population (25+) never attended college"
+      label: "Majority of adults never attended college",
+      symbol: noColSym
     });  
 
-    var infoTitle = "Population 25 and older by college attendance";
-    var infoContent = "<b>Attended at least some college:</b> ${ATT_COL}<br><b>Never attended college:</b> ${NO_COL}";
     layer = new FeatureLayer(layerUrl, {
-      outFields: ["ATT_COL_DOM", "ATE_COL_DOM_PER", "ATT_COL", "NO_COL", "EDUCBASECY", "TOTPOP_CY"],
-      infoTemplate: new InfoTemplate(infoTitle, infoContent),
+      outFields: ["*"],
+      infoTemplate: collegePopup,
       opacity:1
     });
 
+    //Set up legend  
     layer.on("load", function(){
       var legend = new Legend({
         map: map,
         layerInfos: [{
           layer: layer,
-          title: "U.S. Counties by whether or not the majority of the population (25 years and older) attended college"
+          title: "U.S. Counties by adult population (25+) and whether the majority of adults attended college"
         }]
       }, "legend");
       legend.startup();
     });
 
+    //Set the renderer on the layer  
     layer.setRenderer(renderer);
+    //Add the layer to the map  
     map.addLayer(layer);
-
-    function createSymbol(color){
-      return new SimpleFillSymbol().setColor(new Color(color)).setOutline(new SimpleLineSymbol().setColor(new Color([127,127,127,.25])).setWidth(0.1));
-    };
-
   });
 </script>
 </head>
