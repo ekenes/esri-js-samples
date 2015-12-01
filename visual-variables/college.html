@@ -45,7 +45,7 @@ var map, collegeLyr, legend, renderer;
   ], function(Map, FeatureLayer, SimpleMarkerSymbol, SimpleLineSymbol, Color, UniqueValueRenderer, Legend, PopupTemplate
 ) {
       
-  //Servie url      
+  //Service url      
   var url = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/us_county_educational_attainment_pop/FeatureServer/0";      
 
   map = new Map("map", {
@@ -184,7 +184,7 @@ var map, collegeLyr, legend, renderer;
     field: "ATE_COL_DOM_PER",
     stops: [
       { value: 55, opacity: 0.1 },
-      { value: 70, opacity: 1 }    
+      { value: 75, opacity: 1 }    
     ]
   }; 
   //Set the size and opacity visual variables on the UniqueValueRenderer      
