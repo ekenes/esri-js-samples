@@ -5,6 +5,7 @@
 <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
 <title>U.S. College Attendance (2015)</title>
 <link rel="stylesheet" href="http://js.arcgis.com/3.15/esri/css/esri.css">
+<link rel="stylesheet" href="http://js.arcgis.com/3.15/dijit/themes/claro/claro.css">    
 <style>
   html, body, #map {
     height: 100%;
@@ -43,7 +44,7 @@
 
     var map = new Map("map", {
       basemap: "gray",
-      center: [-96.5,40],
+      center: [-96.5, 40],
       zoom: 5
     });
     
@@ -112,7 +113,7 @@
       maxDataValue: 87.7,
       minDataValue: 0,
       stops: [
-        { value: 50, opacity: 0.1}, { value: 75, opacity: 1}
+        { value: 55, opacity: 0.1}, { value: 75, opacity: 1}
       ]
     }]);
 
@@ -141,7 +142,7 @@
   });
 </script>
 </head>
-<body>
+<body class="claro">
 <div id="map"></div>
 <div id="info"><div id="legend"></div></div>
 </body>
