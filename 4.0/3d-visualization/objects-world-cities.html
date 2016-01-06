@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ObjectSymbol3DLayer</title>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0beta3/"></script>
+
+<style>
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+</style>
+
+<script>
+require([
+    "esri/Map",
+    "esri/views/SceneView",
+    "esri/layers/FeatureLayer",
+    "esri/geometry/SpatialReference",
+    "esri/geometry/Point",
+    "esri/Camera",
+    "esri/PopupTemplate",
+    "esri/renderers/SimpleRenderer",
+    "esri/symbols/ObjectSymbol3DLayer",
+    "esri/symbols/PointSymbol3D",
+    "dojo/domReady!"
+  ],
+  function(
+    Map, SceneView, FeatureLayer, SpatialReference, Point, Camera, PopupTemplate, SimpleRenderer, ObjectSymbol3DLayer, PointSymbol3D
+  ) {
+    
+    var initCam = new Camera({
+      position: new Point({
+        x: -12225019,
+        y: 1071034,
+        z: 1769305,
+        spatialReference: new SpatialReference({ wkid: 3857 })
+      }),
+      heading: 27.532565906183493,
+      tilt: 68
+    });
+    
+    var renderer = new SimpleRenderer({
+      symbol: new PointSymbol3D({
+        symbolLayers: [new ObjectSymbol3DLayer({
+          resource: { primitive: "sphere" },
+          material: { color: "orange" },
+          width: 50000
+        })]
+      })
+    });
+
+    var lyr = new FeatureLayer({
+      url: "https://sampleserver6.arcgisonline.com/arcgis/rest/services/SampleWorldCities/MapServer/0",
+      renderer: renderer,
+      popupTemplate: new PopupTemplate({
+        content: "{*}"
+      }),
+      outFields: ["*"]
+    });
+
+    /*****************************************************************
+     * Add the layer to a map
+     *****************************************************************/
+    var map = new Map({
+      basemap: "gray"
+     });
+
+    map.add(lyr);
+
+    var view = new SceneView({
+      container: "viewDiv",
+      map: map
+    });
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>

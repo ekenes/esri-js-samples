@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Symbol layers outline</title>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0beta3/"></script>
+
+<style>
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+</style>
+
+<script>
+require([
+    "esri/Map",
+    "esri/views/SceneView",
+    "esri/layers/FeatureLayer",
+    "esri/layers/support/LabelClass",
+    "esri/geometry/SpatialReference",
+    "esri/geometry/Point",
+    "esri/Camera",
+    "esri/PopupTemplate",
+    "esri/renderers/SimpleRenderer",
+    "esri/symbols/LabelSymbol3D",
+    "esri/symbols/TextSymbol3DLayer",
+    "esri/symbols/LineSymbol3DLayer",
+    "esri/symbols/FillSymbol3DLayer",
+    "esri/symbols/PolygonSymbol3D",
+    "dojo/domReady!"
+  ],
+  function(
+    Map, SceneView, FeatureLayer, LabelClass, SpatialReference, Point, Camera, PopupTemplate, SimpleRenderer, LabelSymbol3D, TextSymbol3DLayer, LineSymbol3DLayer, FillSymbol3DLayer, PolygonSymbol3D
+  ) {
+    
+    var initCam = new Camera({
+      position: new Point({
+        x: -9576514,
+        y: 3843736,
+        z: 660074,
+        spatialReference: new SpatialReference({ wkid: 3857 })
+      }),
+      heading: 1,
+      tilt: 39
+    });
+    
+    var labelClass = new LabelClass({
+      labelExpressionInfo: {
+        value: "{COUNTY}"
+      },
+      symbol: new LabelSymbol3D({
+        symbolLayers: [new TextSymbol3DLayer({
+          material: { color: [49,163,84] },
+          size: 15
+        })]
+      })
+    });
+    
+    var renderer = new SimpleRenderer({
+      symbol: new PolygonSymbol3D({
+        symbolLayers: [
+          new FillSymbol3DLayer({
+            material: { color: [161,217,155,0.5] }
+          }), 
+          new LineSymbol3DLayer({
+            material: { color: [49,163,84] },
+            size: 2
+          })
+        ]  
+      })
+    });
+
+    var lyr = new FeatureLayer({
+      url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/us_county_educational_attainment_pop/FeatureServer/0",
+      definitionExpression: "STATE='KY'",     
+      renderer: renderer,
+      popupTemplate: new PopupTemplate({
+        content: "{*}"
+      }),
+      outFields: ["*"],
+      elevationInfo: {
+        mode: "relativeToGround",
+        offset: 1000
+      },
+      showLabels: true,
+      labelingInfo: [ labelClass ]
+    });
+    
+    /*****************************************************************
+     * Add the layer to a map
+     *****************************************************************/
+    var map = new Map({
+      basemap: "gray"
+    });
+
+    map.add([lyr]);
+
+    view = new SceneView({
+      container: "viewDiv",
+      map: map,
+      camera: initCam
+    });
+
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>

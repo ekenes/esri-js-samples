@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ArcGISDynamicLayer - 4.0beta3</title>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0beta3/"></script>
+
+<style>
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+</style>
+
+<script>
+require([
+    "esri/WebScene",
+    "esri/views/SceneView",
+    "esri/layers/FeatureLayer",
+    "esri/geometry/SpatialReference",
+    "esri/geometry/Extent",
+    "esri/geometry/Point",
+    "esri/Camera",
+    "esri/PopupTemplate",
+    "esri/renderers/SimpleRenderer",
+    "esri/symbols/ObjectSymbol3DLayer",
+    "esri/symbols/IconSymbol3DLayer",
+    "esri/symbols/PointSymbol3D",
+    "dojo/domReady!"
+  ],
+  function(
+    WebScene, SceneView, FeatureLayer, SpatialReference, Extent, Point, Camera, PopupTemplate, SimpleRenderer, ObjectSymbol3DLayer, IconSymbol3DLayer, PointSymbol3D
+  ) {
+    
+    var initCam = new Camera({
+      position: new Point({
+        x: -12225019,
+        y: 1071034,
+        z: 1769305,
+        spatialReference: new SpatialReference({ wkid: 3857 })
+      }),
+      heading: 27.532565906183493,
+      tilt: 68
+    });
+    
+    var renderer = new SimpleRenderer({
+      symbol: new PointSymbol3D({
+        symbolLayers: [new ObjectSymbol3DLayer({
+          resource: { primitive: "cylinder" }
+        })]
+      }),
+      visualVariables: [
+        {
+          type: "sizeInfo",
+          field: "MP06024a_B",  //Affiliated with Democratic Party
+          normalizationField: "TOTPOP_CY",
+          axis: "height",
+          minDataValue: 0.15,
+          maxDataValue: 0.25,
+          minSize: 10000,
+          maxSize: 2000000,
+          valueUnit: "unknown"
+        }, {
+          type: "sizeInfo",
+          field: "CONSERVATIVE",  //TOTPOP_CY
+          normalizationField: "TOTPOP_CY",
+          axis: "widthAndDepth",
+          minDataValue: 0.21,
+          maxDataValue: 0.26,
+          minSize: 10000,
+          maxSize: 100000,
+          valueUnit: "unknown"
+        }, {
+          type: "colorInfo",
+          field: "MP06024a_B",
+          normalizationField: "TOTPOP_CY",
+          colors: ["#F7E6E2", "blue"],  //"#F7E6E2", "#521E3C"
+          minDataValue: 0.15,
+          maxDataValue: 0.20
+        }
+      ]
+    });
+    
+
+    /*****************************************************************
+     * Create an ArcGISDynamicLayer instance pointing to a Map Service
+     * containing data about pool permits in Southern California.
+     *****************************************************************/
+     lyr = new FeatureLayer({
+      url: "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/us_counties_pov_pol/FeatureServer/0",
+      renderer: renderer,
+      popupTemplate: new PopupTemplate({
+        title: "{COUNTY}, {STATE}",
+        content: "2015 Population: {TOTPOP_CY}<br>" +
+          "Conservative: {CONSERVATIVE}<br>" +
+          "Liberal: {LIBERAL}<br>" +
+          "Moderate: {MP06029a_B}<hr>" +
+          "Republican: {MP06025a_B}<br>" +
+          "Democrat: {MP06024a_B}<br>" +
+          "Independent/None: {MP06026a_B}"
+      }),
+      outFields: ["*"],
+      elevationInfo: {
+        mode: "relativeToGround"
+      }
+    });
+
+    /*****************************************************************
+     * Add the layer to a map
+     *****************************************************************/
+     map = new WebScene({
+      basemap: "gray",
+      viewingMode: "local",
+      clippingEnabled: true,
+      clippingArea: new Extent({
+        xmax: -7331005,
+        xmin: -14188498,
+        ymax: 6831415,
+        ymin: 2578451,
+        spatialReference: { wkid: 3857 }
+      })
+     });
+
+    map.add([lyr]);
+
+     view = new SceneView({
+      container: "viewDiv",
+      map: map,
+      camera: initCam
+    });
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>

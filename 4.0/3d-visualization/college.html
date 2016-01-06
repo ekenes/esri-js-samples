@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ArcGISDynamicLayer - 4.0beta3</title>
+
+<link rel="stylesheet" href="https://jsdev.arcgis.com/4.0beta2/esri/css/main.css">
+<script src="https://jsdev.arcgis.com/4.0beta2/"></script>
+
+<style>
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+</style>
+
+<script>
+require([
+    "esri/WebScene",
+    "esri/views/SceneView",
+    "esri/layers/FeatureLayer",
+    "esri/geometry/SpatialReference",
+    "esri/geometry/Extent",
+    "esri/geometry/Point",
+    "esri/Camera",
+    "esri/PopupTemplate",
+    "esri/renderers/SimpleRenderer",
+    "esri/symbols/ExtrudeSymbol3DLayer",
+    "esri/symbols/PolygonSymbol3D",
+    "dojo/domReady!"
+  ],
+  function(
+    WebScene, SceneView, FeatureLayer, SpatialReference, Extent, Point, Camera, PopupTemplate, SimpleRenderer, ExtrudeSymbol3DLayer, PolygonSymbol3D
+  ) {
+    
+    var initCam = new Camera({
+      position: new Point({
+        x: -12225019,
+        y: 1071034,
+        z: 1769305,
+        spatialReference: new SpatialReference({ wkid: 3857 })
+      }),
+      heading: 27.532565906183493,
+      tilt: 68
+    });
+    
+    var renderer = new SimpleRenderer({
+      symbol: new PolygonSymbol3D({
+        symbolLayers: [new ExtrudeSymbol3DLayer()]
+      }),
+      visualVariables: [
+        {
+          type: "sizeInfo",
+          field: "EDUCBASECY",
+//          normalizationField: "TOTPOP_CY",
+          minDataValue: 100,
+          maxDataValue: 1000000,
+          minSize: 100,
+          maxSize: 500000,
+          valueUnit: "unknown"
+        }, {
+          type: "colorInfo",
+          field: "ATT_COL",
+          normalizationField: "EDUCBASECY",
+          theme: "extremes",
+          stops: [
+            { value: .20, color: "purple" },
+            { value: .48, color: "white" },
+            { value: .80, color: "green" }
+          ]
+        }
+      ]
+    });
+    
+//    , {
+//          type: "opacityInfo",
+//          field: "ATE_COL_DOM_PER",
+//          stops: [
+//            { value: 55, opacity: 0.1 },
+//            { value: 75, opacity: 1 }    
+//          ]
+//        }
+    
+
+    /*****************************************************************
+     * Create an ArcGISDynamicLayer instance pointing to a Map Service
+     * containing data about pool permits in Southern California.
+     *****************************************************************/
+     permitsLyr = new FeatureLayer({
+      url: "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/us_county_educational_attainment_pop/FeatureServer/0",
+      definitionExpression: "TOTPOP_CY > 0",
+      renderer: renderer,
+      popupTemplate: new PopupTemplate({
+        content: "{*}"
+      })
+    });
+
+    /*****************************************************************
+     * Add the layer to a map
+     *****************************************************************/
+     map = new WebScene({
+      basemap: "dark-gray",
+      viewingMode: "local",
+      clippingEnabled: true,
+      clippingArea: new Extent({
+        xmax: -7331005,
+        xmin: -14188498,
+        ymax: 6831415,
+        ymin: 2578451,
+        spatialReference: { wkid: 3857 }
+      })
+     });
+
+    map.add(permitsLyr);
+
+     view = new SceneView({
+      container: "viewDiv",
+      map: map,
+      camera: initCam,
+      constraints: {
+        collision: {
+          enabled: false
+        },
+        tilt: {
+          max: 179.99
+        }
+      }
+    });
+
+    /*****************************************************************
+     * Animate to the layer's full extent when the layer loads.
+     *****************************************************************/
+//    permitsLyr.then(function() {
+//      view.animateTo(permitsLyr.fullExtent);
+//    });
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
