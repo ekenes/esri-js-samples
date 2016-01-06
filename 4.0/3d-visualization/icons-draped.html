@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Earthquake symbol layers</title>
+<style>
+  html, body {
+    padding: 0;
+    margin: 0;
+  }
+</style>
+ 
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0beta3/"></script>
+ 
+<script>
+  require([
+    "esri/Map",
+    "esri/views/SceneView",
+    "esri/layers/FeatureLayer",
+    "esri/geometry/Point",
+    "esri/PopupTemplate",
+    "esri/geometry/SpatialReference",
+    "esri/renderers/SimpleRenderer",
+    "esri/symbols/IconSymbol3DLayer",
+    "esri/symbols/PointSymbol3D",
+    "esri/Camera",
+    "dojo/domReady!"
+  ], function (Map, SceneView, FeatureLayer, Point, PopupTemplate, SpatialReference, SimpleRenderer, IconSymbol3DLayer, PointSymbol3D, Camera){ 
+      
+    var pTemplate = new PopupTemplate({
+      title: "{title}",
+      content: "<b>Location:</b> {place}<br>" +
+        "<b>Date and time:</b> {time}<br>" +
+        "<b>Magnitude (0-10): </b> {mag}<br>" +
+        "<b>Intensity (1-10): </b> {mmi}<br>" +
+        "<b>Depth: </b> {depth} km<br>" +
+        "<b>Number who reported feeling the quake: </b> {felt}<br>" +
+        "<b>Significance: </b> {sig}<br><br>" +
+        "<a href='{url}'>View more information provided by the USGS</a>",
+      fieldInfos: [{
+        fieldName: "time",
+        format: {
+          dateFormat: "shortDateShortTime"
+        }
+      }, {
+        fieldName: "felt",
+        format: {
+          digitSeparator: true,
+          places: 0
+        }
+      }]
+    });
+      
+    var initCam = new Camera({
+      heading: 0,
+      tilt: 29,
+      position: new Point({
+        x: -10885148,
+        y: 4400656,
+        z: 74528, 
+        spatialReference: new SpatialReference({
+          wkid: 3857
+        })
+      })
+    }); 
+      
+    var map = new Map({
+      basemap: "topo"
+    });
+    
+ 
+    //Create SceneView
+    view = new SceneView({
+      container: "viewDiv",
+      map: map,
+      camera: initCam
+    });
+      
+    /**************************************************
+    * Define renderer for symbolizing earthquakes
+    **************************************************/  
+      
+    //Quakes symbol color on the surface  
+    var surfaceSym = new PointSymbol3D({
+      symbolLayers: [
+        new IconSymbol3DLayer({
+          material: { color: [219,53,53, 1] },
+          resource: { primitive: "circle" },
+          size: 8,
+          outline: {
+            color: "white",
+            size: 0.5
+          }
+        })
+      ]    
+    }); 
+      
+    //Quakes renderer on the surface  
+    var quakesSurfaceRenderer = new SimpleRenderer({
+      symbol: surfaceSym,
+      visualVariables: [{
+        type: "sizeInfo",
+        field: "mag",
+        minDataValue: 2,
+        maxDataValue: 5,
+        minSize: 6,
+        maxSize: 60
+      }]
+    });
+      
+    //Layer for quakes on the surface  
+    var quakesSurface = new FeatureLayer({
+      url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/ks_earthquakes_since_2000/FeatureServer/0",
+      elevationInfo: {
+        mode: "onTheGround"
+      },
+      renderer: quakesSurfaceRenderer,
+      popupTemplate: pTemplate
+    });  
+      
+    map.add(quakesSurface);
+
+  });
+</script>
+</head>
+ 
+<body>
+<div id="viewDiv"></div>
+</body>
+</html> 
