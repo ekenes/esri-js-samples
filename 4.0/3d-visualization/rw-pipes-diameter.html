@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Water Pipes</title>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0beta3/"></script>
+
+<style>
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+</style>
+
+<script>
+require([
+    "esri/WebScene",
+    "esri/views/SceneView",
+    "esri/layers/FeatureLayer",
+    "esri/geometry/SpatialReference",
+    "esri/geometry/Extent",
+    "esri/geometry/Point",
+    "esri/Camera",
+    "esri/PopupTemplate",
+    "esri/renderers/SimpleRenderer",
+    "esri/symbols/PathSymbol3DLayer",
+    "esri/symbols/LineSymbol3D",
+    "dojo/domReady!"
+  ], function(
+    WebScene, SceneView, FeatureLayer, SpatialReference, Extent, Point, Camera, PopupTemplate, SimpleRenderer, PathSymbol3DLayer, LineSymbol3D
+  ) {
+    
+    var initCam = new Camera({
+      position: new Point({
+        x: -12924044,
+        y: 5607486,
+        z: 1682,
+        spatialReference: new SpatialReference({ wkid: 3857 })
+      }),
+      heading: 54,
+      tilt: 79
+    });
+    
+    var clippingExtent = new Extent({
+      xmax: -12919647,
+      xmin: -12925849,
+      ymax: 5609947,
+      ymin: 5605928,
+      spatialReference: new SpatialReference({ wkid: 3857 })
+    });
+    
+    var renderer = new SimpleRenderer({
+      symbol: new LineSymbol3D({
+        symbolLayers: [new PathSymbol3DLayer({
+          material: { color: "blue" }
+        })]
+      }),
+      visualVariables: [
+        {
+          type: "sizeInfo",
+          field: "Pipe_Diameter",
+          minSize: 0.0127,  //0.1524
+          maxSize: 0.4064,  //4.8768
+          minDataValue: 0.5,
+          maxDataValue: 16,
+          valueUnit: "unknown"
+        }
+      ]
+    });
+    
+    var pipesLyr = new FeatureLayer({
+      url: "http://services1.arcgis.com/ADC8yAk6q5YYgbPJ/arcgis/rest/services/Water_Pipeline_Utilities/FeatureServer/0",
+      renderer: renderer,
+      popupTemplate: new PopupTemplate({
+        content: "{*}"
+      }),
+      outFields: ["*"],
+      elevationInfo: {
+        mode: "absoluteHeight",
+        offset: 1600
+      }
+    });
+
+    var map = new WebScene({
+      basemap: "streets",
+      viewingMode: "local",
+      clippingEnabled: true,
+      clippingArea: clippingExtent
+    });
+
+    map.add(pipesLyr);
+
+    view = new SceneView({
+      container: "viewDiv",
+      map: map,
+      camera: initCam,
+      constraints: {
+          collision: {
+            enabled: false
+          },
+          tilt: {
+            max: 179.99
+          }
+      }
+    });
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>

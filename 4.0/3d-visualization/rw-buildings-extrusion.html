@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Buildings - real world sizes</title>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0beta3/"></script>
+
+<style>
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+</style>
+
+<script>
+require([
+    "esri/Map",
+    "esri/views/SceneView",
+    "esri/layers/FeatureLayer",
+    "esri/geometry/SpatialReference",
+    "esri/geometry/Point",
+    "esri/Camera",
+    "esri/PopupTemplate",
+    "esri/renderers/SimpleRenderer",
+    "esri/symbols/ExtrudeSymbol3DLayer",
+    "esri/symbols/PolygonSymbol3D",
+    "dojo/domReady!"
+  ],
+  function(
+    Map, SceneView, FeatureLayer, SpatialReference, Point, Camera, PopupTemplate, SimpleRenderer, ExtrudeSymbol3DLayer, PolygonSymbol3D
+  ) {
+    
+    var initCam = new Camera({
+      position: new Point({
+        x: -8354148,
+        y: 4641966,
+        z: 129,
+        spatialReference: new SpatialReference({ wkid: 3857 })
+      }),
+      heading: 300,
+      tilt: 75
+    });
+    
+    var renderer = new SimpleRenderer({
+      symbol: new PolygonSymbol3D({
+        symbolLayers: [new ExtrudeSymbol3DLayer({
+          material: { color: "orange" }
+        })]
+      }),
+      visualVariables: [
+      {
+        type: "sizeInfo",
+        field: "ELEVATION",
+        minSize: 0,
+        maxSize: 28.751784, //convert 94.33 feet to meters
+        minDataValue: 0,
+        maxDataValue: 94.33
+      }, {
+        type: "colorInfo",
+        field: "ELEVATION",
+        colors: ["#fff7ec", "orange"],
+        minDataValue: 0,
+        maxDataValue: 50
+      }
+      ]
+    });
+
+    var buildingsLyr = new FeatureLayer({
+      url: "https://services1.arcgis.com/jjVcwHv9AQEq3DH3/arcgis/rest/services/Buildings/FeatureServer/0",
+      renderer: renderer,
+      popupTemplate: new PopupTemplate({
+        content: "{*}"
+      }),
+      outFields: ["*"],
+      definitionExpression: "FID < 2000",
+      elevationInfo: {
+        mode: "onTheGround"
+      }
+    });
+
+    var map = new Map({
+      basemap: "satellite"
+    });
+
+    map.add(buildingsLyr);
+
+    var view = new SceneView({
+      container: "viewDiv",
+      map: map,
+      camera: initCam
+    });
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>

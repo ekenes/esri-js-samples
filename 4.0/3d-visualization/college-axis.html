@@ -5,8 +5,8 @@
 <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>ArcGISDynamicLayer - 4.0beta3</title>
 
-<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
-<script src="https://js.arcgis.com/4.0beta3/"></script>
+<link rel="stylesheet" href="https://jsdev.arcgis.com/4.0beta2/esri/css/main.css">
+<script src="https://jsdev.arcgis.com/4.0beta2/"></script>
 
 <style>
 html,
@@ -28,12 +28,11 @@ require([
     "esri/PopupTemplate",
     "esri/renderers/SimpleRenderer",
     "esri/symbols/ObjectSymbol3DLayer",
-    "esri/symbols/IconSymbol3DLayer",
     "esri/symbols/PointSymbol3D",
     "dojo/domReady!"
   ],
   function(
-    WebScene, SceneView, FeatureLayer, SpatialReference, Extent, Point, Camera, PopupTemplate, SimpleRenderer, ObjectSymbol3DLayer, IconSymbol3DLayer, PointSymbol3D
+    WebScene, SceneView, FeatureLayer, SpatialReference, Extent, Point, Camera, PopupTemplate, SimpleRenderer, ObjectSymbol3DLayer, PointSymbol3D
   ) {
     
     var initCam = new Camera({
@@ -56,57 +55,58 @@ require([
       visualVariables: [
         {
           type: "sizeInfo",
-          field: "MP06024a_B",  //Affiliated with Democratic Party
-          normalizationField: "TOTPOP_CY",
-          axis: "height",
-          minDataValue: 0.15,
-          maxDataValue: 0.25,
-          minSize: 10000,
-          maxSize: 2000000,
+          field: "REP_PER",
+//          normalizationField: "REP_PER",
+          axis: "widthAndDepth",
+          minDataValue: 40,
+          maxDataValue: 75,
+          minSize: 4000,
+          maxSize: 80000,
           valueUnit: "unknown"
         }, {
           type: "sizeInfo",
-          field: "CONSERVATIVE",  //TOTPOP_CY
-          normalizationField: "TOTPOP_CY",
-          axis: "widthAndDepth",
-          minDataValue: 0.21,
-          maxDataValue: 0.26,
-          minSize: 10000,
-          maxSize: 100000,
+          field: "EDUCBASECY",
+//          normalizationField: "EDUCBASECY",
+          axis: "height",
+          minDataValue: 100,
+          maxDataValue: 10000000,
+          minSize: 100,
+          maxSize: 5000000,
           valueUnit: "unknown"
         }, {
           type: "colorInfo",
-          field: "MP06024a_B",
-          normalizationField: "TOTPOP_CY",
-          colors: ["#F7E6E2", "blue"],  //"#F7E6E2", "#521E3C"
-          minDataValue: 0.15,
-          maxDataValue: 0.20
+          field: "ATT_COL",
+          normalizationField: "EDUCBASECY",
+          theme: "extremes",
+          stops: [
+            { value: .20, color: "purple" },
+            { value: .48, color: "white" },
+            { value: .80, color: "green" }
+          ]
         }
       ]
     });
+    
+//    , {
+//          type: "opacityInfo",
+//          field: "ATE_COL_DOM_PER",
+//          stops: [
+//            { value: 55, opacity: 0.1 },
+//            { value: 75, opacity: 1 }    
+//          ]
+//        }
     
 
     /*****************************************************************
      * Create an ArcGISDynamicLayer instance pointing to a Map Service
      * containing data about pool permits in Southern California.
      *****************************************************************/
-     lyr = new FeatureLayer({
-      url: "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/us_counties_pov_pol/FeatureServer/0",
+     permitsLyr = new FeatureLayer({
+      url: "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/us_county_educational_attainment_pop/FeatureServer/0",
       renderer: renderer,
       popupTemplate: new PopupTemplate({
-        title: "{COUNTY}, {STATE}",
-        content: "2015 Population: {TOTPOP_CY}<br>" +
-          "Conservative: {CONSERVATIVE}<br>" +
-          "Liberal: {LIBERAL}<br>" +
-          "Moderate: {MP06029a_B}<hr>" +
-          "Republican: {MP06025a_B}<br>" +
-          "Democrat: {MP06024a_B}<br>" +
-          "Independent/None: {MP06026a_B}"
-      }),
-      outFields: ["*"],
-      elevationInfo: {
-        mode: "relativeToGround"
-      }
+        content: "{*}"
+      })
     });
 
     /*****************************************************************
@@ -125,7 +125,7 @@ require([
       })
      });
 
-    map.add([lyr]);
+    map.add([permitsLyr]);
 
      view = new SceneView({
       container: "viewDiv",
