@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>air bnb</title>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta2/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0beta2/"></script>
+
+<style>
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+</style>
+
+<script>
+require([
+    "esri/WebScene",
+    "esri/views/SceneView",
+    "esri/layers/GraphicsLayer",
+    "esri/symbols/SimpleFillSymbol",
+    "esri/geometry/Extent",
+    "esri/Graphic",
+    "esri/request",
+    "esri/config",
+    "esri/core/urlUtils",
+    "dojo/domReady!"
+  ],
+  function(
+    WebScene, SceneView, GraphicsLayer, SimpleFillSymbol, Extent, Graphic, esriRequest, esriConfig, urlUtils
+  ) {
+    
+    urlUtils.addProxyRule({
+      proxyUrl: "/proxy/",
+      urlPrefix: "http://data.insideairbnb.com"
+    });
+
+    var scene = new WebScene({
+      basemap: "dark-gray",
+      viewingMode: "local",
+      clippingEnabled: true,
+      clippingArea: new Extent({
+        xmin: -13275762,
+        xmax: -12981284,
+        ymin: 3962657,
+        ymax: 4079344,
+        spatialReference: {
+          wkid: 3857
+        }
+      }),
+      initialExtent: new Extent({
+        xmin: -13275762,
+        xmax: -12981284,
+        ymin: 3962657,
+        ymax: 4079344,
+        spatialReference: {
+          wkid: 3857
+        }
+      })
+    });
+
+    view = new SceneView({
+      container: "viewDiv",
+      map: scene
+    });
+    
+    esriRequest({
+      url: "http://data.insideairbnb.com/united-states/ca/los-angeles/2015-09-02/visualisations/neighbourhoods.geojson",
+      handleAs: "json"
+    }).then(function(data){
+      console.log("response: ", data);    
+    });
+
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
