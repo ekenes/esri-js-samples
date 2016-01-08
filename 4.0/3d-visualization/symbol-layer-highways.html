@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Symbol layers highways</title>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0beta3/"></script>
+
+<style>
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+</style>
+
+<script>
+require([
+    "esri/Map",
+    "esri/views/SceneView",
+    "esri/layers/FeatureLayer",
+    "esri/geometry/SpatialReference",
+    "esri/geometry/Point",
+    "esri/Camera",
+    "esri/PopupTemplate",
+    "esri/renderers/UniqueValueRenderer",
+    "esri/symbols/TextSymbol3DLayer",
+    "esri/symbols/LineSymbol3DLayer",
+    "esri/symbols/IconSymbol3DLayer",
+    "esri/symbols/LineSymbol3D",
+    "dojo/domReady!"
+  ],
+  function(
+    Map, SceneView, FeatureLayer, SpatialReference, Point, Camera, PopupTemplate, UniqueValueRenderer, TextSymbol3DLayer, LineSymbol3DLayer, IconSymbol3DLayer, LineSymbol3D
+  ) {
+    
+    var initCam = new Camera({
+      position: new Point({
+        x: -12986481,
+        y: 3879642,
+        z: 85789,
+        spatialReference: new SpatialReference({ wkid: 3857 })
+      }),
+      heading: 319,
+      tilt: 65
+    });
+    
+    var interstateSymbol = new LineSymbol3D({
+      symbolLayers: [
+        new LineSymbol3DLayer({
+          material: { color: [255,255,0] },
+          size: 6
+        }),
+        new LineSymbol3DLayer({
+          material: { color: "black" },
+          size: 2
+        })
+      ]
+    });
+    
+    var stateSymbol = new LineSymbol3D({
+      symbolLayers: [
+        new LineSymbol3DLayer({
+          material: { color: "white" },
+          size: 4
+        }),
+        new LineSymbol3DLayer({
+          material: { color: "gray" },
+          size: 1
+        })
+      ]
+    });
+    
+    var countySymbol = new LineSymbol3D({
+      symbolLayers: [
+        new LineSymbol3DLayer({
+          material: { color: "orange" },
+          size: 3
+        })
+      ]
+    });
+    
+    var renderer = new UniqueValueRenderer({
+      attributeField: "CLASS"
+    });
+    
+    renderer.addValue("I", interstateSymbol);
+    renderer.addValue("S", stateSymbol);
+    renderer.addValue("U", countySymbol);
+
+    var highwayLyr = new FeatureLayer({
+      url: "http://services.arcgis.com/P3ePLMYs2RVChkJx/ArcGIS/rest/services/USA_Freeway_System/FeatureServer/2",  
+      renderer: renderer,
+      popupTemplate: new PopupTemplate({
+        title: "{CLASS}-{NUMBER}",
+        content: "Distance: {DIST_MILES} miles"
+      }),
+      outFields: ["*"],
+      maxScale: 0,
+      minScale: 0
+    });
+    
+    /*****************************************************************
+     * Add the layer to a map
+     *****************************************************************/
+    var map = new Map({
+      basemap: "dark-gray"
+    });
+
+    map.add(highwayLyr);
+
+    view = new SceneView({
+      container: "viewDiv",
+      map: map,
+      camera: initCam
+    });
+
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
