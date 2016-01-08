@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Symbol Layers</title>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0beta3/"></script>
+
+<style>
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+</style>
+
+<script>
+require([
+    "esri/Map",
+    "esri/views/SceneView",
+    "esri/layers/FeatureLayer",
+    "esri/geometry/SpatialReference",
+    "esri/geometry/Point",
+    "esri/Camera",
+    "esri/renderers/SimpleRenderer",
+    "esri/symbols/FillSymbol3DLayer",
+    "esri/symbols/LineSymbol3DLayer",
+    "esri/symbols/PolygonSymbol3D",
+    "dojo/domReady!"
+  ],
+  function(
+    Map, SceneView, FeatureLayer, SpatialReference, Point, Camera, SimpleRenderer, FillSymbol3DLayer, LineSymbol3DLayer, PolygonSymbol3D
+  ) {
+    
+    var initCam = new Camera({
+      position: new Point({
+        x: -9576514.146258319,
+        y: 3843736.3255259627,
+        z: 660074.6912146248,
+        spatialReference: new SpatialReference({ wkid: 3857 })
+      }),
+      heading: 1,
+      tilt: 39.712046169388834
+    });
+    
+    var lyr = new FeatureLayer({
+      url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/us_county_educational_attainment_pop/FeatureServer/0",
+      definitionExpression: "STATE='KY'",     
+      renderer: new SimpleRenderer({
+        symbol: new PolygonSymbol3D({
+          symbolLayers: [new FillSymbol3DLayer({
+            resource: { primitive: "circle" },
+            material: { color: "#7f0000"}
+          }), new LineSymbol3DLayer({
+            material: { color: "#8C510A" },
+            size: 2
+          })]
+        }),
+        visualVariables: [{
+          type: "colorInfo",
+          field: "NO_COL",
+          normalizationField: "EDUCBASECY",
+          minDataValue: 0.40,
+          maxDataValue: 0.75,
+          colors: ["white", "red"]
+        }]
+      }),
+      elevationInfo: {
+        mode: "onTheGround"
+      }
+    });
+
+    /*****************************************************************
+     * Add the layer to a map
+     *****************************************************************/
+    var map = new Map({
+      basemap: "gray"
+     });
+
+    map.add(lyr);
+
+    var view = new SceneView({
+      container: "viewDiv",
+      map: map,
+      camera: initCam
+    });
+
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
