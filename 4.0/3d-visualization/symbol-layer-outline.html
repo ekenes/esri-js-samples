@@ -65,7 +65,7 @@ require([
       symbol: new PolygonSymbol3D({
         symbolLayers: [
           new FillSymbol3DLayer({
-            material: { color: [161,217,155,0.5] }
+            material: { color: [161,217,155,0.2] }
           }), 
           new LineSymbol3DLayer({
             material: { color: [49,163,84] },
@@ -83,10 +83,6 @@ require([
         content: "{*}"
       }),
       outFields: ["*"],
-      elevationInfo: {
-        mode: "relativeToGround",
-        offset: 1000
-      },
       showLabels: true,
       labelingInfo: [ labelClass ]
     });
@@ -100,7 +96,7 @@ require([
 
     map.add([lyr]);
 
-    view = new SceneView({
+    var view = new SceneView({
       container: "viewDiv",
       map: map,
       camera: initCam
