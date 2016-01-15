@@ -266,8 +266,8 @@
       basemap: "topo",
       viewingMode: "local",
       clippingEnabled: true,
-      clippingArea: clippingExtent,
-      layers: [wellsLyr]
+      clippingArea: worldExtent,
+//      layers: [wellsLyr]
     });
     
  
@@ -275,8 +275,8 @@
     view = new SceneView({
       container: "viewDiv",
       map: scene,
-      camera: initCam,
-//      extent: cushingExtent,
+//      camera: initCam,
+      extent: worldExtent,
       constraints: {
         collision: {
           enabled: false
@@ -322,7 +322,7 @@
          valueUnit: "meters",
          minDataValue: 1,
          maxDataValue: 5,
-         minSize: 100,
+         minSize: 10,
          maxSize: 2000
       }]
     });
@@ -348,7 +348,7 @@
         minDataValue: 1,
         maxDataValue: 5,
         minSize: 3,
-        maxSize: 50
+        maxSize: 10
       }] 
     });
       
