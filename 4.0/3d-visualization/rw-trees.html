@@ -65,20 +65,12 @@ require([
           type: "sizeInfo",
           axis: "height",
           field: "Height",
-          minSize: 0.3048,  //1 ft to meters
-          maxSize: 40.2336,  //132 ft to meters
-          minDataValue: 1,
-          maxDataValue: 132,
-          valueUnit: "meters"
+          valueUnit: "feet"
         }, {
           type: "sizeInfo",
           axis: "widthAndDepth",
           field: "DBH1",
-          minSize: 0.0254,  //1 inch to meters
-          maxSize: 1.397,  //55 inches to meters
-          minDataValue: 1,
-          maxDataValue: 16,
-          valueUnit: "meters"
+          valueUnit: "inches"
         }
       ]
     });
@@ -115,29 +107,17 @@ require([
           type: "sizeInfo",
           axis: "height",
           field: "Crown_Height",
-          minSize: 0.3048,  //0 ft to meters
-          maxSize: 32.3088,  //106 ft to meters
-          minDataValue: 1,
-          maxDataValue: 106,
-          valueUnit: "meters"
+          valueUnit: "feet"
         }, {
           type: "sizeInfo",
           axis: "width",
           field: "Width_EW",
-          minSize: 1,  //0 ft to meters
-          maxSize: 32.3088,  //106 ft to meters
-          minDataValue: 1,
-          maxDataValue: 106,
-          valueUnit: "meters"
+          valueUnit: "feet"
         }, {
           type: "sizeInfo",
           axis: "depth",
           field: "Width_NS",
-          minSize: 1,  //0 ft to meters
-          maxSize: 28.956,  //95 ft to meters
-          minDataValue: 1,
-          maxDataValue: 95,
-          valueUnit: "meters"
+          valueUnit: "feet"
         }, {
           type: "colorInfo",
           field: "C_Storage",  //Carbon storage
@@ -154,12 +134,13 @@ require([
        outFields: ["*"],
        elevationInfo: {
          mode: "relativeToGround",
-         offset: 7
+         offset: 6.5
        },
        definitionExpression: "Height >= 14 AND Height <= 40",
        popupTemplate: new PopupTemplate({
          title: "{Cmn_Name}",
-         content: "{*}"
+         content: "<i>{Sci_Name}</i><br>" + 
+           "This tree is in {Condition} condition and is {Height} feet in height."
        })
      });
 
