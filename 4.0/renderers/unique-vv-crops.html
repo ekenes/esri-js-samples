@@ -106,37 +106,8 @@
   renderer.addValue("Vegetables", vegetablesSym);
   renderer.addValue("Soybeans", soybeansSym);
   renderer.addValue("Cotton", cottonSym);
-
-  var sizeVisVar = {
-    type: "sizeInfo",
-    field: "TOT_CROP_ACRES",
-    minDataValue: 5000,
-    maxDataValue: 500000,
-    valueUnit: "unknown",  
-    minSize: {
-      type: "sizeInfo",
-      expression: "view.scale",
-      stops: [
-        { value: 250000000, size: 6 },
-        { value: 6000000, size: 6 },
-        { value: 1000000, size: 4 },
-        { value: 200000, size: 2 },
-        { value: 1000, size: 2 }    
-      ]
-    },
-    maxSize: {
-      type: "sizeInfo",
-      expression: "view.scale",
-      stops: [
-        { value: 250000000, size: 60 },
-        { value: 6000000, size: 60 },
-        { value: 1000000, size: 40 },
-        { value: 200000, size: 20 },
-        { value: 1000, size: 10 }    
-      ] 
-    }
-  };      
-  var opacityVisVar = {
+    
+  renderer.visualVariables = [{
     type: "opacityInfo",
     field: "TOT_CROP_ACRES",
     stops: [
@@ -144,9 +115,7 @@
       { value: 10000, opacity: 0.3 },
       { value: 300000, opacity: 0.9 }
     ]
-  }; 
-    
-  renderer.visualVariables = [opacityVisVar];
+  }];
     
   var cropsLyr = new FeatureLayer({
     url: url,
