@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Symbolize 2D features with 3D symbols - 4</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.0beta3/"></script>
+
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+
+  <script>
+    require([
+      "esri/Camera",
+      "esri/geometry/SpatialReference",
+      "esri/geometry/Point",
+      "esri/layers/FeatureLayer",
+      "esri/Map",
+      "esri/views/SceneView",
+      "esri/renderers/SimpleRenderer",
+      "esri/symbols/PointSymbol3D",
+      "esri/symbols/ObjectSymbol3DLayer",
+      "dojo/domReady!"
+    ], function(
+      Camera,
+      SpatialReference,
+      Point,
+      FeatureLayer,
+      Map, SceneView,
+      SimpleRenderer,
+      PointSymbol3D,
+      ObjectSymbol3DLayer
+    ) {
+
+      var map = new Map({
+        basemap: "oceans"
+      });
+
+      //The initial camera of the view    
+      var initCam = new Camera({
+        position: new Point({
+          x: -7094839,
+          y: -113987,
+          z: 8032780,
+          spatialReference: new SpatialReference({
+            wkid: 102100,
+            latestWkid: 3857
+          })
+        }),
+        heading: 358.8,
+        tilt: 13.7
+      });
+
+      var view = new SceneView({
+        map: map,
+        container: "viewDiv",
+        camera: initCam
+      });
+
+      var symbol = new PointSymbol3D({
+        symbolLayers: [new ObjectSymbol3DLayer({
+          width: 1000,
+          height: 100000,
+          resource: {
+            primitive: "cylinder"
+          },
+          material: {
+            color: [255, 0, 0]
+          }
+        })]
+      });
+
+      //Use color and height to visualize wind speed    
+      var renderer = new SimpleRenderer({
+        symbol: symbol,
+        visualVariables: [{
+          type: "colorInfo",
+          field: "PRESSURE",
+          minDataValue: 920,
+          maxDataValue: 1000,
+          colors: [
+            
+            [255, 0, 0],
+            [0, 0, 255]
+          ]
+        }, {
+          type: "sizeInfo",
+          field: "WIND_KTS",
+          minDataValue: 20,
+          maxDataValue: 150,
+          minSize: 60000,
+          maxSize: 450000,
+          axis: "height"
+        }, {
+          type: "sizeInfo",
+          minSize: 50000,
+          axis: "width"
+        }]
+      });
+
+      hurricaneLyr = new FeatureLayer({
+        url: "https://services.arcgis.com/nzS0F0zdNLvs7nc8/arcgis/rest/services/05_HurricaneAndrew_1992/FeatureServer/0",
+        renderer: renderer
+      });
+      map.add(hurricaneLyr);
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
