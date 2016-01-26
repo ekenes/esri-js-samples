@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+<title>U.S. Crop harvest (2007)</title>
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0beta3/"></script>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+</style>
+<script>
+  require([
+    "esri/Map",
+    "esri/views/MapView",
+    "esri/layers/FeatureLayer",
+    "esri/symbols/SimpleFillSymbol",
+    "esri/renderers/UniqueValueRenderer",
+    "esri/PopupTemplate",
+    "dojo/domReady!"
+  ], function(Map, MapView, FeatureLayer, SimpleFillSymbol, UniqueValueRenderer, PopupTemplate
+) {
+  var url = "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/US_county_crops_2007_clean/FeatureServer/0";      
+
+  var cropsPopup = new PopupTemplate({
+    title: "{COUNTY}, {STATE}",
+    content: "<b>{DOM_CROP_ACRES}</b> is the dominant crop in {COUNTY} making up <b>{DOM_PER_HARVEST}%</b> of the total crop harvest. This county harvested a total of {TOT_CROP_ACRES} acres of crops in 2007.",
+    fieldInfos: [{
+      fieldName: "DOM_CROP_ACRES",
+      label: "Dominant crop"
+    }, {
+      fieldName: "DOM_PER_HARVEST",
+      label: "Acreage of dominant crop as % of total harvested acres",
+      format: { places: 0, digitSeparator: true }  
+    }, {
+      fieldName: "TOT_CROP_ACRES",
+      label: "Total crop harvest (acres)",
+      format: { places: 0, digitSeparator: true }  
+    }, {
+      fieldName: "M172_07",
+      label: "Harvested wheat (acres)",
+      format: { places: 0, digitSeparator: true }  
+    }, {
+      fieldName: "M188_07",
+      label: "Harvested cotton (acres)",
+      format: { places: 0, digitSeparator: true }  
+    }, {
+      fieldName: "M193_07",
+      label: "Harvested soybeans (acres)",
+      format: { places: 0, digitSeparator: true }  
+    }, {
+      fieldName: "M217_07",
+      label: "Harvested vegetables (acres)",
+      format: { places: 0, digitSeparator: true }  
+    }, {
+      fieldName: "M163_07",
+      label: "Harvested corn (acres)",
+      format: { places: 0, digitSeparator: true }  
+    }]
+  });      
+    
+  var smsOutline = { 
+    width: 0.5,
+    color: "white"
+  };
+      
+  var defaultSym = new SimpleFillSymbol({
+    outline: smsOutline
+  });
+    
+  var soybeansSym = new SimpleFillSymbol({
+    outline: smsOutline,
+    color: [0,112,255]
+  });
+    
+  var cottonSym = new SimpleFillSymbol({
+    outline: smsOutline,
+    color: [56,168,0]
+  });
+    
+  var wheatSym = new SimpleFillSymbol({
+    outline: smsOutline,
+    color: [169,0,230]
+  });
+    
+  var cornSym = new SimpleFillSymbol({
+    outline: smsOutline,
+    color: [255,170,0]
+  });
+    
+  var vegetablesSym = new SimpleFillSymbol({
+    outline: smsOutline,
+    color: [255,0,0]
+  });  
+      
+  var renderer = new UniqueValueRenderer({
+    attributeField: "DOM_CROP_ACRES",
+    defaultSymbol: defaultSym
+  });
+    
+  renderer.addValue("Wheat", wheatSym);
+  renderer.addValue("Corn", cornSym);
+  renderer.addValue("Vegetables", vegetablesSym);
+  renderer.addValue("Soybeans", soybeansSym);
+  renderer.addValue("Cotton", cottonSym);
+
+  var sizeVisVar = {
+    type: "sizeInfo",
+    field: "TOT_CROP_ACRES",
+    minDataValue: 5000,
+    maxDataValue: 500000,
+    valueUnit: "unknown",  
+    minSize: {
+      type: "sizeInfo",
+      expression: "view.scale",
+      stops: [
+        { value: 250000000, size: 6 },
+        { value: 6000000, size: 6 },
+        { value: 1000000, size: 4 },
+        { value: 200000, size: 2 },
+        { value: 1000, size: 2 }    
+      ]
+    },
+    maxSize: {
+      type: "sizeInfo",
+      expression: "view.scale",
+      stops: [
+        { value: 250000000, size: 60 },
+        { value: 6000000, size: 60 },
+        { value: 1000000, size: 40 },
+        { value: 200000, size: 20 },
+        { value: 1000, size: 10 }    
+      ] 
+    }
+  };      
+  var opacityVisVar = {
+    type: "opacityInfo",
+    field: "TOT_CROP_ACRES",
+    stops: [
+      { value: 5000, opacity: 0.1 },
+      { value: 10000, opacity: 0.3 },
+      { value: 300000, opacity: 0.9 }
+    ]
+  }; 
+    
+  renderer.visualVariables = [opacityVisVar];
+    
+  var cropsLyr = new FeatureLayer({
+    url: url,
+    outFields: ["*"],
+    popupTemplate: cropsPopup,
+    definitionExpression: "TOT_CROP_ACRES > 0",
+    renderer: renderer
+  });
+    
+  var map = new Map({
+    basemap: "gray",
+    layers: [cropsLyr]
+  });   
+    
+  var view = new MapView({
+    zoom: 5,
+    center: [-100, 40],
+    map: map,
+    container: "viewDiv"
+  });  
+});
+</script>
+</head>
+<body>
+ <div id="viewDiv"></div>
+</body>
+</html>
