@@ -58,7 +58,7 @@ require([
     var lyr = new FeatureLayer("http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/counties_politics_poverty/FeatureServer/0");
     lyr.setRenderer(renderer);
   
-    var polyOutline = new SimpleFillSymbol().setColor([0,0,0,0]).setOutline(new SimpleLineSymbol().setColor([ 76,76,76 ]).setWidth(1));
+    var polyOutline = new SimpleFillSymbol().setColor([0,0,0,0]).setOutline(new SimpleLineSymbol().setColor([ 90,90,90 ]).setWidth(0.5));
   
     var outlineLyr = new FeatureLayer("http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/counties_politics_poverty/FeatureServer/0");
     outlineLyr.setRenderer(new SimpleRenderer(polyOutline));
