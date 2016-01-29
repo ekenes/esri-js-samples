@@ -5,3 +5,5 @@
 
 * Ugly default - [VIEW LIVE](http://ekenes.github.io/esri-js-samples/4.0/renderers/bad-default.html)
 * Poverty Map - [VIEW LIVE](http://ekenes.github.io/esri-js-samples/4.0/renderers/poverty.html)
+
+* Crops - SmartMapping - [VIEW LIVE](http://ekenes.github.io/esri-js-samples/4.0/renderers/harvested-land-sm.html)
