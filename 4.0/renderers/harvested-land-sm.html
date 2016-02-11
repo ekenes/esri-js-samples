@@ -46,9 +46,9 @@ require([
     smartMapping.createColorRenderer(params).then(function(response){
       lyr.setRenderer(response.renderer);
       map.addLayer(lyr);
+      //Use this JSON to set on the renderer.
+      console.log(JSON.stringify(lyr.renderer.toJson()));
     });
-  
-    
   });
 </script>
 </head>
