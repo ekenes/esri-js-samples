@@ -63,11 +63,11 @@
   };
 </script>    
 
-<link rel="stylesheet" href="https://js.arcgis.com/4.0beta1/esri/css/esri.css">
-<script src="https://js.arcgis.com/4.0beta1/"></script>
+<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0beta3/"></script>
 
 <script>
-var map, fraudLayer, bufferLayerGE, bufferLayerGS, viewGS, viewGE, gs;
+var map, citiesLayer, bufferLayerGE, bufferLayerGS, viewGS, viewGE, gs;
 
 require([
   "esri/Map",
@@ -100,7 +100,7 @@ function(
   geResultsNode = dom.byId("resultsGE");
   gsResultsNode = dom.byId("resultsGS");
     
-  fraudLayer = new FeatureLayer({
+  citiesLayer = new FeatureLayer({
     url: "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/WorldCities/FeatureServer/0"
   });
     
@@ -119,7 +119,7 @@ function(
     container: "viewDivgs",
     map: new Map({
       basemap: "streets",
-      layers: [fraudLayer, bufferLayerGS],
+      layers: [citiesLayer, bufferLayerGS],
       zoom: 2
     })
   });
@@ -128,7 +128,7 @@ function(
     container: "viewDivge",
     map: new Map({
       basemap: "streets",
-      layers: [fraudLayer, bufferLayerGE],
+      layers: [citiesLayer, bufferLayerGE],
       zoom: 2
     })
   });
@@ -148,7 +148,7 @@ function(
     });
   }
       
-  fraudLayer.then(initViews);      
+  citiesLayer.then(initViews);      
 
   var bufferSym = new SimpleFillSymbol({
     style: "solid",
@@ -162,7 +162,7 @@ function(
     
   function createBuffers(){
     
-    var flv = viewGE.getLayerView(fraudLayer);
+    var flv = viewGE.getLayerView(citiesLayer);
     var geoms = getGeoms(flv.graphics);  
     
     createGEbuffers(geoms);
@@ -221,7 +221,7 @@ function(
   function getGeoms(graphics){
      return graphics.map(function(item, i){
         return item.geometry; 
-     }).items;
+     }).getAll();
   }
 
   function timer(node, start){
