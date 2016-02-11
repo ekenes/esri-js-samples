@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -37,7 +38,118 @@ require([
       center: [-95, 40],
      });
   
-    var rendererJson = {"visualVariables":[{"type":"colorInfo","field":"M089_07","stops":[{"value":12,"color":[255,252,212,255],"label":"< 12"},{"value":25,"color":[231,174,157,255],"label":null},{"value":38,"color":[206,96,101,255],"label":"38"},{"value":51,"color":[136,49,79,255],"label":null},{"value":64,"color":[66,2,57,255],"label":"> 64"}]}],"type":"classBreaks","field":"M089_07","defaultSymbol":{"color":[170,170,170,255],"outline":{"color":[153,153,153,128],"width":0.375,"type":"esriSLS","style":"esriSLSSolid"},"type":"esriSFS","style":"esriSFSSolid"},"minValue":-9007199254740991,"classBreakInfos":[{"symbol":{"color":[170,170,170,255],"outline":{"color":[153,153,153,128],"width":0.375,"type":"esriSLS","style":"esriSLSSolid"},"type":"esriSFS","style":"esriSFSSolid"},"classMaxValue":9007199254740991}],"defaultLabel":"Other"};
+    //Renderer JSON generated from smartMapping module
+    var rendererJson = {
+      "visualVariables":[
+        {
+          "type":"colorInfo",
+          "field":"M089_07",
+          "stops":[
+            {
+              "value":12,
+              "color":[
+                255,
+                252,
+                212,
+                255
+              ],
+              "label":"< 12"
+            },
+            {
+              "value":25,
+              "color":[
+                231,
+                174,
+                157,
+                255
+              ],
+              "label":null
+            },
+            {
+              "value":38,
+              "color":[
+                206,
+                96,
+                101,
+                255
+              ],
+              "label":"38"
+            },
+            {
+              "value":51,
+              "color":[
+                136,
+                49,
+                79,
+                255
+              ],
+              "label":null
+            },
+            {
+              "value":64,
+              "color":[
+                66,
+                2,
+                57,
+                255
+              ],
+              "label":"> 64"
+            }
+          ]
+        }
+      ],
+      "type":"classBreaks",
+      "field":"M089_07",
+      "defaultSymbol":{
+        "color":[
+          170,
+          170,
+          170,
+          255
+        ],
+        "outline":{
+          "color":[
+            153,
+            153,
+            153,
+            128
+          ],
+          "width":0.375,
+          "type":"esriSLS",
+          "style":"esriSLSSolid"
+        },
+        "type":"esriSFS",
+        "style":"esriSFSSolid"
+      },
+      "minValue":-9007199254740991,
+      "classBreakInfos":[
+        {
+          "symbol":{
+            "color":[
+              170,
+              170,
+              170,
+              255
+            ],
+            "outline":{
+              "color":[
+                153,
+                153,
+                153,
+                128
+              ],
+              "width":0.375,
+              "type":"esriSLS",
+              "style":"esriSLSSolid"
+            },
+            "type":"esriSFS",
+            "style":"esriSFSSolid"
+          },
+          "classMaxValue":9007199254740991
+        }
+      ],
+      "defaultLabel":"Other"
+    };
   
     var renderer = rendererJsonUtils.fromJson(rendererJson);
     lyr.setRenderer(renderer);
