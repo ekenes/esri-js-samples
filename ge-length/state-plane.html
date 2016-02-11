@@ -49,7 +49,7 @@
 
 <script src="http://js.arcgis.com/3.14/"></script>  
 <script>
-var map, geoGraphic, homosolineSR, euroLayer;
+var geoGraphic, homosolineSR, euroLayer;
 
 require(["esri/map",
        "esri/graphic",
@@ -81,9 +81,9 @@ require(["esri/map",
 
     var spSr = new SpatialReference(102271);  //2790     102271
     var initExtent = new Extent(-421523, -16731, 1073489, 773172, spSr);
-    map = new Map("map", {
-          extent: initExtent                      
-          });    
+    var map = new Map("map", {
+      extent: initExtent                      
+    });    
     
     var zoneGrid = new FeatureLayer("http://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_State_Plane_Zones_NAD83/FeatureServer/0", {
       definitionExpression: "ZONE = 'IL_E'"
@@ -138,22 +138,22 @@ require(["esri/map",
     var clicks = 0;  
     var newLine = null;
     on(map, "click", function(evt){
-        clicks++;  //increment map clicking var for line construction purposes
-        if(clicks === 1){
-            lineLayer.clear();
-            dom.byId("instructions").innerHTML = "Double-click to finish the line.";
-            map.disableMapNavigation();
+      clicks++;  //increment map clicking var for line construction purposes
+      if(clicks === 1){
+          lineLayer.clear();
+          dom.byId("instructions").innerHTML = "Double-click to finish the line.";
+          map.disableMapNavigation();
 
-            var lineGeom = drawLine(evt.mapPoint, evt.mapPoint);
-            newLine = new Graphic(lineGeom, defaultLineSym);
-            lineLayer.add(newLine);
-        }
-        if(clicks > 1){
-          //Add additional line paths for each click (can be "buggy" at times) don't click too fast
-          newLine.geometry.addPath([newLine.geometry.paths[newLine.geometry.paths.length-1][1], evt.mapPoint]);
-          lineLayer.redraw();
-        }
-        return;
+          var lineGeom = drawLine(evt.mapPoint, evt.mapPoint);
+          newLine = new Graphic(lineGeom, defaultLineSym);
+          lineLayer.add(newLine);
+      }
+      if(clicks > 1){
+        //Add additional line paths for each click (can be "buggy" at times) don't click too fast
+        newLine.geometry.addPath([newLine.geometry.paths[newLine.geometry.paths.length-1][1], evt.mapPoint]);
+        lineLayer.redraw();
+      }
+      return;
     });
 
     on(map, "mouse-move", function(evt){
@@ -166,14 +166,14 @@ require(["esri/map",
     on(map, "dbl-click", function(evt){
       dom.byId("instructions").innerHTML = "Click the map to begin drawing a line. Planar measurements inside the State Plane Illinois East zone (shaded in red) will be accurate; if using planar measurement outside the zone, the measurement loses accuracy the further outside the zone the geometry is located.";    
       if(newLine){
-          newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
-          gsMeasure(newLine.geometry);
-          geMeasure(newLine.geometry);
-          lineLayer.redraw();
-          
-          newLine = null;    
-          clicks = 0;
-          map.enableMapNavigation();
+        newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
+        gsMeasure(newLine.geometry);
+        geMeasure(newLine.geometry);
+        lineLayer.redraw();
+
+        newLine = null;    
+        clicks = 0;
+        map.enableMapNavigation();
       }
     });
     

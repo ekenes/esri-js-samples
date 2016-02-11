@@ -6,7 +6,7 @@
     
 <title>UTM Measurement</title>
 
-<link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+<link rel="stylesheet" href="http://js.arcgis.com/3.15/esri/css/esri.css">
 
 <style>
   html, body, #map {
@@ -46,133 +46,133 @@
 
 </style>
 
-<script src="http://js.arcgis.com/3.14/"></script>  
+<script src="http://js.arcgis.com/3.15/"></script>  
 <script>
 var map, geoGraphic, homosolineSR, euroLayer;
 
 require(["esri/map",
-       "esri/graphic",
-       "esri/Color",
-       "esri/layers/GraphicsLayer",
-       "esri/layers/FeatureLayer",
-       "esri/layers/WMTSLayer",
-       "esri/layers/WMTSLayerInfo",
-       "esri/symbols/SimpleFillSymbol",
-       "esri/symbols/SimpleLineSymbol",
-       "esri/geometry/geometryEngine",
-       "esri/geometry/Polyline",
-       "esri/renderers/SimpleRenderer",
-       "esri/tasks/LengthsParameters",
-       "esri/tasks/GeometryService",     
-       "esri/config",     
-       "dojo/dom",
-       "dojo/on",
-       "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, FeatureLayer, WMTSLayer, WMTSLayerInfo, SimpleFillSymbol, SimpleLineSymbol, geometryEngine, Line, SimpleRenderer, LengthsParameters, GeometryService, esriConfig, dom, on) {
+   "esri/graphic",
+   "esri/Color",
+   "esri/layers/GraphicsLayer",
+   "esri/layers/FeatureLayer",
+   "esri/layers/WMTSLayer",
+   "esri/layers/WMTSLayerInfo",
+   "esri/symbols/SimpleFillSymbol",
+   "esri/symbols/SimpleLineSymbol",
+   "esri/geometry/geometryEngine",
+   "esri/geometry/Polyline",
+   "esri/renderers/SimpleRenderer",
+   "esri/tasks/LengthsParameters",
+   "esri/tasks/GeometryService",     
+   "esri/config",     
+   "dojo/dom",
+   "dojo/on",
+   "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, FeatureLayer, WMTSLayer, WMTSLayerInfo, SimpleFillSymbol, SimpleLineSymbol, geometryEngine, Line, SimpleRenderer, LengthsParameters, GeometryService, esriConfig, dom, on) {
     
-    esriConfig.defaults.io.proxyUrl = "http://norwayparishes.com/proxy/PHP/proxy.php";
-    var gs = new GeometryService("http://sampleserver6.arcgisonline.com/arcgis/rest/services/Utilities/Geometry/GeometryServer");
-    var loading = dom.byId("loadingImg");
-    var topoInfo = new WMTSLayerInfo({
-          identifier: "europa",   //europa
-          tileMatrixSet: "EPSG:25832",  //UTM Zone 32N  25832
-          format: "png"
-    });
-    var topoOptions = {
-          serviceMode: "KVP",
-          layerInfo: topoInfo,
-          opacity: 1
-        };
-    var euroLayer = new WMTSLayer("http://opencache.statkart.no/gatekeeper/gk/gk.open_wmts?Version=1.0.0&service=wmts&request=getcapabilities", topoOptions);
-    map = new Map("map");    
-    
-    var zoneGrid = new FeatureLayer("http://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/World_UTM_Grid/FeatureServer/0", {
-      definitionExpression: "ZONE = 32"
-    });
-    
-    var zoneSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color([255,0,0]), 2), Color([255,0,0, 0.2]));
-    zoneGrid.setRenderer(new SimpleRenderer(zoneSym));
-    
-    map.addLayers([euroLayer, zoneGrid]);
-    
-    on(euroLayer, "load", function(evt){
-      map.setExtent(euroLayer.fullExtent);
-    });
-    
-    var defaultLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("black"), 4);
-    var lineLayer = new GraphicsLayer();
-    map.addLayers([lineLayer]);
+  esriConfig.defaults.io.proxyUrl = "http://norwayparishes.com/proxy/PHP/proxy.php";
+  var gs = new GeometryService("http://sampleserver6.arcgisonline.com/arcgis/rest/services/Utilities/Geometry/GeometryServer");
+  var loading = dom.byId("loadingImg");
+  var topoInfo = new WMTSLayerInfo({
+    identifier: "europa",   //europa
+    tileMatrixSet: "EPSG:25832",  //UTM Zone 32N  25832
+    format: "png"
+  });
+  var topoOptions = {
+    serviceMode: "KVP",
+    layerInfo: topoInfo,
+    opacity: 1
+  };
+  var euroLayer = new WMTSLayer("http://opencache.statkart.no/gatekeeper/gk/gk.open_wmts?Version=1.0.0&service=wmts&request=getcapabilities", topoOptions);
+  map = new Map("map");    
 
-    //Function for creating drawing line
-    function drawLine(pt1, pt2){
-      var pt1Cor = [pt1.x, pt1.y];
-      var pt2Cor = [pt2.x, pt2.y];
-      var lineJSON = {
-          paths: [[pt1Cor, pt2Cor]],
-          spatialReference: pt1.spatialReference
-      };
-      var polyLine = new Line(lineJSON);
-      return polyLine;
+  var zoneGrid = new FeatureLayer("http://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/World_UTM_Grid/FeatureServer/0", {
+    definitionExpression: "ZONE = 32"
+  });
+
+  var zoneSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color([255,0,0]), 2), Color([255,0,0, 0.2]));
+  zoneGrid.setRenderer(new SimpleRenderer(zoneSym));
+
+  map.addLayers([euroLayer, zoneGrid]);
+
+  on(euroLayer, "load", function(evt){
+    map.setExtent(euroLayer.fullExtent);
+  });
+
+  var defaultLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("black"), 4);
+  var lineLayer = new GraphicsLayer();
+  map.addLayers([lineLayer]);
+
+  //Function for creating drawing line
+  function drawLine(pt1, pt2){
+    var pt1Cor = [pt1.x, pt1.y];
+    var pt2Cor = [pt2.x, pt2.y];
+    var lineJSON = {
+        paths: [[pt1Cor, pt2Cor]],
+        spatialReference: pt1.spatialReference
+    };
+    var polyLine = new Line(lineJSON);
+    return polyLine;
+  }
+
+  var clicks = 0;  
+  var newLine = null;
+  on(map, "click", function(evt){
+    clicks++;  //increment map clicking var for line construction purposes
+    if(clicks === 1){
+        lineLayer.clear();
+        dom.byId("instructions").innerHTML = "Double-click to finish the line.";
+        map.disableMapNavigation();
+
+        var lineGeom = drawLine(evt.mapPoint, evt.mapPoint);
+        newLine = new Graphic(lineGeom, defaultLineSym);
+        lineLayer.add(newLine);
     }
+    if(clicks > 1){
+      //Add additional line paths for each click (can be "buggy" at times) don't click too fast
+      newLine.geometry.addPath([newLine.geometry.paths[newLine.geometry.paths.length-1][1], evt.mapPoint]);
+      lineLayer.redraw();
+    }
+    return;
+  });
 
-    var clicks = 0;  
-    var newLine = null;
-    on(map, "click", function(evt){
-        clicks++;  //increment map clicking var for line construction purposes
-        if(clicks === 1){
-            lineLayer.clear();
-            dom.byId("instructions").innerHTML = "Double-click to finish the line.";
-            map.disableMapNavigation();
+  on(map, "mouse-move", function(evt){
+    if(newLine){
+      newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
+      lineLayer.redraw();
+    }
+  });
 
-            var lineGeom = drawLine(evt.mapPoint, evt.mapPoint);
-            newLine = new Graphic(lineGeom, defaultLineSym);
-            lineLayer.add(newLine);
-        }
-        if(clicks > 1){
-          //Add additional line paths for each click (can be "buggy" at times) don't click too fast
-          newLine.geometry.addPath([newLine.geometry.paths[newLine.geometry.paths.length-1][1], evt.mapPoint]);
-          lineLayer.redraw();
-        }
-        return;
-    });
-
-    on(map, "mouse-move", function(evt){
-      if(newLine){
+  on(map, "dbl-click", function(evt){
+    dom.byId("instructions").innerHTML = "Click the map to begin drawing a line. Planar measurements inside UTM Zone 32N (shaded in red) will be accurate; if using planar measurement outside the zone, the measurement loses accuracy the further outside the zone the geometry is located.";    
+    if(newLine){
         newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
+        gsMeasure(newLine.geometry);
+        geMeasure(newLine.geometry);
         lineLayer.redraw();
-      }
-    });
 
-    on(map, "dbl-click", function(evt){
-      dom.byId("instructions").innerHTML = "Click the map to begin drawing a line. Planar measurements inside UTM Zone 32N (shaded in red) will be accurate; if using planar measurement outside the zone, the measurement loses accuracy the further outside the zone the geometry is located.";    
-      if(newLine){
-          newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
-          gsMeasure(newLine.geometry);
-          geMeasure(newLine.geometry);
-          lineLayer.redraw();
-          
-          newLine = null;    
-          clicks = 0;
-          map.enableMapNavigation();
-      }
+        newLine = null;    
+        clicks = 0;
+        map.enableMapNavigation();
+    }
+  });
+    
+  function gsMeasure(geom){
+    var params = new LengthsParameters();
+    params.geodesic = true;
+    params.calculationType = "geodesic";
+    params.lengthUnit = GeometryService.UNIT_STATUTE_MILE;
+    params.polylines = [geom];
+
+    gs.lengths(params, function(response){
+       dom.byId("gsResult").innerHTML = numberWithCommas(Math.round(response.lengths[0] * 100) / 100);
+       dom.byId("difference").innerHTML = numberWithCommas((Math.round((response.lengths[0] - geometryEngine.planarLength(geom, "miles")) * 100)/100));  
     });
-    
-    function gsMeasure(geom){
-      var params = new LengthsParameters();
-      params.geodesic = true;
-      params.calculationType = "geodesic";
-      params.lengthUnit = GeometryService.UNIT_STATUTE_MILE;
-      params.polylines = [geom];
-        
-      gs.lengths(params, function(response){
-         dom.byId("gsResult").innerHTML = numberWithCommas(Math.round(response.lengths[0] * 100) / 100);
-         dom.byId("difference").innerHTML = numberWithCommas((Math.round((response.lengths[0] - geometryEngine.planarLength(geom, "miles")) * 100)/100));  
-      });
-    }
-    
-    function geMeasure(geom){
-       var result = geometryEngine.planarLength(geom, "miles");
-       dom.byId("geResult").innerHTML = numberWithCommas(Math.round(result * 100) / 100);
-    }
+  }
+
+  function geMeasure(geom){
+     var result = geometryEngine.planarLength(geom, "miles");
+     dom.byId("geResult").innerHTML = numberWithCommas(Math.round(result * 100) / 100);
+  }
     
   function numberWithCommas(x) {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");

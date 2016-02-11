@@ -6,7 +6,7 @@
     
 <title>Geodesic Length vs. Planar Length</title>
 
-<link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+<link rel="stylesheet" href="http://js.arcgis.com/3.15/esri/css/esri.css">
 
 <style>
   html, body, #map {
@@ -58,10 +58,8 @@
 
 </style>
 
-<script src="http://js.arcgis.com/3.14/"></script>  
+<script src="http://js.arcgis.com/3.15/"></script>  
 <script>
-var map, geoGraphic;
-
 require(["esri/map",
        "esri/graphic",
        "esri/Color",
@@ -73,18 +71,18 @@ require(["esri/map",
        "esri/geometry/Polyline",
        "esri/geometry/Point",
        "esri/geometry/screenUtils",
-       "esri/geometry/geodesicUtils",
        "esri/geometry/webMercatorUtils",
        "esri/renderers/ClassBreaksRenderer",
 
        "dojo/dom",
        "dojo/on",
-       "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, SimpleLineSymbol, Font, TextSymbol, geometryEngine, Line, Point, screenUtils, geodesicUtils, webMercatorUtils,  ClassBreaksRenderer, dom, on) {
-map = new Map("map", {
-  basemap: "dark-gray",
-  center: [-122.45, 37.75], // longitude, latitude
-  zoom: 3
-});    
+       "dojo/domReady!"], function(Map, Graphic, Color, GraphicsLayer, SimpleLineSymbol, Font, TextSymbol, geometryEngine, Line, Point, screenUtils, webMercatorUtils,  ClassBreaksRenderer, dom, on) {
+  
+  var map = new Map("map", {
+    basemap: "dark-gray",
+    center: [-122.45, 37.75], // longitude, latitude
+    zoom: 3
+  });    
     
   var defaultLineSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("black"), 4);
   var geodesicSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255,255,255,0.2]), 4);
@@ -95,150 +93,147 @@ map = new Map("map", {
   var geodesicLayer = new GraphicsLayer();
   map.addLayers([lineLayer, labelLayer, geodesicLayer, eqLayer]);
 
-        //Function for creating drawing line
-    function drawLine(pt1, pt2){
-      var pt1Cor = [pt1.x, pt1.y];
-      var pt2Cor = [pt2.x, pt2.y];
-      var lineJSON = {
-          paths: [[pt1Cor, pt2Cor]],
-          spatialReference: pt1.spatialReference
-      };
-      var polyLine = new Line(lineJSON);
-      return polyLine;
+  //Function for creating drawing line
+  function drawLine(pt1, pt2){
+    var pt1Cor = [pt1.x, pt1.y];
+    var pt2Cor = [pt2.x, pt2.y];
+    var lineJSON = {
+        paths: [[pt1Cor, pt2Cor]],
+        spatialReference: pt1.spatialReference
+    };
+    var polyLine = new Line(lineJSON);
+    return polyLine;
+  }
+
+  on(map, "load", function(){
+    var equator = drawLine(new Point(-180,0), new Point(180,0));
+    eqLayer.add(new Graphic(equator, equatorSym));
+  });
+
+  var clicks = 0;  
+  var newLine = null;
+  on(map, "click", function(evt){
+    clicks++;  //increment map clicking var for line construction purposes
+
+    if(clicks === 1){
+      dom.byId("instructions").innerHTML = "Double-click to finish the line.";
+      map.disableMapNavigation();
+
+      var lineGeom = drawLine(evt.mapPoint, evt.mapPoint);
+      newLine = new Graphic(lineGeom, defaultLineSym);
+      lineLayer.add(newLine);
+      placeLabel(newLine.geometry);
+
+      dom.byId("geostyle").style.visibility = "visible";
+      dom.byId("diffstyle").style.visibility = "visible";
+      dom.byId("perstyle").style.visibility = "visible";
+      dom.byId("planarstyle").style.visibility = "visible";
     }
-    
-    on(map, "load", function(){
-      var equator = drawLine(new Point(-180,0), new Point(180,0));
-      eqLayer.add(new Graphic(equator, equatorSym));
-    });
+    if(clicks > 1){
+      //Add additional line paths for each click (can be "buggy" at times) don't click too fast
+      newLine.geometry.addPath([newLine.geometry.paths[newLine.geometry.paths.length-1][1], evt.mapPoint]);
+      lineLayer.redraw();
+    }
+    return;
+  });
 
-    var clicks = 0;  
-    var newLine = null;
-    on(map, "click", function(evt){
-        clicks++;  //increment map clicking var for line construction purposes
-
-        if(clicks === 1){
-            dom.byId("instructions").innerHTML = "Double-click to finish the line.";
-            map.disableMapNavigation();
-
-            var lineGeom = drawLine(evt.mapPoint, evt.mapPoint);
-            newLine = new Graphic(lineGeom, defaultLineSym);
-            lineLayer.add(newLine);
-            placeLabel(newLine.geometry);
-
-            dom.byId("geostyle").style.visibility = "visible";
-            dom.byId("diffstyle").style.visibility = "visible";
-            dom.byId("perstyle").style.visibility = "visible";
-            dom.byId("planarstyle").style.visibility = "visible";
-
-        }
-        if(clicks > 1){
-          //Add additional line paths for each click (can be "buggy" at times) don't click too fast
-          newLine.geometry.addPath([newLine.geometry.paths[newLine.geometry.paths.length-1][1], evt.mapPoint]);
-          lineLayer.redraw();
-        }
-
-        return;
-    });
-
-    on(map, "mouse-move", function(evt){
+  on(map, "mouse-move", function(evt){
     if(newLine){
-        map.graphics.clear();
-        geodesicLayer.redraw();
-        newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
-        
-        var gcsGeom = webMercatorUtils.webMercatorToGeographic(newLine.geometry);
-        var geoGeom = geodesicUtils.geodesicDensify(gcsGeom, 100000);
-//        var geoGeom = geometryEngine.densify(newLine.geometry, 100000, "meters");
-        geoGraphic = new Graphic(geoGeom, geodesicSym);
-        map.graphics.add(geoGraphic);
+      map.graphics.clear();
+      geodesicLayer.redraw();
+      newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
 
-        var lengthResults = lengthRatio(newLine.geometry);
+      var gcsGeom = webMercatorUtils.webMercatorToGeographic(newLine.geometry);
+      var geoGeom = geometryEngine.geodesicDensify(newLine.geometry, 100000, "meters");
+      geoGraphic = new Graphic(geoGeom, geodesicSym);
+      map.graphics.add(geoGraphic);
 
-        updateResults(lengthResults);
+      var lengthResults = lengthRatio(newLine.geometry);
 
-        var reclassSym = reclassLineError(lengthResults.ratio);
-        newLine.setSymbol(reclassSym);
+      updateResults(lengthResults);
 
-        lineLayer.redraw();
+      var reclassSym = reclassLineError(lengthResults.ratio);
+      newLine.setSymbol(reclassSym);
+
+      lineLayer.redraw();
     }
-    });
+  });
 
-    function updateResults(result){
-        dom.byId("geodesicResult").innerHTML = numberWithCommas(Math.round(result.geodesic * 100) / 100);
-        dom.byId("planarResult").innerHTML = numberWithCommas(Math.round(result.planar * 100) / 100);
-        dom.byId("differenceResult").innerHTML = numberWithCommas(Math.round(result.difference * 100) / 100);
-        dom.byId("errorResult").innerHTML = Math.round(result.ratio * 100) / 100;
+  function updateResults(result){
+    dom.byId("geodesicResult").innerHTML = numberWithCommas(Math.round(result.geodesic * 100) / 100);
+    dom.byId("planarResult").innerHTML = numberWithCommas(Math.round(result.planar * 100) / 100);
+    dom.byId("differenceResult").innerHTML = numberWithCommas(Math.round(result.difference * 100) / 100);
+    dom.byId("errorResult").innerHTML = Math.round(result.ratio * 100) / 100;
+  }
+
+  function publishResults(){
+    if(lineLayer.graphics.length === 1){
+      dom.byId("finalList").style.visibility = "visible";
     }
 
-    function publishResults(){
-      if(lineLayer.graphics.length === 1){
-        dom.byId("finalList").style.visibility = "visible";
-      }
+    dom.byId("finalList").innerHTML = "<h3>Line " + lineLayer.graphics.length + "</h3>" + dom.byId("content").innerHTML + "<hr>" + dom.byId("finalList").innerHTML;
+  }      
 
-      dom.byId("finalList").innerHTML = "<h3>Line " + lineLayer.graphics.length + "</h3>" + dom.byId("content").innerHTML + "<hr>" + dom.byId("finalList").innerHTML;
-    }      
+  on(map, "dbl-click", function(evt){
+    dom.byId("instructions").innerHTML = "Click the map to begin drawing a line.";    
+    if(newLine){
+      newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
+      lineLayer.redraw();
+      geodesicLayer.add(geoGraphic);
 
-    on(map, "dbl-click", function(evt){
-      dom.byId("instructions").innerHTML = "Click the map to begin drawing a line.";    
-      if(newLine){
-          newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
-          lineLayer.redraw();
-          geodesicLayer.add(geoGraphic);
-          
-          newLine = null;    
-          clicks = 0;
-          map.enableMapNavigation();
-          publishResults();
+      newLine = null;    
+      clicks = 0;
+      map.enableMapNavigation();
+      publishResults();
 
-          dom.byId("geostyle").style.visibility = "hidden";
-          dom.byId("diffstyle").style.visibility = "hidden";
-          dom.byId("perstyle").style.visibility = "hidden";
-          dom.byId("planarstyle").style.visibility = "hidden";
-      }
-    });
+      dom.byId("geostyle").style.visibility = "hidden";
+      dom.byId("diffstyle").style.visibility = "hidden";
+      dom.byId("perstyle").style.visibility = "hidden";
+      dom.byId("planarstyle").style.visibility = "hidden";
+    }
+  });
 
   function lengthRatio(lineGeom){
-      var linePlanarLength = geometryEngine.planarLength(lineGeom, "miles"); //planar length in miles  9093
-      var lineGeodesicLength = geometryEngine.geodesicLength(lineGeom, "miles");  //geodesic length in miles  9093
-      var ratio = ((linePlanarLength - lineGeodesicLength) / lineGeodesicLength) * 100;
+    var linePlanarLength = geometryEngine.planarLength(lineGeom, "miles"); //planar length in miles  9093
+    var lineGeodesicLength = geometryEngine.geodesicLength(lineGeom, "miles");  //geodesic length in miles  9093
+    var ratio = ((linePlanarLength - lineGeodesicLength) / lineGeodesicLength) * 100;
 
-      return {
-              planar: linePlanarLength,
-              geodesic: lineGeodesicLength,
-              difference: (linePlanarLength - lineGeodesicLength),
-              ratio: ratio
-             };
+    return {
+      planar: linePlanarLength,
+      geodesic: lineGeodesicLength,
+      difference: (linePlanarLength - lineGeodesicLength),
+      ratio: ratio
+     };
   }
 
   function reclassLineError(ratio){
-      var symbol;
-      var r = 255;
-      var g = 255;
-      var b = 255;
-      g = Math.round(2/ratio * 255);
-      b = Math.round(2/ratio * 255);
-      
-      dom.byId("perstyle").style.color = "rgb(" + r + "," + g + "," + b + ")";
-      symbol = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([r,g,b]), 4);
-      return symbol;
+    var symbol;
+    var r = 255;
+    var g = 255;
+    var b = 255;
+    g = Math.round(2/ratio * 255);
+    b = Math.round(2/ratio * 255);
+
+    dom.byId("perstyle").style.color = "rgb(" + r + "," + g + "," + b + ")";
+    symbol = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([r,g,b]), 4);
+    return symbol;
   }
 
   function placeLabel(lineGeom, ratio){
-      var beginMapXY = lineGeom.paths[0][0];
-      var labelPoint = new Point(beginMapXY[0], beginMapXY[1], map.spatialReference);
+    var beginMapXY = lineGeom.paths[0][0];
+    var labelPoint = new Point(beginMapXY[0], beginMapXY[1], map.spatialReference);
 
-      var labelScreenPoint = screenUtils.toScreenPoint(map.extent, map.width, map.height, labelPoint);
-      labelScreenPoint.x += 3;
-      labelScreenPoint.y -= 10;
-      var labelMapPoint = screenUtils.toMapPoint(map.extent, map.width, map.height, labelScreenPoint);
+    var labelScreenPoint = screenUtils.toScreenPoint(map.extent, map.width, map.height, labelPoint);
+    labelScreenPoint.x += 3;
+    labelScreenPoint.y -= 10;
+    var labelMapPoint = screenUtils.toMapPoint(map.extent, map.width, map.height, labelScreenPoint);
 
-      var labelFont = new Font(14, Font.STYLE_NORMAL, Font.VARIANT_NORMAL, Font.WEIGHT_BOLD, "Arial");
-      var textLabel = new TextSymbol(lineLayer.graphics.length, labelFont, new Color("white"));
+    var labelFont = new Font(14, Font.STYLE_NORMAL, Font.VARIANT_NORMAL, Font.WEIGHT_BOLD, "Arial");
+    var textLabel = new TextSymbol(lineLayer.graphics.length, labelFont, new Color("white"));
 
-      labelLayer.add(new Graphic(labelMapPoint, textLabel));
+    labelLayer.add(new Graphic(labelMapPoint, textLabel));
   }
-    
+
   function numberWithCommas(x) {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
