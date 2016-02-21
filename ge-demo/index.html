@@ -86,7 +86,7 @@ require(["esri/map",
   //Layer symbology    
   var orchardSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([175, 255, 155]), 2), new Color([175, 255, 155, 0.3]));
   var selectionSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color("black"), 3), new Color([255, 255, 255, 0.25]));
-  var offsetSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_NULL, new SimpleLineSymbol(SimpleLineSymbol.STYLE_DASH, new Color([110,62,0]), 2), new Color([96, 252, 219, 0.5]));
+  var offsetSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_NULL, new SimpleLineSymbol(SimpleLineSymbol.STYLE_DASH, new Color("#960AC4"), 2), new Color([96, 252, 219, 0.5]));
   var cutterSym = new SimpleLineSymbol(SimpleLineSymbol.STYLE_DASH, new Color("white"), 2);
   var renderer = new SimpleRenderer(orchardSym);
     
@@ -97,7 +97,7 @@ require(["esri/map",
   //Create graphics layer for labeling
   var displayLabels = new GraphicsLayer();
   var labelFont = new Font(14, Font.STYLE_NORMAL, Font.VARIANT_NORMAL, Font.WEIGHT_BOLD, "Verdana");    
-  var textSym = new TextSymbol("filler text", labelFont, new Color([173,98,0])).setHaloColor(new Color("white")).setHaloSize(1.2);
+  var textSym = new TextSymbol("filler text", labelFont, new Color("white")).setHaloColor(new Color("#960AC4")).setHaloSize(2);
     
   //Create selection layer to display selection symbol
   var selectionLayer = new GraphicsLayer();

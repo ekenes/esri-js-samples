@@ -90,8 +90,9 @@ require(["esri/map",
   var eqLayer = new GraphicsLayer();
   var lineLayer = new GraphicsLayer();
   var labelLayer = new GraphicsLayer();
+  var lengthLayer = new GraphicsLayer();
   var geodesicLayer = new GraphicsLayer();
-  map.addLayers([lineLayer, labelLayer, geodesicLayer, eqLayer]);
+  map.addLayers([lineLayer, labelLayer, lengthLayer, geodesicLayer, eqLayer]);
 
   //Function for creating drawing line
   function drawLine(pt1, pt2){
@@ -151,6 +152,7 @@ require(["esri/map",
       var lengthResults = lengthRatio(newLine.geometry);
 
       updateResults(lengthResults);
+      showLength(evt.mapPoint, lengthResults);
 
       var reclassSym = reclassLineError(lengthResults.ratio);
       newLine.setSymbol(reclassSym);
@@ -175,6 +177,7 @@ require(["esri/map",
   }      
 
   on(map, "dbl-click", function(evt){
+    lengthLayer.clear();
     dom.byId("instructions").innerHTML = "Click the map to begin drawing a line.";    
     if(newLine){
       newLine.geometry.setPoint(newLine.geometry.paths.length-1, 1, evt.mapPoint);
@@ -232,6 +235,21 @@ require(["esri/map",
     var textLabel = new TextSymbol(lineLayer.graphics.length, labelFont, new Color("white"));
 
     labelLayer.add(new Graphic(labelMapPoint, textLabel));
+  }
+    
+  function showLength(pt, result){
+    lengthLayer.clear();
+    var length = numberWithCommas(Math.round(result.planar * 100) / 100) + " mi";
+    
+    var screen = screenUtils.toScreenPoint(map.extent, map.width, map.height, pt);
+    screen.x -= 40;
+    screen.y += 20;
+    var lengthLoc = screenUtils.toMapPoint(map.extent, map.width, map.height, screen);
+
+    var lblFont = new Font(14, Font.STYLE_NORMAL, Font.VARIANT_NORMAL, Font.WEIGHT_BOLD, "Arial");
+    var txtLbl = new TextSymbol(length, lblFont, new Color("white"));
+
+    lengthLayer.add(new Graphic(lengthLoc, txtLbl));
   }
 
   function numberWithCommas(x) {
