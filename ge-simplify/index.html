@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width,user-scalable=no">
+
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
+  <title>GE: Simplify</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/3.15/esri/css/esri.css">
+  <style>
+    html, body, #map {
+      height: 100%; 
+      width: 100%; 
+      margin: 0; 
+      padding: 0;
+    }
+    #pane {
+      background-color: #000;
+      z-index: 92;
+      left: 0px;
+      bottom: 0px;
+      position: absolute;  
+      padding: 10px;
+      font-family: Segoe UI;
+      color: #fff;
+      width: 350px;
+      border-top-right-radius: 8px;
+      opacity: 0.7;
+      max-height: 80%;
+      font-size: 16pt;
+    }
+    #isSimple {
+      font-size: 24pt;
+      color: lawngreen;
+      font-weight: bolder;
+    }
+    button {
+      width: 100px;
+      height: 25px;
+      font-size: 12pt;
+      color: black;
+    }
+  </style>
+
+  <script src="https://js.arcgis.com/3.15/"></script>
+  <script>
+    var map, toolbar, symbol, geomTask;
+
+    require([
+      "esri/map", 
+      "esri/toolbars/draw",
+      "esri/graphic",
+      "esri/geometry/geometryEngine",
+      "esri/layers/GraphicsLayer",
+      "esri/symbols/SimpleLineSymbol",
+      "esri/symbols/SimpleFillSymbol",
+      "esri/Color",
+      "dojo/dom",
+      "dojo/on",
+      "dojo/domReady!"
+    ], function(
+      Map, Draw, Graphic, geometryEngine, GraphicsLayer,
+      SimpleLineSymbol, SimpleFillSymbol, Color, dom, on
+    ) {
+
+      var toolbarl;
+      var simpleSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, 
+        new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([ 0,0,255 ]), 2),
+        new Color( [ 0,0,255,0.4 ] ));
+                                           
+      var notSimpleSym = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, 
+        new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([ 255,0,0 ]), 2),
+        new Color( [ 255,0,0,0.4 ] ));
+
+      var gl = new GraphicsLayer();
+      var resultNode = dom.byId("isSimple");
+      var simplifyBtn = dom.byId("simplifyBtn");
+      var clearBtn = dom.byId("clearBtn");
+
+      var map = new Map("map", {
+        basemap: "streets",
+        center: [-116.76672186276635, 47.66811951220275],
+        zoom: 13
+      });
+      map.addLayer(gl);
+
+      map.on("load", createToolbar);
+
+      on(clearBtn, "click", clearGraphics);
+
+      map.on("click", function(evt){
+        if(gl.graphics.length > 0){
+          clearGraphics();
+        }
+      });
+
+      on(simplifyBtn, "click", simplifyPolygon);
+
+      function activateTool() {
+        toolbar.activate(Draw.POLYGON);
+        map.hideZoomSlider();
+        map.disableMapNavigation();
+      }
+
+      function createToolbar() {
+        toolbar = new Draw(map);
+        toolbar.on("draw-end", addToMap);
+        activateTool();
+      }
+
+      function addToMap(evt) {
+        var geom = evt.geometry;  
+        
+        console.log("Number of rings: ", geom.rings);
+          
+        resultNode.innerHTML = testIfSimple(geom);
+        if(testIfSimple(geom)){
+          var graphic = new Graphic(geom, simpleSym);
+        } else {
+          var graphic = new Graphic(geom, notSimpleSym);
+        }
+        gl.add(graphic);
+      }
+
+      function testIfSimple(geom){
+        return geometryEngine.isSimple(geom);
+      }
+
+      function clearGraphics(){
+        gl.clear();
+        resultNode.innerHTML = "";
+      }
+
+      function simplifyPolygon(){
+
+        if (gl.graphics.length !== 1){
+          console.log("Only one graphic is allowed in the GL.");
+          return;
+        }
+
+        var geom = gl.graphics[0].geometry;
+
+        if (!testIfSimple(geom)){
+          var simpleGeom = geometryEngine.simplify(geom);
+        } else {
+          console.log("Geometry is already simplified!");
+          return;
+        }
+
+        clearGraphics();
+        var graphic = new Graphic(simpleGeom, simpleSym);
+        gl.add(graphic);
+        
+        resultNode.innerHTML = testIfSimple(simpleGeom);
+        
+        console.log("Number of rings: ", geom.rings);
+        
+        return simpleGeom;
+      }
+
+    });
+  </script>
+</head>
+  <body>
+  <div id="map">
+    <div id="pane">
+      <p>Draw a polygon on the map. Click to add vertices. Double-
+      click to finish the polygon.</p>
+      Is the drawn polygon simple?<br> 
+      <span id="isSimple"></span><br><br>
+      <button id="simplifyBtn">Simplify!</button>&nbsp;&nbsp;
+      <button id="clearBtn">Clear graphic</button>
+    </div>
+  </div>
+  </body>
+</html>
