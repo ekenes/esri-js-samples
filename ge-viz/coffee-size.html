@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
+    <title>GE StreamLayer - Seattle Buses - Size</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/3.15/dijit/themes/tundra/tundra.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/3.15/esri/css/esri.css">
+    <style type="text/css">
+      html, body, #map {
+        height: 100%; width: 100%;
+        margin: 0; padding: 0;
+      }
+      #info {
+        background-color: #006E40;
+        z-index: 92;
+        left: 0px;
+        bottom: 0px;
+        position: absolute;  
+        padding: 10px;
+        font-family: Segoe UI;
+        color: #fff;
+        width: 350px;
+        border-top-right-radius: 8px;
+        opacity: 0.7;
+        max-height: 80%;
+        font-size: 14pt;
+      }
+      #displayAvg{
+        font-size: 36pt;
+        color: #FFAC0A;
+        font-weight: bolder;
+      }
+      #since{
+        color: #FFAC0A;
+        font-weight: bolder;
+        font-size: 18pt;
+      }
+    </style>
+    <script src="https://js.arcgis.com/3.15/"></script>
+  </head>
+  <body class="tundra">
+    <div id="map"></div>
+    <div id="info">
+      <div id="counter"><h1>Seattle Buses</h1>
+      How many opportunities do you have to pass a Starbucks location
+      on any given bus route? That depends on the location. <br>
+      On average each bus passed <span id="displayAvg"></span><br>
+      Starbucks stores in the last <span id="since"></span><br><br>
+    </div>
+      <div id="legendDiv"></div>
+    </div>
+  </body>
+  <script>
+    require(["esri/map",
+      "esri/layers/StreamLayer",
+      "esri/layers/FeatureLayer",
+      "esri/dijit/PopupTemplate",
+      "esri/graphic",
+      "esri/symbols/SimpleLineSymbol",
+      "esri/symbols/SimpleMarkerSymbol",
+      "esri/geometry/geometryEngine",
+      "esri/renderers/SimpleRenderer",
+      "esri/graphicsUtils",
+      "esri/tasks/query",
+      "esri/dijit/Legend",
+      "dojo/_base/Color",
+      "dojo/_base/array",
+      "dojo/on",
+      "dojo/dom",
+      "dojo/domReady!"
+    ], function(Map, StreamLayer, FeatureLayer, PopupTemplate, Graphic,
+                SimpleLineSymbol, SimpleMarkerSymbol, geometryEngine, SimpleRenderer, 
+                 graphicsUtils, Query, Legend, Color, arrayUtils, on, dom) {
+      
+      
+      var map, streamLayer, starbucksGeoms, avgNode, startTime,
+          starbucksLayer, timeNode, starbucksBuffs, legend;
+      
+      function init(){
+        map = new Map("map", {
+          basemap: "gray",
+          center: [-122.3477549305, 47.61093593305],
+          zoom: 14
+        });
+
+        starbucksLayer = new FeatureLayer("http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Starbucks_Locations/FeatureServer/0", {
+          definitionExpression: "City = 'Seattle'",
+          outFields: ["*"],
+          infoTemplate: new PopupTemplate({
+            title: "{Name}",
+            description: "{Brand} store number: {Store_Number}"
+          })
+        });
+        map.addLayer(starbucksLayer);
+        
+        avgNode = dom.byId("displayAvg");
+        timeNode = dom.byId("since");
+        
+        var params = new Query();
+        params.returnGeometry = true;
+        params.where = "1=1";
+        
+        starbucksLayer.queryFeatures(params, function(result){
+          starbucksGeoms = graphicsUtils.getGeometries(result.features);
+          starbucksBuffs = geometryEngine.geodesicBuffer(starbucksGeoms, 150, "yards");
+        });
+        
+        toggleStreamLayer();
+        
+        map.on("load", function(){
+          legend = new Legend({
+            map: map,
+            layerInfos: [
+              {
+                layer: streamLayer,
+                title: "Number of stores passed by each bus"
+              }
+            ]
+          }, "legendDiv");
+          legend.startup();   
+        }); 
+      }
+  
+      /*************************************************
+       *
+       * Functions to add and remove Stream Layer
+       *
+       *************************************************/
+      function toggleStreamLayer(){
+        if(streamLayer){
+          removeStreamLayer();
+        }
+        else{
+          addStreamLayer();
+          startTime = new Date();
+        }
+      }
+      
+      function addStreamLayer(){
+        //url to stream service
+        var svcUrl = "https://geoeventsample3.esri.com:6443/arcgis/rest/services/SeattleBus/StreamServer";
+
+        //construct Stream Layer
+        streamLayer = new StreamLayer(svcUrl, {
+          purgeOptions: { displayCount: 10000 },
+          infoTemplate: new PopupTemplate({
+            title: "Bus number {BusNo}",
+            description: "{DateTimeStamp}"
+          })
+        });
+        
+        var starbucksCount = [];
+        
+        var renderer = new SimpleRenderer(new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 10, 
+          new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("white"), 1),
+           new Color([255, 128, 0, 0.8])));
+        
+        renderer.label = "City bus location";
+        
+        renderer.setVisualVariables([{
+          type: "sizeInfo",
+          minSize: 6,
+          maxSize: 60,
+          minDataValue: 3,
+          maxDataValue: 50,
+          field: function(graphic){
+            var num = 0;
+            var geom = graphic.geometry;
+            arrayUtils.forEach(starbucksBuffs, function(buff){
+              if(geometryEngine.intersects(geom, buff)){
+                num++;
+              }
+            });
+            
+            starbucksCount.push({
+              busNo: graphic.attributes.BusNo,
+              starbucks: num
+            });
+            
+            var total = 0, sum = 0;
+            arrayUtils.forEach(starbucksCount, function(item, i){
+              if(item.busNo === graphic.attributes.BusNo){
+                total += item.starbucks;
+              }
+              sum += item.starbucks;
+            });
+            
+            getBusAvg(sum, streamLayer.graphics.length);
+            getTime();
+
+            return total;
+          }
+        }]);
+        
+        streamLayer.setRenderer(renderer);
+
+        //When layer loads, register listeners for layer events and add layer to map
+        streamLayer.on("load", function(){
+          //Add layer to map
+          map.addLayer(streamLayer);
+        });
+      }
+      
+      function getBusAvg(passes, buses){
+        var avgPerBus = passes / buses;
+        avgNode.innerHTML = avgPerBus.toPrecision(2);
+      }
+      
+      function getTime(){
+        var currentTime = new Date();
+        var since = currentTime - startTime;
+        var seconds = Math.round(since / 1000);
+        var minutes = Math.floor(seconds / 60);
+
+        if(minutes > 0){
+          seconds = seconds - (minutes * 60); 
+        } 
+        timeNode.innerHTML = minutes + " min, " + seconds + " sec";
+      }
+
+      function removeStreamLayer(){
+        if (streamLayer){
+          map.removeLayer(streamLayer);
+          streamLayer = null;
+          map.graphics.clear();
+        }
+      }
+
+      init();
+    });
+  </script>
+</html>
