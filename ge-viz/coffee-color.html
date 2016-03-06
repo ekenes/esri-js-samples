@@ -83,6 +83,10 @@
           center: [-122.3477549305, 47.61093593305],
           zoom: 14
         });
+        
+        var storeRenderer = new SimpleRenderer(new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 10, 
+          new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("white"), 0.5),
+           new Color("#3F8D6E")));
 
         starbucksLayer = new FeatureLayer("http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Starbucks_Locations/FeatureServer/0", {
           definitionExpression: "City = 'Seattle'",
@@ -93,6 +97,8 @@
             description: "{Brand} store number: {Store_Number}"
           })
         });
+        
+        starbucksLayer.setRenderer(storeRenderer);
         map.addLayer(starbucksLayer);
         
         avgNode = dom.byId("displayAvg");

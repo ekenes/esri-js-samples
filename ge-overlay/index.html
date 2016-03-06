@@ -72,18 +72,17 @@ require(["esri/map",
     map.disableMapNavigation();   
   });
  
-  var landUrl = "http://tlamap.trustlands.utah.gov/arcgis/rest/services/UT_SITLA_LandOwnership/MapServer/0";
+  var landUrl = "http://services.arcgis.com/ue9rwulIoeLEI9bj/arcgis/rest/services/Wilderness_BLMWSAs/FeatureServer/0";
   var statesUrl = "http://sampleserver6.arcgisonline.com/arcgis/rest/services/Census/MapServer/3";
   landLyr = new FeatureLayer(landUrl, {
-    opacity: 0.3,
-    definitionExpression: "STATE_LGD = 'Private'"
+    opacity: 0.3
   });
   utahLyr = new FeatureLayer(statesUrl, {
     definitionExpression: "STATE_NAME = 'Utah'",
     opacity: 0
   });
     
-  var pvtRenderer = new SimpleRenderer(new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color("black"), 0), new Color([211,222,4,1])));
+  var pvtRenderer = new SimpleRenderer(new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color("black"), 0), new Color("red")));
   landLyr.setRenderer(pvtRenderer);
   map.addLayers([utahLyr, landLyr]);
     
@@ -144,12 +143,11 @@ require(["esri/map",
     var privateLandGeoms = graphicsUtils.getGeometries(privateLandGraphics);
     //Only work with private land that intersects the buffer (essentially a select by location)  
     var priInBuffer = array.filter(privateLandGeoms, function(item, i){
-      if(geometryEngine.intersects(item, geom)){
-        return item;
-      }
+      return geometryEngine.intersects(item, geom);
     });
     if (priInBuffer.length > 0){
       //merge all the private land features that intersects buffer into one feature
+      
       var privateUnion = geometryEngine.union(priInBuffer);
       //get intersection of buffer and merge (cookie cutter)
       var privateIntersect = geometryEngine.intersect(privateUnion, geom);
@@ -296,8 +294,7 @@ require(["esri/map",
   function hideLoading(error) {
     esri.hide(loading);
   }
-  hideLoading();
-//  on(map, "update-end", hideLoading);    
+  hideLoading();  
     
 });
 </script>
@@ -305,15 +302,15 @@ require(["esri/map",
 
 <body>
   <div id="map"><img id="loadingImg" src="http://developers.arcgis.com/javascript/samples/map_showloading/images/loading.gif" style="position:absolute; right:49%; top:49%; z-index:100;" />
-    <div class="mainStyle" id="results"><h2 id="title">Utah Land Ownership</h2>
+    <div class="mainStyle" id="results"><h2 id="title">Sensitive Land</h2>
     <canvas id="myChart" width="250" height="250"></canvas><br><br>
-    <span class="pvt">Private land: <span id="privatePer"></span></span><br>
-    <span class="pub">Public land: <span id="publicPer"></span></span>
+    <span class="pvt">Sensitive land: <span id="privatePer"></span></span><br>
+    <span class="pub">Non-sensitive land: <span id="publicPer"></span></span>
     <br><br>
-    Click or drag on the map to view private and government-owned land within 10 miles of the mouse click.
-    Hover over the pie chart to view the area of each ownership type within the 10-mile buffer. 
-    <br><br><input type="radio" name="operation" id="buffOpt" checked>View ownership by map click
-    <br><br><input type="radio" name="operation" id="drawOpt">View ownership by polygon   
+    Click or drag on the map to view sensitive land within 10 miles of the mouse click.
+    Hover over the pie chart to view the area of land type within the 10-mile buffer. 
+    <br><br><input type="radio" name="operation" id="buffOpt" checked>View category by map click
+    <br><br><input type="radio" name="operation" id="drawOpt">View category by polygon   
     <br><br><input type="radio" name="operation" id="navOpt">Navigate Map 
   </div>
 </div>

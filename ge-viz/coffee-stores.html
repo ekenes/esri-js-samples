@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
     <title>GE StreamLayer - Seattle Buses - store size</title>
-    <link rel="stylesheet" href="https://js.arcgis.com/3.15/dijit/themes/tundra/tundra.css">
-    <link rel="stylesheet" href="https://js.arcgis.com/3.15/esri/css/esri.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/3.16/dijit/themes/tundra/tundra.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/3.16/esri/css/esri.css">
     <style type="text/css">
       html, body, #map {
         height: 100%; width: 100%;
@@ -27,7 +27,7 @@
         font-size: 14pt;
       }
     </style>
-    <script src="https://js.arcgis.com/3.15/"></script>
+    <script src="https://js.arcgis.com/3.16/"></script>
   </head>
   <body class="tundra">
     <div id="map"></div>
@@ -72,6 +72,10 @@
           center: [-122.3477549305, 47.61093593305],
           zoom: 14
         });
+        
+        var storeRenderer = new SimpleRenderer(new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 10, 
+          new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("white"), 0.5),
+           new Color("#3F8D6E")));
 
         starbucksLayer = new FeatureLayer("http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Starbucks_Locations/FeatureServer/0", {
           definitionExpression: "City = 'Seattle'",
@@ -81,6 +85,8 @@
             description: "{Brand} store number: {Store_Number}"
           })
         });
+        
+        starbucksLayer.setRenderer(storeRenderer);
         
         avgNode = dom.byId("displayAvg");
         timeNode = dom.byId("since");
