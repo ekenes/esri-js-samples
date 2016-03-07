@@ -106,7 +106,7 @@
       var qt = new QueryTask(url);
       
       var map = new Map("esri-map-container", {
-        basemap: "terrain", 
+        basemap: "gray", 
         center: [-122.324424, 47.599179], 
         zoom: 13
       });
@@ -331,6 +331,8 @@
           defExp = "(PER_BACH_DEG >= 50)";
         } else if (newVal === "home-value"){
           defExp = "(MEDVAL_CY >= 500000)";
+        } else if (newVal === "seattle"){
+          defExp = "(CITY = 'Seattle')";
         } else {
           defExp = "";
         }
@@ -458,6 +460,7 @@
         Filter by: 
         <select id="select-filter">
           <option value="" selected></option>
+          <option value="seattle">City of Seattle</option>
           <option value="household-income">Median HH income $50K - $100K</option>
           <option value="home-value">Median Home Value > $500K</option>
           <option value="education">>50% have a bachelor's degree</option>
