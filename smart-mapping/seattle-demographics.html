@@ -27,8 +27,8 @@
       z-index: 2;
       bottom: 0;
       left: 0;
-      background-color: white;
-      color: black;
+      background-color: #FFFCD4;
+      color: #6B3B64;
       height: 100%;
       width: 300px;     
       border-top-right-radius: 8px;
@@ -49,11 +49,11 @@
     }
     .btn {
       background: #3498db;
-      background-image: -webkit-linear-gradient(top, #3498db, #2980b9);
-      background-image: -moz-linear-gradient(top, #3498db, #2980b9);
-      background-image: -ms-linear-gradient(top, #3498db, #2980b9);
-      background-image: -o-linear-gradient(top, #3498db, #2980b9);
-      background-image: linear-gradient(to bottom, #3498db, #2980b9);
+      background-image: -webkit-linear-gradient(top, #6B3B64, #6B3B64);
+      background-image: -moz-linear-gradient(top, #6B3B64, #6B3B64);
+      background-image: -ms-linear-gradient(top, #6B3B64, #6B3B64);
+      background-image: -o-linear-gradient(top, #6B3B64, #6B3B64);
+      background-image: linear-gradient(to bottom, #6B3B64, #6B3B64);
       -webkit-border-radius: 28;
       -moz-border-radius: 28;
       border-radius: 28px;
@@ -72,6 +72,12 @@
       background-image: -o-linear-gradient(top, #3cb0fd, #3498db);
       background-image: linear-gradient(to bottom, #3cb0fd, #3498db);
       text-decoration: none;
+    }
+    h2{
+      text-align: center;
+    }
+    #esri_dijit_RendererSlider_0{
+      background-color: #FFFCD4;
     }
   </style>  
     
@@ -151,8 +157,8 @@
         maxValue: 1,  // absolute maximum value of slider
         colorInfo: {  // determines color ramp mapped to data values
           stops:[
-            {color: new Color("#fff"), value: 0.0001}, 
-            {color: new Color("#fff"), value: 1.0001}
+            {color: new Color("#FFFCD4"), value: 0.0001}, 
+            {color: new Color("#FFFCD4"), value: 1.0001}
           ]
         },
         showTransparentBackground: true
@@ -366,7 +372,7 @@
         // If an extent currently exists and user doesn't want it changed, keep it
         currentExtentFilter = (keepCurrentFilter === true) ? currentExtentFilter : extent;
         params.geometry = currentExtentFilter;
-        params.spatialRelationship = Query.SPATIAL_REL_CONTAINS;
+        params.spatialRelationship = Query.SPATIAL_REL_INTERSECTS;
 
         qt.executeForIds(params, function(ids){
           
@@ -438,8 +444,7 @@
     <div id="esri-map-container"></div>
     <div id="basemapToggle-container"></div>
     <div id="esri-colorinfoslider-container"><div style="padding: 8px;">
-      <div id="title"><h3>Greater Seattle Demographics</h3></div>
-      <hr>
+      <div id="title"><h2>Seattle Demographics</h2></div>
       <div id="attSelection">
         Attribute: 
         <select id="select-field">
