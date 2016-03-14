@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+    <title>Simple Map</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/3.16/esri/css/esri.css">
+    <style>
+      html, body, #map {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <script src="https://js.arcgis.com/3.16/"></script>
+    <script>
+      var map;
+
+      require([
+        "esri/map", 
+        "esri/geometry/geometryEngine",
+        "esri/graphic",
+        "esri/symbols/SimpleFillSymbol",
+        "esri/symbols/SimpleLineSymbol",
+        "esri/Color",
+        "dojo/domReady!"
+      ], function(Map, geometryEngine, Graphic, SimpleFillSymbol, SimpleLineSymbol, Color) {
+        map = new Map("map", {
+          basemap: "topo",
+          center: [-122.45, 37.75], // longitude, latitude
+          zoom: 2
+        });
+        
+        var geoSym = new SimpleFillSymbol();
+        geoSym.setStyle(SimpleFillSymbol.STYLE_NULL);
+        geoSym.setOutline(new SimpleLineSymbol().setWidth(5).setColor(new Color("blue")));
+        
+        var sym = new SimpleFillSymbol();
+        sym.setStyle(SimpleFillSymbol.STYLE_NULL);
+        sym.setOutline(new SimpleLineSymbol().setWidth(5).setColor(new Color("red")));
+        
+        map.on("mouse-move", function(evt){
+          map.graphics.clear();
+          var centerPt = evt.mapPoint;
+          var geoBuffer = geometryEngine.geodesicBuffer(centerPt, 700, "miles");
+          var buffer = geometryEngine.buffer(centerPt, 700, "miles");
+          
+          var geoGraphic = new Graphic(geoBuffer, geoSym);
+          map.graphics.add(geoGraphic);
+          
+          var graphic = new Graphic(buffer, sym);
+          map.graphics.add(graphic);
+        });
+      });
+    </script>
+  </head>
+
+  <body>
+    <div id="map"></div>
+  </body>
+</html>
