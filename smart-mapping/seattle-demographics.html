@@ -91,8 +91,6 @@
       "esri/map",
       "esri/plugins/FeatureLayerStatistics",
       "esri/renderers/smartMapping",
-      "esri/symbols/SimpleFillSymbol",
-      "esri/symbols/SimpleLineSymbol",
       "esri/tasks/query",
       "esri/tasks/QueryTask",
       "dojo/_base/array",
@@ -102,7 +100,7 @@
     ], function (
       Color, BasemapToggle, ColorInfoSlider, 
       PopupTemplate, FeatureLayer, Map, FeatureLayerStatistics, smartMapping, 
-      SimpleFillSymbol, SimpleLineSymbol, Query, QueryTask, array, dom, on
+      Query, QueryTask, array, dom, on
     ){
 
       var currentExtentFilter = null;
@@ -131,14 +129,6 @@
         });
       });
       
-      // InfoWindow FillSymbol highlight
-      var sfs = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID,
-        new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID,
-          new Color("#00FFFF"), 2), new Color([0,255,255,0.1])
-      );
-      
-      map.infoWindow.set("fillSymbol", sfs);
-
       var lyr = new FeatureLayer(url, {
         outFields: ["*"],
         visible: false
@@ -271,7 +261,7 @@
           featureLayerStatistics.getHistogram({
             field: fieldName,
             normalizationField: normFieldName,
-            numBins: 50
+            numBins: 20
           }).then(function (histogram){
             // --------------------------------------------------------------------
             // Update the ColorInfoSlider and apply FeatureLayerStatistics histogram
