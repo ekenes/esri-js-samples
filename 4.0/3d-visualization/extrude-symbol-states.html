@@ -6,34 +6,36 @@
   <title>Extrude polygon by visual variables</title>
   <style>
     html,
-    body {
+    body,
+    #viewDiv {
       padding: 0;
       margin: 0;
+      height: 100%;
+      width: 100%;
     }
   </style>
 
-  <link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
-  <script src="https://js.arcgis.com/4.0beta3/"></script>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.0/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.0/"></script>
 
   <script>
     require([
       "esri/Map",
-      "esri/Color",
       "esri/views/SceneView",
       "esri/layers/FeatureLayer",
       "esri/symbols/PolygonSymbol3D",
       "esri/symbols/ExtrudeSymbol3DLayer",
       "esri/renderers/SimpleRenderer",
       "dojo/domReady!"
-    ], function(Map, Color, SceneView, FeatureLayer, PolygonSymbol3D,
+    ], function(Map, SceneView, FeatureLayer, PolygonSymbol3D,
       ExtrudeSymbol3DLayer, SimpleRenderer) {
 
-      //Create map
+      // Create map
       var map = new Map({
         basemap: "streets"
       });
 
-      //Create SceneView for 3d visualization
+      // Create SceneView for 3d visualization
       var view = new SceneView({
         container: "viewDiv",
         map: map,
@@ -44,9 +46,10 @@
         }
       });
 
-      //Create featureLayer and add to the map
+      // Create featureLayer and add to the map
       var featureLayer = new FeatureLayer({
-        url: "https://sampleserver6.arcgisonline.com/arcgis/rest/services/Census/MapServer/3"
+        url: "https://sampleserver6.arcgisonline.com/arcgis/rest/services/Census/MapServer",
+        layerId: 3
       });
       map.add(featureLayer);
 
@@ -56,18 +59,19 @@
           symbolLayers: [new ExtrudeSymbol3DLayer()]
         }),
         visualVariables: [{
-          type: "sizeInfo",
-          field: "POP07_SQMI",
-          minSize: 40000,
-          maxSize: 1000000,
-          minDataValue: 1,
-          maxDataValue: 1000
+          type: "size",
+          field: "POP07_SQMI",  // pop per square mile
+          stops: [
+            { value: 1, size: 40000 },  // 40km in height
+            { value: 1000, size: 1000000 }  // 1,000km in height
+          ]
         }, {
-          type: "colorInfo",
-          field: "POP07_SQMI",
-          minDataValue: 1,
-          maxDataValue: 1000,
-          colors: [ "white", "red" ]
+          type: "color",
+          field: "POP07_SQMI",  // pop per square mile
+          stops: [
+            { value: 1, color: "white" },
+            { value: 1000, color: "red" }
+          ]
         }]
       });
 
