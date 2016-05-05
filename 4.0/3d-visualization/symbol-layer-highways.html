@@ -5,14 +5,18 @@
 <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Symbol layers highways</title>
 
-<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
-<script src="https://js.arcgis.com/4.0beta3/"></script>
+<link rel="stylesheet" href="https://js.arcgis.com/4.0/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0/"></script>
 
 <style>
 html,
-body {
+body,
+#viewDiv
+{
   padding: 0;
   margin: 0;
+  height: 100%;
+  width: 100%;
 }
 </style>
 
@@ -21,32 +25,26 @@ require([
     "esri/Map",
     "esri/views/SceneView",
     "esri/layers/FeatureLayer",
-    "esri/geometry/SpatialReference",
-    "esri/geometry/Point",
-    "esri/Camera",
-    "esri/PopupTemplate",
     "esri/renderers/UniqueValueRenderer",
-    "esri/symbols/TextSymbol3DLayer",
     "esri/symbols/LineSymbol3DLayer",
-    "esri/symbols/IconSymbol3DLayer",
     "esri/symbols/LineSymbol3D",
     "dojo/domReady!"
   ],
   function(
-    Map, SceneView, FeatureLayer, SpatialReference, Point, Camera, PopupTemplate, UniqueValueRenderer, TextSymbol3DLayer, LineSymbol3DLayer, IconSymbol3DLayer, LineSymbol3D
+    Map, SceneView, FeatureLayer, UniqueValueRenderer, LineSymbol3DLayer, LineSymbol3D
   ) {
-    
-    var initCam = new Camera({
-      position: new Point({
+
+    var initCam = {
+      position: {
         x: -12986481,
         y: 3879642,
         z: 85789,
-        spatialReference: new SpatialReference({ wkid: 3857 })
-      }),
+        spatialReference: { wkid: 3857 }
+      },
       heading: 319,
       tilt: 65
-    });
-    
+    };
+
     var interstateSymbol = new LineSymbol3D({
       symbolLayers: [
         new LineSymbol3DLayer({
@@ -59,7 +57,7 @@ require([
         })
       ]
     });
-    
+
     var stateSymbol = new LineSymbol3D({
       symbolLayers: [
         new LineSymbol3DLayer({
@@ -72,7 +70,7 @@ require([
         })
       ]
     });
-    
+
     var countySymbol = new LineSymbol3D({
       symbolLayers: [
         new LineSymbol3DLayer({
@@ -81,37 +79,44 @@ require([
         })
       ]
     });
-    
+
     var renderer = new UniqueValueRenderer({
-      attributeField: "CLASS"
+      field: "CLASS",
+      uniqueValueInfos: [{
+        value: "I",
+        symbol: interstateSymbol
+      }, {
+        value: "S",
+        symbol: stateSymbol
+      }, {
+        value: "U",
+        symbol: countySymbol
+      }]
     });
-    
-    renderer.addValue("I", interstateSymbol);
-    renderer.addValue("S", stateSymbol);
-    renderer.addValue("U", countySymbol);
 
     var highwayLyr = new FeatureLayer({
-      url: "http://services.arcgis.com/P3ePLMYs2RVChkJx/ArcGIS/rest/services/USA_Freeway_System/FeatureServer/2",  
+      url: "http://services.arcgis.com/P3ePLMYs2RVChkJx/ArcGIS/rest/services/USA_Freeway_System/FeatureServer",
+      layerId: 2,
       renderer: renderer,
-      popupTemplate: new PopupTemplate({
+      popupTemplate: {
         title: "{CLASS}-{NUMBER}",
         content: "Distance: {DIST_MILES} miles"
-      }),
+      },
       outFields: ["*"],
       maxScale: 0,
       minScale: 0
     });
-    
+
     /*****************************************************************
      * Add the layer to a map
      *****************************************************************/
     var map = new Map({
-      basemap: "dark-gray"
+      basemap: "dark-gray",
+      layers: [ highwayLyr ],
+      ground: "world-elevation"
     });
 
-    map.add(highwayLyr);
-
-    view = new SceneView({
+    var view = new SceneView({
       container: "viewDiv",
       map: map,
       camera: initCam
