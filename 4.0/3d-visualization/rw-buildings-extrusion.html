@@ -5,14 +5,17 @@
 <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Buildings - real world sizes</title>
 
-<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
-<script src="https://js.arcgis.com/4.0beta3/"></script>
+<link rel="stylesheet" href="https://js.arcgis.com/4.0/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0/"></script>
 
 <style>
 html,
-body {
+body,
+#viewDiv {
   padding: 0;
   margin: 0;
+  height: 100%;
+  width: 100%;
 }
 </style>
 
@@ -21,69 +24,63 @@ require([
     "esri/Map",
     "esri/views/SceneView",
     "esri/layers/FeatureLayer",
-    "esri/geometry/SpatialReference",
-    "esri/geometry/Point",
-    "esri/Camera",
-    "esri/PopupTemplate",
     "esri/renderers/SimpleRenderer",
     "esri/symbols/ExtrudeSymbol3DLayer",
     "esri/symbols/PolygonSymbol3D",
     "dojo/domReady!"
   ],
   function(
-    Map, SceneView, FeatureLayer, SpatialReference, Point, Camera, PopupTemplate, SimpleRenderer, ExtrudeSymbol3DLayer, PolygonSymbol3D
+    Map, SceneView, FeatureLayer, SimpleRenderer, ExtrudeSymbol3DLayer, PolygonSymbol3D
   ) {
-    
-    var initCam = new Camera({
-      position: new Point({
+
+    var initCam = {
+      position: {
         x: -8354148,
         y: 4641966,
         z: 129,
-        spatialReference: new SpatialReference({ wkid: 3857 })
-      }),
+        spatialReference: { wkid: 3857 }
+      },
       heading: 300,
       tilt: 75
-    });
-    
+    };
+
     var renderer = new SimpleRenderer({
       symbol: new PolygonSymbol3D({
         symbolLayers: [new ExtrudeSymbol3DLayer({
           material: { color: "orange" }
         })]
       }),
-      visualVariables: [
-      {
-        type: "sizeInfo",
+      visualVariables: [{
+        type: "size",
         field: "ELEVATION",
-        valueUnit: "feet"  //converts and extrudes all data values in feet
+        valueUnit: "feet"  // converts and extrudes all data values in feet
       }, {
-        type: "colorInfo",
+        type: "color",
         field: "ELEVATION",
-        colors: ["#fff7ec", "orange"],
-        minDataValue: 0,
-        maxDataValue: 50
-      }
-      ]
+        stops: [
+          { value: 0, color: "#fff7ec" },
+          { value: 50, color: "orange" }
+        ]
+      }]
     });
 
     var buildingsLyr = new FeatureLayer({
       url: "https://services1.arcgis.com/jjVcwHv9AQEq3DH3/arcgis/rest/services/Buildings/FeatureServer/0",
       renderer: renderer,
-      popupTemplate: new PopupTemplate({
+      popupTemplate: {
         content: "{*}"
-      }),
+      },
       outFields: ["*"],
       definitionExpression: "FID < 2000",
       elevationInfo: {
-        mode: "onTheGround"
+        mode: "on-the-ground"
       }
     });
 
     var map = new Map({
-      basemap: "satellite"
+      basemap: "satellite",
+      layers: [ buildingsLyr ]
     });
-
-    map.add(buildingsLyr);
 
     var view = new SceneView({
       container: "viewDiv",
