@@ -5,14 +5,17 @@
 <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>3D trees</title>
 
-<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
-<script src="https://js.arcgis.com/4.0beta3/"></script>
+<link rel="stylesheet" href="https://js.arcgis.com/4.0/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0/"></script>
 
 <style>
 html,
-body {
+body,
+#viewDiv {
   padding: 0;
   margin: 0;
+  height: 100%;
+  width: 100%;
 }
 </style>
 
@@ -33,23 +36,23 @@ require([
   function(
     Map, SceneView, FeatureLayer, SpatialReference, Point, Camera, PopupTemplate, SimpleRenderer, PointSymbol3D, ObjectSymbol3DLayer
   ) {
-    
-    var initCam = new Camera({
-      position: new Point({
+
+    var initCam = {
+      position: {
         x: -9178258,
         y: 4247301,
         z: 930,
-        spatialReference: new SpatialReference({ wkid: 3857 })
-      }),
+        spatialReference: { wkid: 3857 }
+      },
       heading: 89,
       tilt: 70
-    });
-    
+    };
+
     /*****************************************************************
-     * Renderer and Layer for the tree trunks. Since visual variables only 
+     * Renderer and Layer for the tree trunks. Since visual variables only
      * work for one symbol layer in version 4.0 of the ArcGIS JS API,
      * we need to separate the trunks from the crowns in different layers.
-     * 
+     *
      * This is subject to change in future releases of the API
      *****************************************************************/
 
@@ -62,39 +65,39 @@ require([
       }),
       visualVariables: [
         {
-          type: "sizeInfo",
+          type: "size",
           axis: "height",
           field: "Height",
           valueUnit: "feet"
         }, {
-          type: "sizeInfo",
-          axis: "widthAndDepth",
+          type: "size",
+          axis: "width-and-depth",
           field: "DBH1",
           valueUnit: "inches"
         }
       ]
     });
-    
+
     var trunkLyr = new FeatureLayer({
-       url: "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Landscape_Trees/FeatureServer/0",
+       url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Landscape_Trees/FeatureServer/0",
        renderer: trunkRenderer,
        outFields: ["*"],
        elevationInfo: {
-         mode: "onTheGround"
+         mode: "on-the-ground"
        },
        definitionExpression: "Height >= 14 AND Height <= 40"
     });
-    
+
     /*****************************************************************
      * Renderer and Layer for the tree crowns. Four visual variables
-     * are used in this symbol. One for the crown height (height axis), 
-     * another for crown diameter from north to south (depth axis), and 
+     * are used in this symbol. One for the crown height (height axis),
+     * another for crown diameter from north to south (depth axis), and
      * another for crown diameter from east to west (width axis).
-     * 
-     * The color visual variable shades the tree crowns based on their 
+     *
+     * The color visual variable shades the tree crowns based on their
      * Carbon storage.
      *****************************************************************/
-    
+
     var crownRenderer = new SimpleRenderer({
        symbol: new PointSymbol3D({
          symbolLayers: [new ObjectSymbol3DLayer({
@@ -104,56 +107,57 @@ require([
        }),
        visualVariables: [
          {
-          type: "sizeInfo",
-          axis: "height",
-          field: "Crown_Height",
-          valueUnit: "feet"
+          type: "size",
+          axis: "height", // set the crown height on the height axis
+          field: "Crown_Height", // Crown heights are expressed in feet
+          valueUnit: "feet" // converts and extrudes all data values in feet
         }, {
-          type: "sizeInfo",
-          axis: "width",
-          field: "Width_EW",
-          valueUnit: "feet"
+          type: "size",
+          axis: "width", // set the crown diameter (east to west) to the width axis
+          field: "Width_EW", // crown diameter (EW) is expressed in feet
+          valueUnit: "feet" // converts and extrudes all data values in feet
         }, {
-          type: "sizeInfo",
-          axis: "depth",
-          field: "Width_NS",
-          valueUnit: "feet"
+          type: "size",
+          axis: "depth", // set the crown diameter (north to south) to the depth axis
+          field: "Width_NS", // crown diameter (NS) is expressed in feet
+          valueUnit: "feet" // converts and extrudes all data values in feet
         }, {
-          type: "colorInfo",
-          field: "C_Storage",  //Carbon storage
-          minDataValue: 0,
-          maxDataValue: 800,
-          colors: ["#f7fcb9", "#31a354"]
+          type: "color",
+          field: "C_Storage",  // Carbon storage
+          stops: [
+            { value: 0, color: "#f7fcb9" },
+            { value: 800, color: "#31a354" }
+          ]
         }
        ]
     });
-    
+
     var crownLyr = new FeatureLayer({
        url: "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Landscape_Trees/FeatureServer/0",
        renderer: crownRenderer,
        outFields: ["*"],
        elevationInfo: {
-         mode: "relativeToGround",
+         mode: "relative-to-ground",
          offset: 6.5
        },
        definitionExpression: "Height >= 14 AND Height <= 40",
-       popupTemplate: new PopupTemplate({
+       popupTemplate: {
          title: "{Cmn_Name}",
-         content: "<i>{Sci_Name}</i><br>" + 
+         content: "<i>{Sci_Name}</i><br>" +
            "This tree is in {Condition} condition and is {Height} feet in height."
-       })
+       }
      });
 
     /*****************************************************************
      * Add the layer to a map
      *****************************************************************/
-     map = new Map({
-      basemap: "osm"
-     });
+    var map = new Map({
+      basemap: "osm",
+      ground: "world-elevation",
+      layers: [ trunkLyr, crownLyr ]
+    });
 
-    map.add([trunkLyr, crownLyr]);
-
-    view = new SceneView({
+    var view = new SceneView({
       container: "viewDiv",
       map: map,
       camera: initCam
