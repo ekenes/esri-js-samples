@@ -5,53 +5,48 @@
 <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Earthquake symbol layers</title>
 <style>
-  html, body {
+  html, body, #viewDiv {
     padding: 0;
     margin: 0;
+    height: 100%;
+    width: 100%;
   }
 </style>
- 
-<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
-<script src="https://js.arcgis.com/4.0beta3/"></script>
- 
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.0/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0/"></script>
+
 <script>
   require([
     "esri/Map",
     "esri/views/SceneView",
     "esri/layers/GraphicsLayer",
     "esri/geometry/Point",
-    "esri/geometry/Extent",
-    "esri/PopupTemplate",
-    "esri/geometry/SpatialReference",
-    "esri/renderers/SimpleRenderer",
     "esri/symbols/IconSymbol3DLayer",
     "esri/symbols/PointSymbol3D",
     "esri/Graphic",
-    "esri/Camera",
     "esri/request",
     "esri/config",
     "dojo/_base/array",
     "dojo/domReady!"
-  ], function (Map, SceneView, GraphicsLayer, Point, Extent, PopupTemplate, SpatialReference, SimpleRenderer, IconSymbol3DLayer, PointSymbol3D, Graphic, Camera, esriRequest, esriConfig, arrayUtils){
-     
-    esriConfig.request.corsEnabledServers.push("http://earthquake.usgs.gov"); 
-    
-    var lastHour = "http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson";  
+  ], function (Map, SceneView, GraphicsLayer, Point, IconSymbol3DLayer, PointSymbol3D, Graphic, esriRequest, esriConfig, arrayUtils){
+
+    esriConfig.request.corsEnabledServers.push("http://earthquake.usgs.gov");
+
+    var lastHour = "http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson";
     var last24hrs = "http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson";
     var last7days = "http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson";
     var last30days = "http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson";
-   
-    var clippingExtent = new Extent({
-      xmax: -12741021.742727691,
-      xmin: -13368167.54922852,
-      ymax: 4258147.009732559,
-      ymin: 3756675.6223324947,
-      spatialReference: new SpatialReference({
-        wkid: 3857   
-      })
-    }); 
-      
-    var pTemplate = new PopupTemplate({
+
+    var clippingExtent = {
+      xmax: -12741021,
+      xmin: -13368167,
+      ymax: 4258147,
+      ymin: 3756675,
+      spatialReference: { wkid: 3857 }
+    };
+
+    var pTemplate = {
       title: "{title}",
       content: "<b>Location:</b> {place}<br>" +
         "<b>Date and time:</b> {time}<br>" +
@@ -73,27 +68,59 @@
           places: 0
         }
       }]
-    });
-      
-    var initCam = new Camera({
+    };
+
+    var initCam = {
       heading: 17.8,
       tilt: 113.6,
-      position: new Point({
+      position: {
         latitude: 35.729,
         longitude: -96.925,
-        z: -20027, 
-        spatialReference: new SpatialReference({
-          wkid: 3857
+        z: -20027,
+        spatialReference: { wkid: 3857 }
+      }
+    };
+
+    /**************************************************
+    * Define symbols for earthquakes
+    **************************************************/
+
+    //Quakes symbol color on the surface
+    var surfaceSym = new PointSymbol3D({
+      symbolLayers: [
+        new IconSymbol3DLayer({
+          material: { color: [ 219,53,53,0.5 ] },
+          resource: { primitive: "circle" },
+          size: 20
+        }),
+        new IconSymbol3DLayer({
+          material: { color: [ 219,53,53,1 ] },
+          resource: { primitive: "circle" },
+          size: 8,
+          outline: {
+            color: "white",
+            size: 0.5
+          }
+        }),
+        new IconSymbol3DLayer({
+          material: { color: [ 0,0,0,0 ] },
+          resource: { primitive: "circle" },
+          size: 50,
+          outline: {
+            color: "black",
+            size: 0.5
+          }
         })
-      })
+      ]
     });
-      
+
     /**************************************************
     * Create graphics with returned geojson data
-    **************************************************/  
-     
-    function getData(geojson){
-      return arrayUtils.map(geojson.features, function(feature){
+    **************************************************/
+
+    function getData(response){
+      var geojson = response.data.features;
+      return arrayUtils.map(geojson, function(feature){
         if(feature.geometry.coordinates[2] < 0){
           feature.geometry.coordinates[2] *= -1;
         }
@@ -103,97 +130,56 @@
             latitude: feature.geometry.coordinates[1],
             longitude: feature.geometry.coordinates[0],
             z: feature.geometry.coordinates[2] * (-1000),
-            spatialReference: new SpatialReference({
-              wkid: 3857   
-            })
+            spatialReference: { wkid: 3857 }
           }),
-          attributes: feature.properties
+          attributes: feature.properties,
+          symbol: surfaceSym,
+          popupTemplate: pTemplate
         });
       });
     }
-  
-    //Executes if data retrevial was unsuccessful.  
+
+    //Executes if data retrevial was unsuccessful.
     function errback(error){
       console.error("Retreving data failed. ", error);
-    }   
-      
+    }
+
     var map = new Map({
       basemap: "topo"
     });
-    
- 
+
     //Create SceneView
     var view = new SceneView({
       container: "viewDiv",
       map: map,
       extent: clippingExtent
     });
-      
-    /**************************************************
-    * Define renderers for symbolizing earthquakes
-    **************************************************/  
-      
-    //Quakes symbol color on the surface  
-    var surfaceSym = new PointSymbol3D({
-      symbolLayers: [
-        new IconSymbol3DLayer({
-          material: { color: [219,53,53, 0.5] },
-          resource: { primitive: "circle" },
-          size: 20
-        }),
-        new IconSymbol3DLayer({
-          material: { color: [219,53,53, 1] },
-          resource: { primitive: "circle" },
-          size: 8,
-          outline: {
-            color: "white",
-            size: 0.5
-          }
-        }),
-        new IconSymbol3DLayer({
-          material: { color: [0,0,0, 0] },
-          resource: { primitive: "circle" },
-          size: 50,
-          outline: {
-            color: "black",
-            size: 0.5
-          }
-        })
-      ]    
-    }); 
-      
-    //Quakes renderer on the surface  
-    var quakesSurfaceRenderer = new SimpleRenderer({
-      symbol: surfaceSym
-    });
-      
-    //Layer for quakes on the surface  
+
+    //Layer for quakes on the surface
     var quakesSurface = new GraphicsLayer({
       elevationInfo: {
-        mode: "onTheGround"
-      },
-      renderer: quakesSurfaceRenderer,
-      popupTemplate: pTemplate
-    });  
+        mode: "on-the-ground"
+      }
+    });
 
-    //Add features to both quakes layers  
+    //Add features to both quakes layers
     function addToLayer(graphics){
-      quakesSurface.add(graphics);
-      map.add([quakesSurface]);
+      quakesSurface.addMany(graphics);
+      map.add(quakesSurface);
     }
-    
-    //Request the earthquake data from USGS  
+
+    //Request the earthquake data from USGS
     view.then(function(){
-      esriRequest({
-        url: last7days,
+      esriRequest(last7days, {
         handleAs: "json"
-      }).then(getData, errback).then(addToLayer);  
+      }).then(getData, errback).then(addToLayer);
     });
   });
 </script>
 </head>
- 
+
 <body>
-<div id="viewDiv"></div>
+  <div id="viewDiv"></div>
 </body>
-</html> 
+
+</html>

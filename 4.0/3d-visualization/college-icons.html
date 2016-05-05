@@ -5,76 +5,74 @@
 <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>College - multivariate icons</title>
 
-<link rel="stylesheet" href="https://js.arcgis.com/4.0beta3/esri/css/main.css">
-<script src="https://js.arcgis.com/4.0beta3/"></script>
+<link rel="stylesheet" href="https://js.arcgis.com/4.0/esri/css/main.css">
+<script src="https://js.arcgis.com/4.0/"></script>
 
 <style>
 html,
-body {
+body,
+#viewDiv
+{
   padding: 0;
   margin: 0;
+  height: 100%;
+  width: 100%;
 }
 </style>
 
 <script>
 require([
-    "esri/WebScene",
+    "esri/Map",
     "esri/views/SceneView",
     "esri/layers/FeatureLayer",
-    "esri/geometry/SpatialReference",
-    "esri/geometry/Extent",
-    "esri/geometry/Point",
-    "esri/Camera",
-    "esri/PopupTemplate",
     "esri/renderers/SimpleRenderer",
     "esri/symbols/IconSymbol3DLayer",
     "esri/symbols/PolygonSymbol3D",
     "dojo/domReady!"
   ],
   function(
-    WebScene, SceneView, FeatureLayer, SpatialReference, Extent, Point, Camera, PopupTemplate, SimpleRenderer, IconSymbol3DLayer, PolygonSymbol3D
+    Map, SceneView, FeatureLayer, SimpleRenderer, IconSymbol3DLayer, PolygonSymbol3D
   ) {
-    
-    var initCam = new Camera({
-      position: new Point({
+
+    var initCam = {
+      position: {
         x: -10977689,
         y: 1907829,
         z: 3596340,
-        spatialReference: new SpatialReference({ wkid: 3857 })
-      }),
+        spatialReference: { wkid: 3857 }
+      },
       heading: 7,
       tilt: 27
-    });
-    
+    };
+
     var renderer = new SimpleRenderer({
       symbol: new PolygonSymbol3D({
         symbolLayers: [new IconSymbol3DLayer()]
       }),
       visualVariables: [
         {
-          type: "sizeInfo",
+          type: "size",
           field: "EDUCBASECY",
-          minDataValue: 100,
-          maxDataValue: 1000000,
-          minSize: 6,
-          maxSize: 60,
+          stops: [
+            { value: 100, size: "6px" },
+            { value: 1000000, size: "60px" }
+          ],
           valueUnit: "unknown"
         }, {
-          type: "colorInfo",
+          type: "color",
           field: "ATT_COL",
           normalizationField: "EDUCBASECY",
-          theme: "extremes",
           stops: [
             { value: .20, color: "purple" },
             { value: .48, color: "white" },
             { value: .80, color: "green" }
           ]
         }, {
-          type: "opacityInfo",
+          type: "opacity",
           field: "ATE_COL_DOM_PER",
           stops: [
             { value: 55, opacity: 0.1 },
-            { value: 75, opacity: 1 }    
+            { value: 75, opacity: 1 }
           ]
         }
       ]
@@ -84,24 +82,23 @@ require([
       url: "http://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/us_county_educational_attainment_pop/FeatureServer/0",
       definitionExpression: "TOTPOP_CY > 0",
       renderer: renderer,
-      popupTemplate: new PopupTemplate({
+      popupTemplate: {
         content: "{*}"
-      }),
+      },
       elevationInfo: {
-        mode: "onTheGround"
+        mode: "on-the-ground"
       }
     });
 
     /*****************************************************************
      * Add the layer to a map
      *****************************************************************/
-     var map = new WebScene({
-      basemap: "gray"
-     });
+    var map = new Map({
+      basemap: "gray",
+      layers: [ lyr ]
+    });
 
-    map.add(lyr);
-
-    view = new SceneView({
+    var view = new SceneView({
       container: "viewDiv",
       map: map,
       camera: initCam
