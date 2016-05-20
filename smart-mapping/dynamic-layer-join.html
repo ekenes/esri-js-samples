@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no" />
+<title>Smart Mapping Table Join</title>
+
+<link rel="stylesheet" href="//js.arcgis.com/3.16/dijit/themes/claro/claro.css">
+<link rel="stylesheet" href="//js.arcgis.com/3.16/esri/css/esri.css">
+
+<style>
+
+html, body, #map {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#legend .esriLegendServiceLabel {
+  display: none;
+}
+
+.ancestry-select-container {
+  position: absolute;
+  padding: 10px 10px;
+  top: 20px;
+  right: 20px;
+  width: 200px;
+  background: white;
+  border-radius: 10px;
+  border: black solid 1px;
+}
+
+.basemap-styles-container {
+  padding-bottom: 10px;
+}
+
+.claro .dijitSelectFocused {
+  border: 1px solid black;
+}
+
+.claro .dijitMenu {
+  border: 1px solid black;
+}
+
+.claro .dijitMenuItemSelected {
+  border-color: InfoText;
+  background-color: khaki;
+}
+
+.claro .dijitMenu .dijitMenuItem .dijitMenuItemSelected td {
+  border-color: InfoText;
+  background-color: khaki;
+}
+
+</style>
+
+<script src="//js.arcgis.com/3.16/"></script>
+
+<script>
+require([
+  "esri/basemaps",
+  "dijit/form/Select",
+  "dojo/query",
+  "dojox/uuid/generateRandomUuid",
+  "esri/dijit/Legend",
+  "esri/layers/ArcGISDynamicMapServiceLayer",
+  "esri/layers/DynamicLayerInfo",
+  "esri/layers/FeatureLayer",
+  "esri/layers/JoinDataSource",
+  "esri/layers/LayerDataSource",
+  "esri/layers/LayerDrawingOptions",
+  "esri/layers/LayerMapSource",
+  "esri/layers/TableDataSource",
+  "esri/map",
+  "esri/renderers/smartMapping",
+  "esri/request",
+  "dojo/domReady!"
+], function (
+   esriBasemaps, Select, query, Uuid, Legend, ArcGISDynamicMapServiceLayer,
+   DynamicLayerInfo, FeatureLayer, JoinDataSource, LayerDataSource,
+   LayerDrawingOptions, LayerMapSource, TableDataSource, Map, smartMapping,
+   esriRequest
+){
+
+  var basemapStyle = "gray";
+  var ancestryClassificationField = "ancestry.American";
+  var ancestrySelect;
+  var ancestryArray = [];
+  var ancestryDict = {};
+  var featureLayer;
+  var legendDijit;
+
+  /////////////////////////////////////////////////////////////
+  //
+  // Create the map and add a dynamic layer to it.
+  //
+  /////////////////////////////////////////////////////////////
+
+  var map = new Map("map", {
+    basemap: basemapStyle,  //For full list of pre-defined basemaps, navigate to http://arcg.is/1JVo6Wd
+    center: [-99.12, 38.79], // longitude, latitude
+    zoom: 4
+  });
+  var layerUrl = "https://sampleserver6.arcgisonline.com/arcgis/rest/services/Census/MapServer";
+  var censusMapServiceLayer = new ArcGISDynamicMapServiceLayer(layerUrl, {
+    id: "census",
+    opacity: 0.8
+  });
+
+  censusMapServiceLayer.setVisibleLayers([3]);
+  map.addLayer(censusMapServiceLayer);
+
+  censusMapServiceLayer.on("load", function (event){
+
+    legendDijit = new Legend({
+      map: map,
+      layerInfos: [{ layer: censusMapServiceLayer }]
+    }, "legend");
+    legendDijit.startup();
+
+    /////////////////////////////////////////////////////////////
+    //
+    // Get the dynamic layer info object for the states
+    // sublayer.
+    //
+    /////////////////////////////////////////////////////////////
+
+    // Creates an array of dynamicLayerInfo objects for all sublayers in the service
+    var dynamicLayerInfosArray = censusMapServiceLayer.createDynamicLayerInfosFromLayerInfos();
+
+    // Find the dynamicLayerInfo object for the states sublayer
+    var dynamicLayerInfo = dynamicLayerInfosArray.find(function(dynamicLayerInfoItem){
+      return dynamicLayerInfoItem.name === "states";
+    });
+
+    if (!dynamicLayerInfo.id) {
+      console.error("Unable to find the states layer in the census web service");
+      return;
+    }
+
+    ///////////////////////////////////////////////////////////////////////
+    //
+    // Create the JoinDataSource - This maps the right table key to
+    // the left table key. The key in this sample is the state name.
+    // The table to join to the service will also be specified here.
+    //
+    //////////////////////////////////////////////////////////////////////
+
+    var joinDataSource = JoinDataSource({
+      joinType: "left-outer-join",
+      leftTableKey: "STATE_NAME",
+      rightTableKey: "State"
+    });
+
+    ///////////////////////////////////////////////////////////////////////
+    //
+    // Create an object representing the attribute table to join to the service.
+    // We must specify the dynamic workspace id and the table name.
+    // This is the table containing attributes on which to base the
+    // renderer created via SmartMapping.
+    //
+    ////////////////////////////////////////////////////////////////////////
+
+    var tableDataSource = TableDataSource({
+      type: "table",
+      workspaceId: "CensusFileGDBWorkspaceID",  // workspace
+      dataSourceName: "ancestry"  // table name
+    });
+
+    //////////////////////////////////////////////////////////////////////
+    //
+    // Set the right table source (the attribute table to join) to
+    // the joinDataSource object. This object will be used to complete
+    // the join to the dynamic service (the layer with the geometries).
+    //
+    //////////////////////////////////////////////////////////////////////
+
+    joinDataSource.rightTableSource = new LayerDataSource({
+      id: "ancestryLayerDataSource",
+      dataSource: tableDataSource
+    });
+
+    //////////////////////////////////////////////////////////////////////
+    //
+    // Set the left table source (layer with geometries) to the joinDataSource
+    // object.
+    //
+    //////////////////////////////////////////////////////////////////////
+
+    joinDataSource.leftTableSource = new LayerMapSource({
+      id: "statesLayerMapSource",
+      type: "mapLayer",
+      mapLayerId: 3
+    });
+
+    //////////////////////////////////////////////////////////////////////
+    //
+    // Create the dynamic layer data source for the DynamicLayerInfo instance.
+    // This is a join data source and completes the join between the table
+    // full of attributes and the layer containing geometries.
+    //
+    //////////////////////////////////////////////////////////////////////
+
+    var dynamicLayerDataSource = new LayerDataSource({
+      dataSource: joinDataSource
+    });
+
+    // set the dynamic layer info object on the census map service layer
+    dynamicLayerInfo.source = dynamicLayerDataSource;
+    censusMapServiceLayer.setDynamicLayerInfos([dynamicLayerInfo], true);
+
+    //////////////////////////////////////////////////////////////////////
+    //
+    // Send a request for the DynamicLayer to obtain a list of its
+    // joined fields and provide them to the user.
+    //
+    //////////////////////////////////////////////////////////////////////
+
+    var requestParams = {
+      url: layerUrl + "/dynamicLayer",
+      content: {
+        f: "json",
+        layer: JSON.stringify({ source: dynamicLayerDataSource.toJson() })
+      },
+      handleAs: "json",
+      callbackParamName: "callback"
+    };
+
+    esriRequest(requestParams).then(
+      function (response){
+        var ancestryFieldsArray = response.fields;
+
+        // loop through the field names in the service including the joined table
+        ancestryFieldsArray.forEach(function(field, i){
+
+          // only look at the fields from the ancestry table
+          // there are "states.FIELD_NAME" and "ancestry.FIELD_NAME" fields
+          if (field.name.indexOf("ancestry") != -1) {
+            // show all the ancestry fields in the drop down list except for objectid and state
+            if (field.name.toLowerCase() != "ancestry.objectid" && field.name.toLowerCase() != "ancestry.state") {
+              // generate unique ids for the dictionary
+              var uuidKey = Uuid();
+              // Add the field name to a dictionary of unique ID's to use in the
+              // drop down for selecting field names
+              ancestryDict[uuidKey] = field;
+              if (field.name === ancestryClassificationField) {
+                ancestryArray.push({value: uuidKey, label: field.alias.replace("ancestry.", ""), selected: true});
+              }
+              else {
+                ancestryArray.push({value: uuidKey, label: field.alias.replace("ancestry.", "")});
+              }
+            }
+          }
+        });
+
+        initializeSelectDijit();
+
+      }).otherwise(function (error){
+        console.error(error);
+      });
+
+    //////////////////////////////////////////////////////////////////////
+    //
+    // Create a FeatureLayer with the joined data source so the SmartMapping
+    // module can access the data in the joined table for generating a
+    // renderer to apply to the DynamicLayer. SmartMapping can only
+    // generate renderers based on FeatureLayer instances.
+    //
+    //////////////////////////////////////////////////////////////////////
+
+    // Set options for the feature layer instance
+    var layerOptions = {
+      mode: FeatureLayer.MODE_SELECTION,
+      outFields: ["*"],
+      // set the source to the JoinDataSource so the SmartMapping module
+      // can have access to the data in the fields from the joined table
+      source: dynamicLayerDataSource
+    };
+
+    // Create the layer with the url to the dynamic layer
+    featureLayer = new FeatureLayer(layerUrl + "/dynamicLayer", layerOptions);
+
+    updateRenderer();
+  });
+
+  //////////////////////////////////////////////////////////////////////
+  //
+  // Set up basemap and attribute field drop down menus. The renderer
+  // will update on each drop down change.
+  //
+  //////////////////////////////////////////////////////////////////////
+
+  function initializeSelectDijit(){
+    var ancestryDOMNode = query(".basemap-styles-container");
+    // create an array for a select dropdown
+    var mapOptionsArray = [];
+    var esriBasemapsKeys = Object.keys(esriBasemaps).sort();
+    esriBasemapsKeys.forEach(function (basemapName, i){
+      mapOptionsArray.push({
+        label: esriBasemaps[basemapName].title,
+        value: basemapName
+      });
+      // set the light gray basemap style to selected in the dropdown
+      if (basemapName === basemapStyle /* gray */ ) {
+        mapOptionsArray[i].selected = true;
+      }
+    });
+
+    var mapStyleSelect = new Select({
+      id: "mapStyleSelect",
+      options: mapOptionsArray
+    }).placeAt(ancestryDOMNode[0]);
+    mapStyleSelect.startup();
+
+    mapStyleSelect.on("change", function (value){
+      basemapStyle = value;
+      updateRenderer();
+      map.setBasemap(basemapStyle);
+    });
+
+    var ancestrySelectDOMNode = query("#legend");
+
+    ancestrySelect = new Select({
+      id: "ancestrySelect",
+      options: ancestryArray
+    }).placeAt(ancestrySelectDOMNode[0], "before");
+    ancestrySelect.startup();
+
+    ancestrySelect.on("change", function (value){
+      ancestryClassificationField = ancestryDict[value].name;
+      updateRenderer();
+    });
+  }
+
+  //////////////////////////////////////////////////////////////////////
+  //
+  // Generates a new renderer with the SmartMapping module and applies it
+  // to the censusMapServiceLayer.
+  //
+  //////////////////////////////////////////////////////////////////////
+
+  function updateRenderer(){
+    // Set the options for creating a classed color renderer
+    smartMapping.createClassedColorRenderer({
+      basemap: basemapStyle,
+      classificationMethod: "natural-breaks",
+      field: ancestryClassificationField,
+      layer: featureLayer,
+      normalizationField: "states.POP2007",  // normalize by the total population
+      normalizationType: "field",
+      numClasses: 7
+    }).then(function (response){
+
+      var optionsArray = [];
+      // Create a LayerDrawingOptions object used to set
+      // a renderer on a sublayer of a DynamicLayer
+      var drawingOptions = new LayerDrawingOptions();
+
+      // Remove the default symbol so it doesn't display in the legend.
+      delete response.renderer["defaultSymbol"];
+      // Set the response renderer on the drawing options
+      drawingOptions.renderer = response.renderer;
+
+      // And place the drawing options in index 3 so it applies to the states sublayer
+      optionsArray[3] = drawingOptions;
+      // set the renderer on the layer
+      censusMapServiceLayer.setLayerDrawingOptions(optionsArray);
+    }).otherwise(function (error){
+      console.error(error);
+    });
+  }
+});
+</script>
+
+</head>
+
+<body class="claro">
+  <div id="map"></div>
+  <div class="ancestry-select-container">
+    <div class="basemap-styles-container"></div>
+    <div id="legend"></div>
+  </div>
+</body>
+</html>
