@@ -18,10 +18,6 @@ html, body, #map {
   padding: 0;
 }
 
-#legend .esriLegendServiceLabel {
-  display: none;
-}
-
 .ancestry-select-container {
   position: absolute;
   padding: 10px 10px;
@@ -117,7 +113,10 @@ require([
 
     legendDijit = new Legend({
       map: map,
-      layerInfos: [{ layer: censusMapServiceLayer }]
+      layerInfos: [{
+        layer: censusMapServiceLayer,
+        title: "% population with American ancestry"
+      }]
     }, "legend");
     legendDijit.startup();
 
@@ -316,6 +315,14 @@ require([
 
     ancestrySelect.on("change", function (value){
       ancestryClassificationField = ancestryDict[value].name;
+
+      // Update legend title with user's country selection
+      var legendTitle = ancestryClassificationField.slice(9);  // remove 'ancestry' from field name
+      legendDijit.set("layerInfos", [{
+        layer: censusMapServiceLayer,
+        title: "% population with " + legendTitle + " ancestry"
+      }]);
+
       updateRenderer();
     });
   }
@@ -344,6 +351,15 @@ require([
       // a renderer on a sublayer of a DynamicLayer
       var drawingOptions = new LayerDrawingOptions();
 
+      // Update label in legend for each break
+      var breaks = response.renderer.infos;
+
+      breaks.forEach(function(breakInfo, i){
+        var max = Math.round(breakInfo.maxValue * 1000) / 10;
+        var min = Math.round(breakInfo.minValue * 1000) / 10;
+        breakInfo.label = min + "% - " + max + "%";
+      });
+
       // Remove the default symbol so it doesn't display in the legend.
       delete response.renderer["defaultSymbol"];
       // Set the response renderer on the drawing options
@@ -365,7 +381,8 @@ require([
 <body class="claro">
   <div id="map"></div>
   <div class="ancestry-select-container">
-    <div class="basemap-styles-container"></div>
+    Change basemap: <div class="basemap-styles-container"></div>
+    Change country:<br>
     <div id="legend"></div>
   </div>
 </body>
