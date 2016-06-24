@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Earthquakes - Time of day</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    #infoDiv {
+      position: absolute;
+      bottom: 15px;
+      right: 0;
+      max-height: 80%;
+      max-width: 300px;
+      background-color: black;
+      padding: 8px;
+      border-top-left-radius: 5px;
+      color: white;
+      opacity: 0.8;
+    }
+  </style>
+
+  <script>
+    var dojoConfig = {
+      paths: {
+        data: location.pathname.replace(/\/[^/]+$/, "") + "/data"
+      }
+    };
+  </script>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/3.17/esri/css/esri.css">
+  <script src="https://js.arcgis.com/3.17/"></script>
+
+  <script>
+    require([
+      "esri/map",
+      "esri/Color",
+      "esri/layers/FeatureLayer",
+      "esri/geometry/Point",
+      "esri/renderers/SimpleRenderer",
+      "esri/renderers/UniqueValueRenderer",
+      "esri/symbols/SimpleMarkerSymbol",
+      "esri/symbols/SimpleLineSymbol",
+      "esri/dijit/Legend",
+      "data/earthquakes",
+      "dojo/dom",
+      "dojo/on",
+      "dojo/domReady!"
+    ], function(Map, Color, FeatureLayer, Point,
+      SimpleRenderer, UniqueValueRenderer, SimpleMarkerSymbol, SimpleLineSymbol, Legend, earthquakeData, dom, on
+    ) {
+
+      var legend;
+
+      var arcadeExpression = "var utcDate = ToUTC(Date($feature.time));"
+      + "Hour(DateAdd(utcDate, $feature.tz, 'minutes'));"
+
+      var magVV = {
+        type: "sizeInfo",
+        field: "mag", // earthquake magnitude
+        valueUnit: "unknown",
+        minDataValue: 2,
+        maxDataValue: 7,
+        // Define size of mag 2 quakes based on scale
+        minSize: {
+          type: "sizeInfo",
+          expression: "view.scale",
+          stops: [
+            { value: 1128, size: 12 },
+            { value: 36111, size: 12 },
+            { value: 9244649, size: 6 },
+            { value: 73957191, size: 4 },
+            { value: 591657528, size: 2 }
+          ]
+        },
+        // Define size of mag 7 quakes based on scale
+        maxSize: {
+          type: "sizeInfo",
+          expression: "view.scale",
+          stops: [
+            { value: 1128, size: 80 },
+            { value: 36111, size: 60 },
+            { value: 9244649, size: 50 },
+            { value: 73957191, size: 50 },
+            { value: 591657528, size: 25 }
+          ]
+        }
+      };
+
+      var timeVV = {
+        type: "colorInfo",
+        valueExpression: arcadeExpression,
+        stops: [
+          { value: 0, color: new Color([ 250,239,219,1 ]), label: "12:00 a.m." },
+          { value: 12, color: new Color([ 163,130,155,1 ]), label: "12:00 p.m." },
+          { value: 23.9, color: new Color([ 92,58,91,1 ]), label: "11:59 p.m." }
+        ]
+      };
+
+      function createSymbol(color){
+        return new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 5,
+          new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("white"), 0.5),
+          new Color(color));
+      }
+
+      var sym = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 5,
+        new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color("white"), 0.5),
+        new Color("white"));
+
+      var timeRenderer = new SimpleRenderer(sym);
+
+      var morningSym = createSymbol("#e41a1c");
+      var afternoonSym = createSymbol("#ff7f00"); ///377eb8
+      var eveningSym = createSymbol("#4daf4a");
+      var nightSym = createSymbol("#00F2FF");  // [ 0, 242, 255, 0.1 ]
+      var daySym = createSymbol("#FF0D00");  // [ 255, 13, 0, 0.1 ]
+
+
+      //////////////////////////
+      // Add unique time values
+      /////////////////////////
+
+      timeRenderer.setVisualVariables([ magVV, timeVV ]);
+
+      var map = new Map("viewDiv", {
+        basemap: "dark-gray",
+        center: [-144.492, 62.771],
+        zoom: 5,
+      });
+
+     map.on("load", function(){
+
+        earthquakeData.then(function(layer){
+          layer.setRenderer(timeRenderer);
+          return layer;
+        }).then(function(layer){
+          map.addLayer(layer);
+          return layer;
+        }).then(createLegend);
+
+      });
+
+
+      /******************************************************************
+       * Add layer to layerInfos in the legend
+       ******************************************************************/
+
+      function createLegend(layer) {
+        legend = new Legend({
+          map: map,
+          layerInfos: [{
+            layer: layer,
+            title: "Earthquakes"
+          }]
+        }, "legendDiv");
+        legend.startup();
+      }
+
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+  <div id="infoDiv">
+    <h2>Worldwide Earthquakes</h2> Reported from the last month
+    <div id="legendDiv"></div>
+  </div>
+</body>
+</html>
