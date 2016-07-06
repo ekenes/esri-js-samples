@@ -4,10 +4,10 @@
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no" />
   <title>Greater Seattle Demographics</title>
-  <link rel="stylesheet" href="//js.arcgis.com/3.16/dijit/themes/claro/claro.css">
-  <link rel="stylesheet" href="//js.arcgis.com/3.16/esri/css/esri.css">
-  <script src="//js.arcgis.com/3.16/"></script>
-    
+  <link rel="stylesheet" href="//js.arcgis.com/3.17/dijit/themes/claro/claro.css">
+  <link rel="stylesheet" href="//js.arcgis.com/3.17/esri/css/esri.css">
+  <script src="//js.arcgis.com/3.17/"></script>
+
   <style>
     html, body {
       margin: 0;
@@ -30,7 +30,7 @@
       background-color: #FFFCD4;
       color: #6B3B64;
       height: 100%;
-      width: 300px;     
+      width: 300px;
       border-top-right-radius: 8px;
       overflow-x: hidden;
     }
@@ -79,8 +79,8 @@
     #esri_dijit_RendererSlider_0{
       background-color: #FFFCD4;
     }
-  </style>  
-    
+  </style>
+
   <script>
     require([
       "esri/Color",
@@ -98,23 +98,23 @@
       "dojo/on",
       "dojo/domReady!"
     ], function (
-      Color, BasemapToggle, ColorInfoSlider, 
-      PopupTemplate, FeatureLayer, Map, FeatureLayerStatistics, smartMapping, 
+      Color, BasemapToggle, ColorInfoSlider,
+      PopupTemplate, FeatureLayer, Map, FeatureLayerStatistics, smartMapping,
       Query, QueryTask, array, dom, on
     ){
 
       var currentExtentFilter = null;
 
       var url = "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Puget_Sound_BG_demographics/FeatureServer/0";
-      
+
       var qt = new QueryTask(url);
-      
+
       var map = new Map("esri-map-container", {
-        basemap: "gray", 
-        center: [-122.324424, 47.599179], 
+        basemap: "gray",
+        center: [-122.324424, 47.599179],
         zoom: 13
       });
-      
+
       var busySpinner = dom.byId("spinner");
 
       var bt = new BasemapToggle({
@@ -122,38 +122,38 @@
         map: map
       }, "basemapToggle-container");
       bt.startup();
-      
+
       bt.on("toggle", function(evt){
         updateSmartMapping({
           newBasemap: evt.currentBasemap
         });
       });
-      
+
       var lyr = new FeatureLayer(url, {
         outFields: ["*"],
         visible: false
       });
-      
+
       //FeatureLayerStatistics will be used to generate stats and histogram for the color slider
       var featureLayerStatistics = new FeatureLayerStatistics({ layer: lyr, visible: false });
 
       /******************************************************************************
       * Create the ColorInfoSlider widget and initialize. Pass in an initial
-      * stops parameter inside the colorInfo object, which will be replaced when 
+      * stops parameter inside the colorInfo object, which will be replaced when
       * the new renderer is generated.
-      * 
-      * The values of all the properties set in this constructor 
-      * (minValue, maxValue, colorInfo + stops) are unimportant. Just initialize them 
+      *
+      * The values of all the properties set in this constructor
+      * (minValue, maxValue, colorInfo + stops) are unimportant. Just initialize them
       * with anything if you don't know the stats of the data associated with the slider
       * then let SmartMapping handle the rest.
       *****************************************************************************/
-      
+
       var colorInfoSlider = new ColorInfoSlider({
         minValue: 0.0001,  // absolute minimum value of slider
         maxValue: 1,  // absolute maximum value of slider
         colorInfo: {  // determines color ramp mapped to data values
           stops:[
-            {color: new Color("#FFFCD4"), value: 0.0001}, 
+            {color: new Color("#FFFCD4"), value: 0.0001},
             {color: new Color("#FFFCD4"), value: 1.0001}
           ]
         },
@@ -161,16 +161,16 @@
       }, "esri-colorinfoslider");
 
       colorInfoSlider.startup();
-      
+
       // Gets the indicated field name from the user
       function getFieldName(){
         return dom.byId("select-field").value;
       }
-      
+
       // Determines which field to normalize by given the selected field name
       function getNormalizedField(field){
         var normField;
-        
+
         if (field.includes("HH_Income") || field.includes("HINC")) {
           normField = "HINCBASECY";  // Total number of households
         } else if (field.includes("HomeValue")) {
@@ -180,21 +180,21 @@
         } else {
           normField = "TOTPOP_CY";  // Total population
         }
-        
+
         return normField;
       }
 
       /******************************************************************************
       * After the FeatureLayer loads, format the Popup and calculate the
-      * suggested scale range from the FeatureLayerStatistics plugin. Then 
-      * generate a new renderer based on the selected field and the basemap using the 
+      * suggested scale range from the FeatureLayerStatistics plugin. Then
+      * generate a new renderer based on the selected field and the basemap using the
       * Smart Mapping module.
       *****************************************************************************/
-      
+
       lyr.on("load", function (){
         map.addLayer(lyr);
         //Configure InfoTemplate on FeatureLayer
-        
+
         var content = "Total Population: {TOTPOP_CY}<br>"
         + "Pop 18+: {POP18UP_CY}<br>"
         + "Male: {MALES_CY}<br>"
@@ -204,40 +204,40 @@
         + "Median household income: {MEDHINC_CY}<br>"
         + "Median home value: {MEDVAL_CY}<br>";
         var title = "Key Demographics: {FID_Block_Group}";
-        
+
         lyr.setInfoTemplate(new PopupTemplate({
           title: title,
           description: content
         }));
-        
+
         featureLayerStatistics.getSuggestedScaleRange().then(function(response){
           lyr.setMaxScale(response.maxScale);
           lyr.setMinScale(response.minScale);
         });
-        
+
         // Generate the renderer on the fly based on the data
 
         updateSmartMapping({
           layer: lyr
         });
       });
-      
+
       /******************************************************************************
       * Function for calling smartMapping and FeatureLayerStatistics plugin
       * This updates the layer's renderer and the color slider
       *****************************************************************************/
-      
+
       function updateSmartMapping(params){
-        
+
         busySpinner.style.visibility = "visible";
-        
+
         var newBasemap = params.newBasemap;
         var layer = params.layer ? params.layer : lyr;
         var theme = params.theme ? params.theme : dom.byId("color-renderer-theme").value;
         var fieldName = getFieldName();
         var normFieldName = getNormalizedField(fieldName);
         var basemap = newBasemap ? newBasemap : map.getBasemap();
-        
+
         // Generate the color renderer based on the given field,
         // normalization field, basemap and theme
         smartMapping.createColorRenderer({
@@ -250,7 +250,7 @@
           if (!layer.visible) {
             layer.show();
           }
-          
+
           //Set the generated renderer on the layer
           layer.setRenderer(colorRenderer.renderer);
           layer.redraw();
@@ -261,6 +261,7 @@
           featureLayerStatistics.getHistogram({
             field: fieldName,
             normalizationField: normFieldName,
+            normalizationType: "field",
             numBins: 20
           }).then(function (histogram){
             // --------------------------------------------------------------------
@@ -324,26 +325,26 @@
             };
         }
       }
-      
+
       /******************************************************************************
-      * Set definition expression on features when predetermined filter is 
-      * selected. 
+      * Set definition expression on features when predetermined filter is
+      * selected.
       ******************************************************************************/
-      
+
       function attributeFilter (evt, clear){
         lyr.hide();
         // Get the new definition expression if user selects attribute filter
         var newVal = (evt.target) ? evt.target.value : evt;
         var defExp = newVal;
-        var existingExpression = lyr.getDefinitionExpression();        
-        
-        // If an existing filter on map extent already exists. Keep it 
+        var existingExpression = lyr.getDefinitionExpression();
+
+        // If an existing filter on map extent already exists. Keep it
         // and handle the rest of the filtering in filterByExtent
         if(existingExpression && existingExpression.includes("OBJECTID") && !clear){
           filterByExtent(true);
         }
-        
-        // If no extent filter exists, filter by attributes only and reset renderer 
+
+        // If no extent filter exists, filter by attributes only and reset renderer
         // and slider values
         if(evt.target){
           lyr.setDefinitionExpression(defExp);
@@ -351,15 +352,15 @@
             layer: lyr
           });
         }
-        
+
         return defExp;
       }
-      
+
       // Filter the features by extent and reset renderer and slider values
       function filterByExtent (keepCurrentFilter){
         lyr.hide();
         var defExp, extent, params = new Query();
-        
+
         extent = map.extent;
         // If an extent currently exists and user doesn't want it changed, keep it
         currentExtentFilter = (keepCurrentFilter === true) ? currentExtentFilter : extent;
@@ -367,7 +368,7 @@
         params.spatialRelationship = Query.SPATIAL_REL_INTERSECTS;
 
         qt.executeForIds(params, function(ids){
-          
+
           // Generate SQL expression for querying for features whose OBJECTIDs
           // match those that are within the desired extent
           var exp = [];
@@ -376,13 +377,13 @@
             exp.push("OBJECTID = " + id);
             if(num !== ids.length - 1){
               exp.push("OR");
-            } 
+            }
           });
           exp.push(")");
           var defExp = exp.join(" ");
-          
+
           var selectedAttribute = dom.byId("select-filter").value;
-          
+
           // Keep filter on attributes if it exists
           if(selectedAttribute.length > 0){
             defExp += " AND " + attributeFilter(selectedAttribute, true);
@@ -395,7 +396,7 @@
           });
         });
       }
-      
+
       // If the theme changes, update the renderer and the slider
       on(dom.byId("color-renderer-theme"), "change", function(evt){
         updateSmartMapping({
@@ -403,21 +404,21 @@
           theme: evt.target.value
         });
       });
-      
+
       on(dom.byId("select-field"), "change", updateSmartMapping);
       on(dom.byId("select-filter"), "change", attributeFilter);
       on(dom.byId("extent-filter"), "click", filterByExtent);
-      
+
       // Clear extent filter if desired
       on(dom.byId("clear-extent-filter"), "click", function(evt){
         var defExp = null;
-        
+
         var selectedAttribute = dom.byId("select-filter").value;
-          
+
         if(selectedAttribute.length > 0){
           defExp = attributeFilter(selectedAttribute, true);
         }
-        
+
         lyr.setDefinitionExpression(defExp);
         updateSmartMapping({
           layer: lyr
@@ -433,7 +434,7 @@
     <div id="esri-colorinfoslider-container"><div style="padding: 8px;">
       <div id="title"><h2>Seattle Demographics</h2></div>
       <div id="attSelection">
-        Attribute: 
+        Attribute:
         <select id="select-field">
           <option value="POP18UP_CY" selected>Population 18+</option>
           <option value="HH_Income_0_35K">Household income 0-$35K</option>
@@ -448,8 +449,8 @@
           <option value="MALES_CY">Male</option>
           <option value="FEMALES_CY">Female</option>
         </select><br><br>
-        
-        Filter by: 
+
+        Filter by:
         <select id="select-filter">
           <option value="" selected></option>
           <option value="(CITY = 'Seattle')">City of Seattle</option>
@@ -457,9 +458,9 @@
           <option value="(MEDVAL_CY >= 500000)">Median Home Value > $500K</option>
           <option value="(PER_BACH_DEG >= 50)">>50% have a bachelor's degree</option>
         </select><br><br>
-        
+
         <button class="btn" id="extent-filter">Filter by map extent</button><button class="btn" id="clear-extent-filter">Clear extent filter</button><br><br>
-        
+
         Theme:
         <select id="color-renderer-theme" style="margin-right:1rem;">
           <option value="high-to-low" selected>High to low</option>
