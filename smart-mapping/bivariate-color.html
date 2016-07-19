@@ -502,6 +502,8 @@
           };
         });
 
+        console.log(breaks);
+
         cleanBreaks = JSON.stringify(breaksJson);
         return cleanBreaks;
       }
@@ -524,13 +526,13 @@
             "var aIndex, bIndex;",
 
             "for(var i in ABREAKS){",
-            "  if((aVal >= ABREAKS[i].minValue) && (aVal < ABREAKS[i].maxValue)){",
+            "  if((aVal >= ABREAKS[i].minValue) && (aVal <= ABREAKS[i].maxValue)){",
             "    aIndex = i;",
             "  }",
             "}",
 
             "for(var i in BBREAKS){",
-            "  if((bVal >= BBREAKS[i].minValue) && (bVal < BBREAKS[i].maxValue)){",
+            "  if((bVal >= BBREAKS[i].minValue) && (bVal <= BBREAKS[i].maxValue)){",
             "    bIndex = i;",
             "  }",
             "}",
