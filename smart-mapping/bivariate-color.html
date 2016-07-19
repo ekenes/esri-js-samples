@@ -360,13 +360,9 @@
         });
 
         updateSmartMapping({
-          layer: lyr,
-          load: true
+          layer: lyr
         });
       });
-
-      //FeatureLayerStatistics will be used to generate stats and histogram for the color slider
-      var featureLayerStatistics = new FeatureLayerStatistics({ layer: lyr });
 
       // Gets the indicated field name from the user
       function getFieldName(){
@@ -411,6 +407,10 @@
         var numClasses = getNumClasses();
         var classification = getClassification();
 
+        if(!fieldName || !fieldName2){
+          alert("You must select at least two field names!");
+        }
+
         layer.addPlugin("esri/plugins/FeatureLayerStatistics").then(function(){
           return layer.statisticsPlugin.getClassBreaks({
             field: fieldName,
@@ -432,7 +432,8 @@
           .then(getSecondBreakInfos)
           .then(createRenderer)
           .otherwise(function(err){
-              console.log("An error occurred.", err);
+            busySpinner.style.visibility = "hidden";
+            console.log("An error occurred.", err);
           });
 
         function getFirstBreakInfos(response){
@@ -491,68 +492,57 @@
 
       }
 
+      function simplifyBreaks(breaks){
+        var breaksJson, cleanBreaks;
+
+        breaksJson = breaks.map(function(item, i){
+          return {
+            "maxValue": item.maxValue,
+            "minValue": item.minValue
+          };
+        });
+
+        cleanBreaks = JSON.stringify(breaksJson);
+        return cleanBreaks;
+      }
+
       function createRenderer(){
         busySpinner.style.visibility = "hidden";
         var classes = ABREAKS.length;
 
-//        var arcade = [
-//            "var field1Val = $feature.", getFieldName(), ";",
-//            "var field1NormVal = $feature.", getNormalizedField(), ";",
-//            "var field2Val = $feature.", getFieldName2(), ";",
-//            "var field2NormVal = $feature.", getNormalizedField2(), ";",
-//            "var classes = ", classes, ";",
-//
-//            "var aVal = IIf(IsEmpty(field1NormVal), field1Val, (field1Val / field1NormVal));",
-//            "var bVal = IIf(IsEmpty(field2NormVal), field2Val, (field2Val / field2NormVal));",
-//            "var ABREAKS = " + ABREAKS + ";",
-//            "var BBREAKS = " + BBREAKS + ";",
-//            "var aIndex, bIndex;",
-//
-//            "for(var i in ABREAKS){",
-//            "  if((aVal >= ABREAKS[i].minValue) && (aVal < ABREAKS[i].maxValue)){",
-//            "    aIndex = i;",
-//            "  }",
-//            "}",
-//
-//            "for(var i in BBREAKS){",
-//            "  if((bVal >= BBREAKS[i].minValue) && (bVal < BBREAKS[i].maxValue)){",
-//            "    bIndex = i;",
-//            "  }",
-//            "}",
-//
-//            "var value = 'a' + aIndex + 'b' + bIndex + classes;",
-//
-//            "return value;"
-//          ].join("");
-//
-//        console.log("Arcade: ", arcade);
-//
-//        var uvr = new UniqueValueRenderer({
-//          defaultSymbol: defaultSym,
-//          valueExpression: arcade
-//        });
+        var arcade = [
+            "var field1Val = $feature.", getFieldName(), ";",
+            "var field1NormVal = ", getNormalizedField() ? "$feature." + getNormalizedField() + ";" : "null;",
+            "var field2Val = $feature.", getFieldName2(), ";",
+            "var field2NormVal = ", getNormalizedField2() ? "$feature." + getNormalizedField2() + ";" : "null;",
+            "var classes = ", classes, ";",
 
-        var uvr = new UniqueValueRenderer(defaultSym, function(graphic){
-          var attributes = graphic.attributes;
-          var field1Val = attributes[getFieldName()];
-          var field1NormVal = attributes[getNormalizedField()];
-          var field2Val = attributes[getFieldName2()];
-          var field2NormVal = attributes[getNormalizedField2()];
+            "var aVal = IIf(IsEmpty(field1NormVal), field1Val, (field1Val / field1NormVal));",
+            "var bVal = IIf(IsEmpty(field2NormVal), field2Val, (field2Val / field2NormVal));",
+            "var ABREAKS = ", simplifyBreaks(ABREAKS), ";",
+            "var BBREAKS = ", simplifyBreaks(BBREAKS), ";",
+            "var aIndex, bIndex;",
 
-          var aVal =  field1NormVal ? ( field1Val / field1NormVal ) : field1Val;
-          var bVal = field2NormVal ? ( field2Val / field2NormVal ) : field2Val;
+            "for(var i in ABREAKS){",
+            "  if((aVal >= ABREAKS[i].minValue) && (aVal < ABREAKS[i].maxValue)){",
+            "    aIndex = i;",
+            "  }",
+            "}",
 
-          var aIndex = ABREAKS.findIndex(function(item, i){
-            return (aVal >= item.minValue) && (aVal < item.maxValue);
-          });
+            "for(var i in BBREAKS){",
+            "  if((bVal >= BBREAKS[i].minValue) && (bVal < BBREAKS[i].maxValue)){",
+            "    bIndex = i;",
+            "  }",
+            "}",
 
-          var bIndex = BBREAKS.findIndex(function(item, i){
-            return (bVal >= item.minValue) && (bVal < item.maxValue);
-          });
+            "var value = 'a' + aIndex + 'b' + bIndex + classes;",
 
-          var value = "a" + aIndex + "b" + bIndex + classes;
+            "return value;"
+          ].join("");
 
-          return value;
+        var uvr = new UniqueValueRenderer({
+          defaultSymbol: defaultSym,
+          valueExpression: arcade
         });
 
         ABREAKS.forEach(function(aBreak, a){
@@ -566,7 +556,6 @@
         });
 
         swapLegend(classes);
-        setLabels(classes);
 
         lyr.setRenderer(uvr);
         lyr.redraw();
@@ -622,8 +611,11 @@
         on(lyr, "load", function(evt){
 
           dom.byId("check").src = "img/checkmark.png";
+          var sr = evt.layer.fullExtent.spatialReference.wkid;
 
-          if(evt.layer.fullExtent.spatialReference.wkid === 4326 || evt.layer.fullExtent.spatialReference.wkid === 3857 ){
+          var wkids = [ 102100, 3857, 4326];
+
+          if( wkids.indexOf(sr) !== -1 ){
             map.setExtent(evt.layer.fullExtent);
           }
 
@@ -665,6 +657,7 @@
         if (classes === 4){
           legend.src = "bivariate-legend-4.png";
         }
+        setLabels(classes);
       }
 
     });
