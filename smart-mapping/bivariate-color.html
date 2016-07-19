@@ -608,9 +608,19 @@
           })
         });
 
-        map.addLayer(lyr);
+
 
         on(lyr, "load", function(evt){
+
+          var validGeomTypes = [ "esriGeometryPolygon" ];
+
+          if(validGeomTypes.indexOf(evt.layer.geometryType) === -1){
+            alert(evt.layer.geometryType + " geometry type not supported. Layer must contain polygon geometries.");
+            dom.byId("url-input").value = "";
+            return;
+          }
+
+          map.addLayer(lyr);
 
           dom.byId("check").src = "img/checkmark.png";
           var sr = evt.layer.fullExtent.spatialReference.wkid;
@@ -646,6 +656,8 @@
 
         on(lyr, "error", function(evt){
           dom.byId("check").src = "img/red-x.png";
+          dom.byId("url-input").value = "";
+          alert("Not a valid service url.");
         });
 
       });
