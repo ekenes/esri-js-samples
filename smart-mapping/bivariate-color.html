@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no" />
+  <title>Bivariate color generator</title>
+  <link rel="stylesheet" href="//js.arcgis.com/3.17/dijit/themes/claro/claro.css">
+  <link rel="stylesheet" href="//js.arcgis.com/3.17/esri/css/esri.css">
+  <script src="//js.arcgis.com/3.17/"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+    #esri-map-container{
+      height: 100%;
+      width: 100%;
+      left: 400px;
+      position: absolute;
+    }
+    #esri-colorinfoslider-container{
+      position: absolute;
+      z-index: 2;
+      bottom: 0;
+      left: 0;
+      height: 100%;
+      width: 400px;
+      border-top-right-radius: 8px;
+      overflow-x: hidden;
+    }
+    #basemapToggle-container{
+      z-index: 4;
+      position: absolute;
+      top: 15px;
+      right: 15px;
+    }
+    #spinner{
+      visibility: hidden;
+      position: relative;
+      z-index: 98;
+      left: 90px;
+      bottom: 250px;
+    }
+    h2{
+      text-align: center;
+    }
+    .left-side tr td{
+      padding-bottom: 8px;
+    }
+    table{
+      font-size: 10pt;
+    }
+    #row1{
+      position: relative;
+      top: -15px;
+    }
+    #row2{
+      position: relative;
+      top: 15px;
+    }
+    #row3{
+      position: relative;
+      top: 40px;
+    }
+    #col1{
+      position: relative;
+      left: -15px;
+    }
+    #col2{
+      position: relative;
+      left: -40px;
+      top: 4px;
+    }
+    #col3{
+      position: relative;
+      left: -80px;
+      top: 4px;
+    }
+    .bottom-row tr td{
+      transform: rotate(90deg);
+      padding: 8px;
+/*      height: 100px;*/
+/*      width: 100px;*/
+    }
+    #row4, #col4{
+      position: relative;
+      visibility: hidden;
+    }
+    #row4{
+      top: 30px;
+    }
+    #col4{
+      left: -70px;
+    }
+    #check{
+      height: 15px;
+      width: 15px;
+    }
+  </style>
+
+  <script>
+    require([
+      "esri/Color",
+      "esri/dijit/BasemapToggle",
+      "esri/dijit/PopupTemplate",
+      "esri/layers/FeatureLayer",
+      "esri/map",
+      "esri/plugins/FeatureLayerStatistics",
+      "esri/renderers/smartMapping",
+      "esri/renderers/UniqueValueRenderer",
+      "esri/symbols/SimpleFillSymbol",
+      "esri/symbols/SimpleLineSymbol",
+      "dojo/_base/array",
+      "dojo/dom",
+      "dojo/dom-construct",
+      "dojo/on",
+      "dojo/domReady!"
+    ], function (
+      Color, BasemapToggle,
+      PopupTemplate, FeatureLayer, Map, FeatureLayerStatistics, smartMapping,
+      UniqueValueRenderer, SimpleFillSymbol, SimpleLineSymbol, array, dom, domConstruct, on
+    ){
+
+      var url = dom.byId("url-input").value;
+
+      var map = new Map("esri-map-container", {
+        basemap: "gray",
+        center: [-95, 38],
+        zoom: 5
+      });
+
+      var busySpinner = dom.byId("spinner");
+      var legend = dom.byId("legend");
+
+      var defaultSym = createSymbol([194, 194, 194, 0.25]);
+
+      function createSymbol(color){
+        var line = new SimpleLineSymbol();
+        line.setColor(new Color([255, 255, 255, 1]));
+        line.setWidth(0.5);
+        var fill = new SimpleFillSymbol();
+        fill.setOutline(line);
+        fill.setColor(new Color(color));
+
+        return fill;
+      }
+
+      function getColor(value) {
+        var colors = [
+        /////// 3X3
+        {
+          value: "a0b03",
+          color: "#ebebe8"
+        }, {
+          value: "a0b13",
+          color: "#cadaba"
+        }, {
+          value: "a0b23",
+          color: "#84d783"
+        }, {
+          value: "a1b03",
+          color: "#d6bee2"
+        }, {
+          value: "a1b13",
+          color: "#a1b5cf"
+        }, {
+          value: "a1b23",
+          color: "#76b0b4"
+        }, {
+          value: "a2b03",
+          color: "#eaa5ea"
+        }, {
+          value: "a2b13",
+          color: "#9491d4"
+        }, {
+          value: "a2b23",
+          color: "#4474e0"
+        },
+        ///// 4X4
+        {
+          value: "a0b04",
+          color: "#f3ded9"
+        }, {
+          value: "a0b14",
+          color: "#c7c791"
+        }, {
+          value: "a0b24",
+          color: "#95b246"
+        }, {
+          value: "a0b34",
+          color: "#599c01"
+        }, {
+          value: "a1b04",
+          color: "#e0bcea"
+        }, {
+          value: "a1b14",
+          color: "#b8a6a4"
+        }, {
+          value: "a1b24",
+          color: "#8b925f"
+        }, {
+          value: "a1b34",
+          color: "#587d09"
+        }, {
+          value: "a2b04",
+          color: "#c69af9"
+        }, {
+          value: "a2b14",
+          color: "#a386b4"
+        }, {
+          value: "a2b24",
+          color: "#7d7270"
+        }, {
+          value: "a2b34",
+          color: "#535f2f"
+        }, {
+          value: "a3b04",
+          color: "#a57aff"
+        }, {
+          value: "a3b14",
+          color: "#8867c0"
+        }, {
+          value: "a3b24",
+          color: "#6a5580"
+        }, {
+          value: "a3b34",
+          color: "#484242"
+        },
+        ////// 5X5
+//        {
+//          value: "a0b05",
+//          color: "#ebebe8"
+//        }, {
+//          value: "a0b15",
+//          color: "#cadaba"
+//        }, {
+//          value: "a0b25",
+//          color: "#84d783"
+//        }, {
+//          value: "a0b35",
+//          color: ""
+//        }, {
+//          value: "a0b45",
+//          color: ""
+//        }, {
+//          value: "a1b05",
+//          color: "#d6bee2"
+//        }, {
+//          value: "a1b15",
+//          color: "#a1b5cf"
+//        }, {
+//          value: "a1b25",
+//          color: "#76b0b4"
+//        }, {
+//          value: "a1b35",
+//          color: ""
+//        }, {
+//          value: "a1b45",
+//          color: ""
+//        }, {
+//          value: "a2b05",
+//          color: "#eaa5ea"
+//        }, {
+//          value: "a2b15",
+//          color: "#9491d4"
+//        }, {
+//          value: "a2b25",
+//          color: "#4474e0"
+//        }, {
+//          value: "a2b35",
+//          color: ""
+//        }, {
+//          value: "a2b45",
+//          color: ""
+//        }, {
+//          value: "a3b05",
+//          color: ""
+//        }, {
+//          value: "a3b15",
+//          color: ""
+//        }, {
+//          value: "a3b25",
+//          color: ""
+//        }, {
+//          value: "a3b35",
+//          color: ""
+//        }, {
+//          value: "a3b45",
+//          color: ""
+//        }, {
+//          value: "a4b05",
+//          color: ""
+//        }, {
+//          value: "a4b15",
+//          color: ""
+//        }, {
+//          value: "a4b25",
+//          color: ""
+//        }, {
+//          value: "a4b35",
+//          color: ""
+//        }, {
+//          value: "a4b45",
+//          color: ""
+//        }
+        ];
+
+        var pair = colors.find(function(item, i){
+          return item.value === value;
+        });
+
+        return pair.color;
+      }
+
+      var bt = new BasemapToggle({
+        basemap: "dark-gray",
+        map: map
+      }, "basemapToggle-container");
+      bt.startup();
+
+      var lyr = new FeatureLayer(url, {
+        outFields: ["*"],
+        visible: false,
+        infoTemplate: new PopupTemplate({
+          description: "{*}"
+        })
+      });
+
+      on(lyr, "load", function(evt){
+        map.addLayer(lyr);
+
+        setFieldSelect({
+          layer: evt.layer,
+          select: dom.byId("select-field1")
+        });
+
+        dom.byId("select-field1").value = "NO_COL";
+
+        setFieldSelect({
+          layer: evt.layer,
+          select: dom.byId("norm-field1")
+        });
+
+        dom.byId("norm-field1").value = "EDUCBASECY";
+
+        setFieldSelect({
+          layer: evt.layer,
+          select: dom.byId("select-field2")
+        });
+
+        dom.byId("select-field2").value = "REP_PER";
+
+        setFieldSelect({
+          layer: evt.layer,
+          select: dom.byId("norm-field2")
+        });
+
+        updateSmartMapping({
+          layer: lyr,
+          load: true
+        });
+      });
+
+      //FeatureLayerStatistics will be used to generate stats and histogram for the color slider
+      var featureLayerStatistics = new FeatureLayerStatistics({ layer: lyr });
+
+      // Gets the indicated field name from the user
+      function getFieldName(){
+        return dom.byId("select-field1").value;
+      }
+
+      function getFieldName2(){
+        return dom.byId("select-field2").value;
+      }
+
+      // Determines which field to normalize by given the selected field name
+      function getNormalizedField(){
+        return dom.byId("norm-field1").value;
+      }
+
+      function getNormalizedField2(){
+        return dom.byId("norm-field2").value;
+      }
+
+      function getNumClasses(){
+        return dom.byId("num-classes").value;
+      }
+
+      function getClassification(){
+        return dom.byId("class-method").value;
+      }
+
+      /******************************************************************************
+      * Function for calling smartMapping and FeatureLayerStatistics plugin
+      * This updates the layer's renderer and the color slider
+      *****************************************************************************/
+
+      function updateSmartMapping(params){
+        busySpinner.style.visibility = "visible";
+
+        var newBasemap = params.newBasemap;
+        var layer = params.layer ? params.layer : lyr;
+        var fieldName = getFieldName();
+        var normFieldName = getNormalizedField();
+        var fieldName2 = getFieldName2();
+        var normFieldName2 = getNormalizedField2();
+        var numClasses = getNumClasses();
+        var classification = getClassification();
+
+        layer.addPlugin("esri/plugins/FeatureLayerStatistics").then(function(){
+          return layer.statisticsPlugin.getClassBreaks({
+            field: fieldName,
+            normalizationField: normFieldName ? normFieldName : null,
+            normalizationType: normFieldName ? "field" : null,
+            numClasses: numClasses,
+            classificationMethod: classification
+          });
+        }).then(getFirstBreakInfos)
+          .then(function(){
+             return layer.statisticsPlugin.getClassBreaks({
+               field: fieldName2,
+               normalizationField: normFieldName2 ? normFieldName2 : null,
+               normalizationType: normFieldName2 ? "field" : null,
+               numClasses: numClasses,
+               classificationMethod: classification
+             });
+          })
+          .then(getSecondBreakInfos)
+          .then(createRenderer)
+          .otherwise(function(err){
+              console.log("An error occurred.", err);
+          });
+
+        function getFirstBreakInfos(response){
+          ABREAKS = response.classBreakInfos;
+          return ABREAKS;
+        }
+
+        function getSecondBreakInfos(response){
+          BBREAKS = response.classBreakInfos;
+          return BBREAKS;
+        }
+
+      }
+
+      var col1 = dom.byId("col1");
+      var col2 = dom.byId("col2");
+      var col3 = dom.byId("col3");
+      var col4 = dom.byId("col4");
+
+      var row1 = dom.byId("row1");
+      var row2 = dom.byId("row2");
+      var row3 = dom.byId("row3");
+      var row4 = dom.byId("row4");
+
+      function setLabels(classes){
+
+        row3.innerHTML = ABREAKS[0].label;
+        row2.innerHTML = ABREAKS[1].label;
+        row1.innerHTML = ABREAKS[2].label;
+        col1.innerHTML = BBREAKS[0].label;
+        col2.innerHTML = BBREAKS[1].label;
+        col3.innerHTML = BBREAKS[2].label;
+
+        if(classes === 3){
+          row1.style.top = "-15px";
+          row2.style.top = "15px";
+          row3.style.top = "40px";
+          row4.style.visibility = "hidden";
+          col1.style.left = "-15px";
+          col2.style.left = "-40px";
+          col3.style.left = "-80px";
+          col4.style.visibility = "hidden";
+        }
+        if (classes === 4){
+          row4.innerHTML = ABREAKS[3].label;
+          col4.innerHTML = BBREAKS[3].label;
+          row1.style.top = "5px";
+          row2.style.top = "10px";
+          row3.style.top = "20px";
+          row4.style.visibility = "visible";
+          col1.style.left = "-15px";
+          col2.style.left = "-30px";
+          col3.style.left = "-60px";
+          col4.style.visibility = "visible";
+        }
+
+      }
+
+      function createRenderer(){
+        busySpinner.style.visibility = "hidden";
+        var classes = ABREAKS.length;
+
+//        var arcade = [
+//            "var field1Val = $feature.", getFieldName(), ";",
+//            "var field1NormVal = $feature.", getNormalizedField(), ";",
+//            "var field2Val = $feature.", getFieldName2(), ";",
+//            "var field2NormVal = $feature.", getNormalizedField2(), ";",
+//            "var classes = ", classes, ";",
+//
+//            "var aVal = IIf(IsEmpty(field1NormVal), field1Val, (field1Val / field1NormVal));",
+//            "var bVal = IIf(IsEmpty(field2NormVal), field2Val, (field2Val / field2NormVal));",
+//            "var ABREAKS = " + ABREAKS + ";",
+//            "var BBREAKS = " + BBREAKS + ";",
+//            "var aIndex, bIndex;",
+//
+//            "for(var i in ABREAKS){",
+//            "  if((aVal >= ABREAKS[i].minValue) && (aVal < ABREAKS[i].maxValue)){",
+//            "    aIndex = i;",
+//            "  }",
+//            "}",
+//
+//            "for(var i in BBREAKS){",
+//            "  if((bVal >= BBREAKS[i].minValue) && (bVal < BBREAKS[i].maxValue)){",
+//            "    bIndex = i;",
+//            "  }",
+//            "}",
+//
+//            "var value = 'a' + aIndex + 'b' + bIndex + classes;",
+//
+//            "return value;"
+//          ].join("");
+//
+//        console.log("Arcade: ", arcade);
+//
+//        var uvr = new UniqueValueRenderer({
+//          defaultSymbol: defaultSym,
+//          valueExpression: arcade
+//        });
+
+        var uvr = new UniqueValueRenderer(defaultSym, function(graphic){
+          var attributes = graphic.attributes;
+          var field1Val = attributes[getFieldName()];
+          var field1NormVal = attributes[getNormalizedField()];
+          var field2Val = attributes[getFieldName2()];
+          var field2NormVal = attributes[getNormalizedField2()];
+
+          var aVal =  field1NormVal ? ( field1Val / field1NormVal ) : field1Val;
+          var bVal = field2NormVal ? ( field2Val / field2NormVal ) : field2Val;
+
+          var aIndex = ABREAKS.findIndex(function(item, i){
+            return (aVal >= item.minValue) && (aVal < item.maxValue);
+          });
+
+          var bIndex = BBREAKS.findIndex(function(item, i){
+            return (bVal >= item.minValue) && (bVal < item.maxValue);
+          });
+
+          var value = "a" + aIndex + "b" + bIndex + classes;
+
+          return value;
+        });
+
+        ABREAKS.forEach(function(aBreak, a){
+          BBREAKS.forEach(function(bBreak, b){
+            var val = "a" + a + "b" + b + classes;
+            uvr.addValue({
+              value: val,
+              symbol: createSymbol(getColor(val))
+            });
+          });
+        });
+
+        swapLegend(classes);
+        setLabels(classes);
+
+        lyr.setRenderer(uvr);
+        lyr.redraw();
+
+        if (!lyr.visible) {
+          lyr.show();
+        }
+      }
+
+      function setFieldSelect(params){
+        var select = params.select;
+        var layer = params.layer;
+        var fields = layer.fields;
+
+        select.options.length = 0;
+
+        var validTypes = [ "esriFieldTypeDouble", "esriFieldTypeInteger", "esriFieldTypeSmallInteger", "esriFieldTypeLongInteger" ];
+
+        var invalidNames = [ "BoroCode" , "Shape_Leng", "ENRICH_FID", "HasData", "OBJECTID" ];
+
+        var opt = domConstruct.create("option");
+        opt.text = "";
+        opt.value = "";
+        select.add(opt);
+
+        array.forEach(fields, function(field){
+          if(validTypes.indexOf(field.type) === -1 || invalidNames.indexOf(field.name) !== -1){
+            return;
+          }
+
+          var opt = domConstruct.create("option");
+          opt.text = field.alias;
+          opt.value = field.name;
+
+          select.add(opt);
+        });
+      }
+
+      on(dom.byId("url-input"), "change", function(evt){
+
+        map.removeLayer(lyr);
+
+        lyr = new FeatureLayer(evt.target.value, {
+          outFields: ["*"],
+          visible: false,
+          infoTemplate: new PopupTemplate({
+            description: "{*}"
+          })
+        });
+
+        map.addLayer(lyr);
+
+        on(lyr, "load", function(evt){
+
+          dom.byId("check").src = "img/checkmark.png";
+
+          if(evt.layer.fullExtent.spatialReference.wkid === 4326 || evt.layer.fullExtent.spatialReference.wkid === 3857 ){
+            map.setExtent(evt.layer.fullExtent);
+          }
+
+
+          setFieldSelect({
+            layer: evt.layer,
+            select: dom.byId("select-field1")
+          });
+
+          setFieldSelect({
+            layer: evt.layer,
+            select: dom.byId("norm-field1")
+          });
+
+          setFieldSelect({
+            layer: evt.layer,
+            select: dom.byId("select-field2")
+          });
+
+          setFieldSelect({
+            layer: evt.layer,
+            select: dom.byId("norm-field2")
+          });
+
+        });
+
+        on(lyr, "error", function(evt){
+          dom.byId("check").src = "img/red-x.png";
+        });
+
+      });
+
+      on(dom.byId("redraw"), "click", updateSmartMapping);
+
+      function swapLegend (classes){
+        if (classes === 3){
+          legend.src = "bivariate-legend-3.png";
+        }
+        if (classes === 4){
+          legend.src = "bivariate-legend-4.png";
+        }
+      }
+
+    });
+  </script>
+  </head>
+  <body class="claro">
+    <div id="esri-map-container"></div>
+    <div id="basemapToggle-container"></div>
+    <div id="esri-colorinfoslider-container"><div style="padding: 8px;">
+      <div id="title"><h2>Bivariate color prototype</h2></div>
+      Service url: <input id="url-input" type="text" value="https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/us_county_educational_attainment_pop/FeatureServer/0"><img id="check" src="img/checkmark.png"><br><br>
+      <div id="attSelection">
+        Field 1: <select id="select-field1"></select><br><br>
+        Norm. Field 1: <select id="norm-field1"></select><br><br>
+        Field 2: <select id="select-field2"></select><br><br>
+        Norm. Field 2: <select id="norm-field2"></select><br><br>
+        Classes: <select id="num-classes">
+          <option value=3 selected>3</option>
+          <option value=4>4</option>
+<!--          <option value=5>5</option>-->
+        </select>
+        Cl. Method: <select id="class-method">
+          <option value="natural-breaks" selected>Natural Breaks</option>
+          <option value="equal-interval">Equal Interval</option>
+          <option value="quantile">Quantile</option>
+          <option value="standard-deviation">Standard Deviation</option>
+        </select>
+        <button id="redraw">Redraw</button>
+        <br><br>
+      </div></div>
+      <table>
+        <tr>
+          <td>
+            <table class="left-side">
+              <tr><td id="row1"></td><td></td></tr>
+              <tr><td id="row2"></td></tr>
+              <tr><td id="row3"></td></tr>
+              <tr><td id="row4"></td></tr>
+            </table>
+          </td>
+          <td><img id="legend" src="bivariate-legend-3.png"></td>
+        </tr>
+        <tr><td></td>
+          <td>
+            <table class="bottom-row">
+              <tr><td id="col1"></td><td id="col2"></td><td id="col3"></td><td id="col4"></td></tr>
+            </table>
+          </td></tr>
+        <tr>
+          <td>
+            <b>Field 2</b> &uarr;<br>
+            <b>Field 1</b> &rarr;
+          </td>
+        </tr>
+      </table>
+      <img src="img/busy-indicator.gif" id="spinner">
+    </div>
+  </body>
+</html>
