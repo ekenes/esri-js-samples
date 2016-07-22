@@ -244,10 +244,7 @@
 
       var lyr = new FeatureLayer(url, {
         outFields: ["*"],
-        visible: false,
-        infoTemplate: new PopupTemplate({
-          description: "{*}"
-        })
+        visible: false
       });
 
       on(lyr, "load", function(evt){
@@ -330,6 +327,13 @@
         if(!fieldName || !fieldName2){
           alert("You must select at least two field names!");
         }
+
+        lyr.setInfoTemplate(new PopupTemplate({
+          description: getFieldName() + ": {" + getFieldName() + "}<br>"
+              + (normFieldName ? getNormalizedField() + ": {" + getNormalizedField() + "}<br>" : "")
+              + getFieldName2() + ": {" + getFieldName2() + "}<br>"
+              + (normFieldName2 ? getNormalizedField2() + ": {" + getNormalizedField2() + "}" : "")
+        }));
 
         layer.addPlugin("esri/plugins/FeatureLayerStatistics").then(function(){
           return layer.statisticsPlugin.getClassBreaks({
@@ -522,13 +526,8 @@
 
         lyr = new FeatureLayer(evt.target.value, {
           outFields: ["*"],
-          visible: false,
-          infoTemplate: new PopupTemplate({
-            description: "{*}"
-          })
+          visible: false
         });
-
-
 
         on(lyr, "load", function(evt){
 
