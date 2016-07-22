@@ -83,8 +83,6 @@
     .bottom-row tr td{
       transform: rotate(90deg);
       padding: 8px;
-/*      height: 100px;*/
-/*      width: 100px;*/
     }
     #row4, #col4{
       position: relative;
@@ -229,85 +227,7 @@
         }, {
           value: "a3b34",
           color: "#484242"
-        },
-        ////// 5X5
-//        {
-//          value: "a0b05",
-//          color: "#ebebe8"
-//        }, {
-//          value: "a0b15",
-//          color: "#cadaba"
-//        }, {
-//          value: "a0b25",
-//          color: "#84d783"
-//        }, {
-//          value: "a0b35",
-//          color: ""
-//        }, {
-//          value: "a0b45",
-//          color: ""
-//        }, {
-//          value: "a1b05",
-//          color: "#d6bee2"
-//        }, {
-//          value: "a1b15",
-//          color: "#a1b5cf"
-//        }, {
-//          value: "a1b25",
-//          color: "#76b0b4"
-//        }, {
-//          value: "a1b35",
-//          color: ""
-//        }, {
-//          value: "a1b45",
-//          color: ""
-//        }, {
-//          value: "a2b05",
-//          color: "#eaa5ea"
-//        }, {
-//          value: "a2b15",
-//          color: "#9491d4"
-//        }, {
-//          value: "a2b25",
-//          color: "#4474e0"
-//        }, {
-//          value: "a2b35",
-//          color: ""
-//        }, {
-//          value: "a2b45",
-//          color: ""
-//        }, {
-//          value: "a3b05",
-//          color: ""
-//        }, {
-//          value: "a3b15",
-//          color: ""
-//        }, {
-//          value: "a3b25",
-//          color: ""
-//        }, {
-//          value: "a3b35",
-//          color: ""
-//        }, {
-//          value: "a3b45",
-//          color: ""
-//        }, {
-//          value: "a4b05",
-//          color: ""
-//        }, {
-//          value: "a4b15",
-//          color: ""
-//        }, {
-//          value: "a4b25",
-//          color: ""
-//        }, {
-//          value: "a4b35",
-//          color: ""
-//        }, {
-//          value: "a4b45",
-//          color: ""
-//        }
-        ];
+        }];
 
         var pair = colors.find(function(item, i){
           return item.value === value;
@@ -666,10 +586,10 @@
 
       function swapLegend (classes){
         if (classes === 3){
-          legend.src = "bivariate-legend-3.png";
+          legend.src = "img/bivariate-legend-3.png";
         }
         if (classes === 4){
-          legend.src = "bivariate-legend-4.png";
+          legend.src = "img/bivariate-legend-4.png";
         }
         setLabels(classes);
       }
@@ -694,9 +614,9 @@
 <!--          <option value=5>5</option>-->
         </select>
         Cl. Method: <select id="class-method">
-          <option value="natural-breaks" selected>Natural Breaks</option>
+          <option value="natural-breaks">Natural Breaks</option>
           <option value="equal-interval">Equal Interval</option>
-          <option value="quantile">Quantile</option>
+          <option value="quantile" selected>Quantile</option>
           <option value="standard-deviation">Standard Deviation</option>
         </select>
         <button id="redraw">Redraw</button>
@@ -712,7 +632,7 @@
               <tr><td id="row4"></td></tr>
             </table>
           </td>
-          <td><img id="legend" src="bivariate-legend-3.png"></td>
+          <td><img id="legend" src="img/bivariate-legend-3.png"></td>
         </tr>
         <tr><td></td>
           <td>
