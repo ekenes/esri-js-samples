@@ -124,6 +124,7 @@
     ){
 
       var url = dom.byId("url-input").value;
+      var ABREAKS, BBREAKS;
 
       var map = new Map("esri-map-container", {
         basemap: "gray",
@@ -138,13 +139,17 @@
 
       function createSymbol(color){
         var line = new SimpleLineSymbol();
-        line.setColor(new Color([255, 255, 255, 1]));
+        line.setColor(new Color([255, 255, 255, 0.5]));
         line.setWidth(0.5);
         var fill = new SimpleFillSymbol();
         fill.setOutline(line);
         fill.setColor(new Color(color));
 
         return fill;
+      }
+
+      function round (num){
+        return Math.round(num * 100) / 100;
       }
 
       function getColor(value) {
@@ -307,6 +312,51 @@
         return dom.byId("class-method").value;
       }
 
+      function getSmartBreaks(stats, numClasses){
+        var classBreaks;
+        var min = stats.min;
+        var max = stats.max;
+        var stddev = stats.stddev;
+        var avg = stats.avg;
+
+        if(numClasses === 3){
+          classBreaks = [{
+            minValue: min,
+            maxValue: avg - stddev,
+            label: [ round(min), " - ", round(avg - stddev) ].join("")
+          }, {
+            minValue: avg - stddev,
+            maxValue: avg + stddev,
+            label: [ round(avg - stddev), " - ", round(avg + stddev) ].join("")
+          }, {
+            minValue: avg + stddev,
+            maxValue: max,
+            label: [ round(avg + stddev), " - ", round(max) ].join("")
+          }];
+        }
+
+        if(numClasses === 4){
+          classBreaks = [{
+            minValue: min,
+            maxValue: avg - stddev,
+            label: [ round(min), " - ", round(avg - stddev) ].join("")
+          }, {
+            minValue: avg - stddev,
+            maxValue: avg,
+            label: [ round(avg - stddev), " - ", round(avg) ].join("")
+          }, {
+            minValue: avg,
+            maxValue: avg + stddev,
+            label: [ round(avg) , " - ", round(avg + stddev) ].join("")
+          }, {
+            minValue: avg + stddev,
+            maxValue: max,
+            label: [ round(avg + stddev), " - ", round(max) ].join("")
+          }];
+        }
+
+        return classBreaks;
+      }
       /******************************************************************************
       * Function for calling smartMapping and FeatureLayerStatistics plugin
       * This updates the layer's renderer and the color slider
@@ -321,7 +371,7 @@
         var normFieldName = getNormalizedField();
         var fieldName2 = getFieldName2();
         var normFieldName2 = getNormalizedField2();
-        var numClasses = getNumClasses();
+        var numClasses = parseInt(getNumClasses());
         var classification = getClassification();
 
         if(!fieldName || !fieldName2){
@@ -336,15 +386,25 @@
         }));
 
         layer.addPlugin("esri/plugins/FeatureLayerStatistics").then(function(){
-          return layer.statisticsPlugin.getClassBreaks({
-            field: fieldName,
-            normalizationField: normFieldName ? normFieldName : null,
-            normalizationType: normFieldName ? "field" : null,
-            numClasses: numClasses,
-            classificationMethod: classification
-          });
+          if(classification !== "smart-breaks"){
+            return layer.statisticsPlugin.getClassBreaks({
+              field: fieldName,
+              normalizationField: normFieldName ? normFieldName : null,
+              normalizationType: normFieldName ? "field" : null,
+              numClasses: numClasses,
+              classificationMethod: classification
+            });
+          } else {
+            return layer.statisticsPlugin.getFieldStatistics({
+              field: fieldName,
+              normalizationField: normFieldName ? normFieldName : null,
+              normalizationType: normFieldName ? "field" : null,
+            });
+          }
+
         }).then(getFirstBreakInfos)
           .then(function(){
+            if(classification !== "smart-breaks"){
              return layer.statisticsPlugin.getClassBreaks({
                field: fieldName2,
                normalizationField: normFieldName2 ? normFieldName2 : null,
@@ -352,6 +412,13 @@
                numClasses: numClasses,
                classificationMethod: classification
              });
+            } else {
+              return layer.statisticsPlugin.getFieldStatistics({
+                field: fieldName2,
+                normalizationField: normFieldName2 ? normFieldName2 : null,
+                normalizationType: normFieldName2 ? "field" : null,
+               });
+            }
           })
           .then(getSecondBreakInfos)
           .then(createRenderer)
@@ -361,12 +428,21 @@
           });
 
         function getFirstBreakInfos(response){
-          ABREAKS = response.classBreakInfos;
+          if(response.classBreakInfos){
+            ABREAKS = response.classBreakInfos;
+          } else {
+            ABREAKS = getSmartBreaks(response, numClasses);
+          }
+
           return ABREAKS;
         }
 
         function getSecondBreakInfos(response){
-          BBREAKS = response.classBreakInfos;
+          if(response.classBreakInfos){
+            BBREAKS = response.classBreakInfos;
+          } else {
+            BBREAKS = getSmartBreaks(response, numClasses);
+          }
           return BBREAKS;
         }
 
@@ -616,7 +692,7 @@
           <option value="natural-breaks">Natural Breaks</option>
           <option value="equal-interval">Equal Interval</option>
           <option value="quantile" selected>Quantile</option>
-<!--          <option value="standard-deviation">Standard Deviation</option>-->
+          <option value="smart-breaks">Smart Breaks</option>
         </select>
         <button id="redraw">Redraw</button>
         <br><br>
