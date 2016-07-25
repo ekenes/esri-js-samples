@@ -431,7 +431,7 @@ require([
         '}\n',
 
         'for(var i in BBREAKS){\n',
-        '  if((bVal >= BBREAKS[i].minValue) && (bVal <= BBREAKS[i].maxValue)){\n',
+        '  if((bVal >= BBREAKS[i].minValue) && (bVal < BBREAKS[i].maxValue)){\n',
         '    bIndex = i;\n',
         '  }\n',
         '}\n',
