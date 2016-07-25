@@ -425,7 +425,7 @@ require([
         'var aIndex, bIndex;\n',
 
         'for(var i in ABREAKS){\n',
-        '  if((aVal >= ABREAKS[i].minValue) && (aVal <= ABREAKS[i].maxValue)){\n',
+        '  if((aVal >= ABREAKS[i].minValue) && (aVal < ABREAKS[i].maxValue)){\n',
         '    aIndex = i;\n',
         '  }\n',
         '}\n',
