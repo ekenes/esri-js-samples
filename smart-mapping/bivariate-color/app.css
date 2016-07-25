@@ -7,8 +7,8 @@ html, body {
 }
 #esri-map-container{
   height: 100%;
-  width: 100%;
-  left: 400px;
+  width: 70%;
+  left: 30%;
   position: absolute;
 }
 #esri-colorinfoslider-container{
@@ -17,7 +17,7 @@ html, body {
   bottom: 0;
   left: 0;
   height: 100%;
-  width: 400px;
+  width: 30%;
   border-top-right-radius: 8px;
   overflow-x: hidden;
 }
@@ -91,7 +91,7 @@ table{
   z-index: 20;
   position: absolute;
   right: 10px;
-  bottom: 10px;
+  bottom: 50px;
   opacity: 0;
   visibility: hidden;
   -webkit-transition: opacity 1s ease-in-out;
@@ -107,7 +107,7 @@ textarea{
 #edit-arcade, #hide-arcade{
   position: absolute;
   right: 10px;
-  bottom: 10px;
+  bottom: 50px;
   z-index: 30;
 }
 #hide-arcade{
