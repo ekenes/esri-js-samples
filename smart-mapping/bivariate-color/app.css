@@ -1,0 +1,115 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+#esri-map-container{
+  height: 100%;
+  width: 100%;
+  left: 400px;
+  position: absolute;
+}
+#esri-colorinfoslider-container{
+  position: absolute;
+  z-index: 2;
+  bottom: 0;
+  left: 0;
+  height: 100%;
+  width: 400px;
+  border-top-right-radius: 8px;
+  overflow-x: hidden;
+}
+#basemapToggle-container{
+  z-index: 4;
+  position: absolute;
+  top: 15px;
+  right: 15px;
+}
+#spinner{
+  visibility: hidden;
+  position: relative;
+  z-index: 98;
+  left: 90px;
+  bottom: 250px;
+}
+h2{
+  text-align: center;
+}
+.left-side tr td{
+  padding-bottom: 8px;
+}
+table{
+  font-size: 10pt;
+}
+#row1{
+  position: relative;
+  top: -15px;
+}
+#row2{
+  position: relative;
+  top: 15px;
+}
+#row3{
+  position: relative;
+  top: 40px;
+}
+#col1{
+  position: relative;
+  left: -15px;
+}
+#col2{
+  position: relative;
+  left: -40px;
+  top: 4px;
+}
+#col3{
+  position: relative;
+  left: -80px;
+  top: 4px;
+}
+.bottom-row tr td{
+  transform: rotate(90deg);
+  padding: 8px;
+}
+#row4, #col4{
+  position: relative;
+  visibility: hidden;
+}
+#row4{
+  top: 30px;
+}
+#col4{
+  left: -70px;
+}
+#check{
+  height: 15px;
+  width: 15px;
+}
+#arcade-editor{
+  z-index: 20;
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  opacity: 0;
+  visibility: hidden;
+  -webkit-transition: opacity 1s ease-in-out;
+  -moz-transition: opacity 1s ease-in-out;
+  -ms-transition: opacity 1s ease-in-out;
+  -o-transition: opacity 1s ease-in-out;
+  transition: opacity 1s ease-in-out;
+}
+textarea{
+  resize: none;
+  font-size: 11pt;
+}
+#edit-arcade, #hide-arcade{
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 30;
+}
+#hide-arcade{
+  visibility: hidden;
+}
