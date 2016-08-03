@@ -171,11 +171,15 @@
       function getNormalizedField(field){
         var normField;
 
-        if (field.includes("HH_Income") || field.includes("HINC")) {
+        var HHincomeFields = [ "HH_Income_35_75K", "HH_Income_0_35K", "HH_Income_75_200K", "HINC75_CY", "HINC100_CY", "HINC150_CY", "HINC200_CY", "HINC50_CY", "HINC35_CY", "HINC25_CY", "HINC15_CY", "HINC0_CY", "MEDHINC_CY", "HINCBASECY" ];
+        var homeValueFields = [ "HomeValue_0_150K", "HomeValue_150_300K", "HomeValue_300K_up" ];
+        var educationFields = [ "COL_DEG", "NO_COL_DEG" ];
+
+        if (HHincomeFields.indexOf(field) !== -1) {
           normField = "HINCBASECY";  // Total number of households
-        } else if (field.includes("HomeValue")) {
+        } else if (homeValueFields.indexOf(field) !== -1) {
           normField = "VALBASE_CY";  // Total number of owner-occupied homes
-        } else if(field.includes("COL_DEG")){
+        } else if(educationFields.indexOf(field) !== -1){
           normField = "EDUCBASECY";  // Total population 25 and older
         } else {
           normField = "TOTPOP_CY";  // Total population
