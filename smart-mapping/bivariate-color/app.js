@@ -361,14 +361,14 @@ require([
 
   function setLabels(classes){
 
-    row3.innerHTML = ABREAKS[0].label;
-    row2.innerHTML = ABREAKS[1].label;
-    row1.innerHTML = ABREAKS[2].label;
-    col1.innerHTML = BBREAKS[0].label;
-    col2.innerHTML = BBREAKS[1].label;
-    col3.innerHTML = BBREAKS[2].label;
+    col1.innerHTML = ABREAKS[0].label;
+    col2.innerHTML = ABREAKS[1].label;
+    col3.innerHTML = ABREAKS[2].label;
 
     if(classes === 3){
+      row3.innerHTML = BBREAKS[0].label;
+      row2.innerHTML = BBREAKS[1].label;
+      row1.innerHTML = BBREAKS[2].label;
       row1.style.top = "-15px";
       row2.style.top = "15px";
       row3.style.top = "40px";
@@ -379,8 +379,12 @@ require([
       col4.style.visibility = "hidden";
     }
     if (classes === 4){
-      row4.innerHTML = ABREAKS[3].label;
-      col4.innerHTML = BBREAKS[3].label;
+      row4.innerHTML = BBREAKS[0].label;
+      row3.innerHTML = BBREAKS[1].label;
+      row2.innerHTML = BBREAKS[2].label;
+      row1.innerHTML = BBREAKS[3].label;
+
+      col4.innerHTML = ABREAKS[3].label;
       row1.style.top = "5px";
       row2.style.top = "10px";
       row3.style.top = "20px";
