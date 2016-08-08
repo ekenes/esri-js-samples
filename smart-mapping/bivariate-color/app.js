@@ -148,8 +148,6 @@ require([
       });
     }
 
-    console.log("pair: ", pair);
-
     return pair.color;
   }
 
@@ -434,8 +432,6 @@ require([
       field1Breaks: ABREAKS,
       field2Breaks: BBREAKS
     });
-
-    console.log("arcade: ", arcade);
 
     arcadeEditor.value = expression ? expression : arcade;
 
