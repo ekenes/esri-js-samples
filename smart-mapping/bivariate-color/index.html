@@ -7,6 +7,14 @@
     <title>Bivariate color generator</title>
     <link rel="stylesheet" href="//js.arcgis.com/3.17/dijit/themes/claro/claro.css">
 
+    <script>
+      var dojoConfig = {
+        paths: {
+          modules: location.pathname.replace(/\/[^/]+$/, "") + "./modules"
+        }
+      };
+    </script>
+
     <link rel="stylesheet" href="//js.arcgis.com/3.17/esri/css/esri.css">
     <script src="//js.arcgis.com/3.17/"></script>
 
@@ -58,8 +66,8 @@
           </td></tr>
         <tr>
           <td>
-            <b>Field 2</b> &uarr;<br>
-            <b>Field 1</b> &rarr;
+            <b>Field 1</b> &uarr;<br>
+            <b>Field 2</b> &rarr;
           </td>
         </tr>
       </table>
