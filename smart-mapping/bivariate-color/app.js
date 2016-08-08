@@ -13,11 +13,13 @@ require([
   "dojo/dom",
   "dojo/dom-construct",
   "dojo/on",
+  "modules/arcade-generator",
   "dojo/domReady!"
 ], function (
   Color, BasemapToggle,
   PopupTemplate, FeatureLayer, Map, FeatureLayerStatistics, smartMapping,
-  UniqueValueRenderer, SimpleFillSymbol, SimpleLineSymbol, array, dom, domConstruct, on
+  UniqueValueRenderer, SimpleFillSymbol, SimpleLineSymbol, array, dom, domConstruct, on,
+  arcadeGenerator
 ){
 
   var url = dom.byId("url-input").value;
@@ -53,91 +55,100 @@ require([
     return Math.round(num * 100) / 100;
   }
 
-  function getColor(value) {
-    var colors = [
+  function getColor(value, classes) {
+    var colors3 = [
     /////// 3X3
     {
-      value: "a0b03",
+      value: "A1",
       color: "#ebebe8"
     }, {
-      value: "a0b13",
+      value: "B1",
       color: "#cadaba"
     }, {
-      value: "a0b23",
+      value: "C1",
       color: "#84d783"
     }, {
-      value: "a1b03",
+      value: "A2",
       color: "#d6bee2"
     }, {
-      value: "a1b13",
+      value: "B2",
       color: "#a1b5cf"
     }, {
-      value: "a1b23",
+      value: "C2",
       color: "#76b0b4"
     }, {
-      value: "a2b03",
+      value: "A3",
       color: "#eaa5ea"
     }, {
-      value: "a2b13",
+      value: "B3",
       color: "#9491d4"
     }, {
-      value: "a2b23",
+      value: "C3",
       color: "#4474e0"
-    },
+    }];
     ///// 4X4
-    {
-      value: "a0b04",
+    var colors4 = [{
+      value: "A1",
       color: "#f3ded9"
     }, {
-      value: "a0b14",
+      value: "B1",
       color: "#c7c791"
     }, {
-      value: "a0b24",
+      value: "C1",
       color: "#95b246"
     }, {
-      value: "a0b34",
+      value: "D1",
       color: "#599c01"
     }, {
-      value: "a1b04",
+      value: "A2",
       color: "#e0bcea"
     }, {
-      value: "a1b14",
+      value: "B2",
       color: "#b8a6a4"
     }, {
-      value: "a1b24",
+      value: "C2",
       color: "#8b925f"
     }, {
-      value: "a1b34",
+      value: "D2",
       color: "#587d09"
     }, {
-      value: "a2b04",
+      value: "A3",
       color: "#c69af9"
     }, {
-      value: "a2b14",
+      value: "B3",
       color: "#a386b4"
     }, {
-      value: "a2b24",
+      value: "C3",
       color: "#7d7270"
     }, {
-      value: "a2b34",
+      value: "D3",
       color: "#535f2f"
     }, {
-      value: "a3b04",
+      value: "A4",
       color: "#a57aff"
     }, {
-      value: "a3b14",
+      value: "B4",
       color: "#8867c0"
     }, {
-      value: "a3b24",
+      value: "C4",
       color: "#6a5580"
     }, {
-      value: "a3b34",
+      value: "D4",
       color: "#484242"
     }];
 
-    var pair = colors.find(function(item, i){
-      return item.value === value;
-    });
+    var pair;
+    if (classes === 3){
+      pair = colors3.find(function(item, i){
+        return item.value === value;
+      });
+    } else {
+      pair = colors4.find(function(item, i){
+        return item.value === value;
+      });
+    }
+
+    console.log("pair: ", pair);
 
     return pair.color;
   }
@@ -361,14 +372,14 @@ require([
 
   function setLabels(classes){
 
-    col1.innerHTML = ABREAKS[0].label;
-    col2.innerHTML = ABREAKS[1].label;
-    col3.innerHTML = ABREAKS[2].label;
+    col1.innerHTML = BBREAKS[0].label;
+    col2.innerHTML = BBREAKS[1].label;
+    col3.innerHTML = BBREAKS[2].label;
 
     if(classes === 3){
-      row3.innerHTML = BBREAKS[0].label;
-      row2.innerHTML = BBREAKS[1].label;
-      row1.innerHTML = BBREAKS[2].label;
+      row3.innerHTML = ABREAKS[0].label;
+      row2.innerHTML = ABREAKS[1].label;
+      row1.innerHTML = ABREAKS[2].label;
       row1.style.top = "-15px";
       row2.style.top = "15px";
       row3.style.top = "40px";
@@ -379,12 +390,12 @@ require([
       col4.style.visibility = "hidden";
     }
     if (classes === 4){
-      row4.innerHTML = BBREAKS[0].label;
-      row3.innerHTML = BBREAKS[1].label;
-      row2.innerHTML = BBREAKS[2].label;
-      row1.innerHTML = BBREAKS[3].label;
+      row4.innerHTML = ABREAKS[0].label;
+      row3.innerHTML = ABREAKS[1].label;
+      row2.innerHTML = ABREAKS[2].label;
+      row1.innerHTML = ABREAKS[3].label;
 
-      col4.innerHTML = ABREAKS[3].label;
+      col4.innerHTML = BBREAKS[3].label;
       row1.style.top = "5px";
       row2.style.top = "10px";
       row3.style.top = "20px";
@@ -415,35 +426,16 @@ require([
     busySpinner.style.visibility = "hidden";
     var classes = ABREAKS.length;
 
-    var arcade = [
-        'var field1Val = $feature.', getFieldName(), ';\n',
-        'var field1NormVal = ', getNormalizedField() ? '$feature.' + getNormalizedField() + ';\n' : 'null;\n',
-        'var field2Val = $feature.', getFieldName2(), ';\n',
-        'var field2NormVal = ', getNormalizedField2() ? '$feature.' + getNormalizedField2() + ';\n' : 'null;\n',
-        'var classes = ', classes, ';\n',
+    var arcade = arcadeGenerator.getArcade({
+      field1: getFieldName(),
+      normField1: getNormalizedField(),
+      field2: getFieldName2(),
+      normField2: getNormalizedField2(),
+      field1Breaks: ABREAKS,
+      field2Breaks: BBREAKS
+    });
 
-        'var aVal = IIf(IsEmpty(field1NormVal), field1Val, (field1Val / field1NormVal));\n',
-        'var bVal = IIf(IsEmpty(field2NormVal), field2Val, (field2Val / field2NormVal));\n\n',
-        'var ABREAKS = ', simplifyBreaks(ABREAKS), ';\n',
-        'var BBREAKS = ', simplifyBreaks(BBREAKS), ';\n\n',
-        'var aIndex, bIndex;\n',
-
-        'for(var i in ABREAKS){\n',
-        '  if((aVal >= ABREAKS[i].minValue) && (aVal < ABREAKS[i].maxValue)){\n',
-        '    aIndex = i;\n',
-        '  }\n',
-        '}\n',
-
-        'for(var i in BBREAKS){\n',
-        '  if((bVal >= BBREAKS[i].minValue) && (bVal < BBREAKS[i].maxValue)){\n',
-        '    bIndex = i;\n',
-        '  }\n',
-        '}\n',
-
-        'var value = "a" + aIndex + "b" + bIndex + classes;\n',
-
-        'return value;'
-      ].join('');
+    console.log("arcade: ", arcade);
 
     arcadeEditor.value = expression ? expression : arcade;
 
@@ -454,10 +446,22 @@ require([
 
     ABREAKS.forEach(function(aBreak, a){
       BBREAKS.forEach(function(bBreak, b){
-        var val = "a" + a + "b" + b + classes;
+        var val;
+        if (a === 0){
+          val = "A";
+        } else if (a === 1){
+          val = "B";
+        } else if (a === 2){
+          val = "C";
+        } else if (a === 3){
+          val = "D";
+        }
+
+        val += ++b;
+
         uvr.addValue({
           value: val,
-          symbol: createSymbol(getColor(val))
+          symbol: createSymbol(getColor(val, classes))
         });
       });
     });
