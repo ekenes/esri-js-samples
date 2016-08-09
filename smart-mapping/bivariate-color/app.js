@@ -62,25 +62,25 @@ require([
       value: "A1",
       color: "#ebebe8"
     }, {
-      value: "B1",
+      value: "A2",
       color: "#cadaba"
     }, {
-      value: "C1",
+      value: "A3",
       color: "#84d783"
     }, {
-      value: "A2",
+      value: "B1",
       color: "#d6bee2"
     }, {
       value: "B2",
       color: "#a1b5cf"
     }, {
-      value: "C2",
+      value: "B3",
       color: "#76b0b4"
     }, {
-      value: "A3",
+      value: "C1",
       color: "#eaa5ea"
     }, {
-      value: "B3",
+      value: "C2",
       color: "#9491d4"
     }, {
       value: "C3",
@@ -91,46 +91,46 @@ require([
       value: "A1",
       color: "#f3ded9"
     }, {
-      value: "B1",
+      value: "A2",
       color: "#c7c791"
     }, {
-      value: "C1",
+      value: "A3",
       color: "#95b246"
     }, {
-      value: "D1",
+      value: "A4",
       color: "#599c01"
     }, {
-      value: "A2",
+      value: "B1",
       color: "#e0bcea"
     }, {
       value: "B2",
       color: "#b8a6a4"
     }, {
-      value: "C2",
+      value: "B3",
       color: "#8b925f"
     }, {
-      value: "D2",
+      value: "B4",
       color: "#587d09"
     }, {
-      value: "A3",
+      value: "C1",
       color: "#c69af9"
     }, {
-      value: "B3",
+      value: "C2",
       color: "#a386b4"
     }, {
       value: "C3",
       color: "#7d7270"
     }, {
-      value: "D3",
+      value: "C4",
       color: "#535f2f"
     }, {
-      value: "A4",
+      value: "D1",
       color: "#a57aff"
     }, {
-      value: "B4",
+      value: "D2",
       color: "#8867c0"
     }, {
-      value: "C4",
+      value: "D3",
       color: "#6a5580"
     }, {
       value: "D4",
@@ -440,20 +440,20 @@ require([
       valueExpression: expression ? expression : arcade
     });
 
-    ABREAKS.forEach(function(aBreak, a){
-      BBREAKS.forEach(function(bBreak, b){
+    BBREAKS.forEach(function(bBreak, b){
+      ABREAKS.forEach(function(aBreak, a){
         var val;
-        if (a === 0){
+        if (b === 0){
           val = "A";
-        } else if (a === 1){
+        } else if (b === 1){
           val = "B";
-        } else if (a === 2){
+        } else if (b === 2){
           val = "C";
-        } else if (a === 3){
+        } else if (b === 3){
           val = "D";
         }
 
-        val += ++b;
+        val += ++a;
 
         uvr.addValue({
           value: val,
