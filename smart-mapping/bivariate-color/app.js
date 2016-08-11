@@ -56,6 +56,15 @@ require([
   }
 
   function getColor(value, classes) {
+    ///////// 2x2
+
+    var colors2 = [
+      { value: "A1", color: "#f3d8cb" },
+      { value: "A2", color: "#07a9d0" },
+      { value: "B1", color: "#ea7f45" },
+      { value: "B2", color: "#705a50" },
+    ];
+
     var colors3 = [
     /////// 3X3
     {
@@ -138,14 +147,17 @@ require([
     }];
 
     var pair;
-    if (classes === 3){
-      pair = colors3.find(function(item, i){
-        return item.value === value;
-      });
+
+    if (classes === 2){
+      pair = colors2.find(findColor);
+    } else if (classes === 3){
+      pair = colors3.find(findColor);
     } else {
-      pair = colors4.find(function(item, i){
-        return item.value === value;
-      });
+      pair = colors4.find(findColor);
+    }
+
+    function findColor(item, i){
+      return item.value === value;
     }
 
     return pair.color;
@@ -229,6 +241,18 @@ require([
     var stddev = stats.stddev;
     var avg = stats.avg;
 
+    if(numClasses === 2){
+      classBreaks = [{
+        minValue: min,
+        maxValue: avg,
+        label: [ round(min), " - ", round(avg) ].join("")
+      }, {
+        minValue: avg,
+        maxValue: max,
+        label: [ round(avg), " - ", round(max) ].join("")
+      }];
+    }
+
     if(numClasses === 3){
       classBreaks = [{
         minValue: min,
@@ -296,7 +320,7 @@ require([
     }));
 
     layer.addPlugin("esri/plugins/FeatureLayerStatistics").then(function(){
-      if(classification !== "smart-breaks"){
+      if(classification !== "smart-breaks" && numClasses > 2){
         return layer.statisticsPlugin.getClassBreaks({
           field: fieldName,
           normalizationField: normFieldName ? normFieldName : null,
@@ -314,7 +338,7 @@ require([
 
     }).then(getFirstBreakInfos)
       .then(function(){
-        if(classification !== "smart-breaks"){
+        if(classification !== "smart-breaks" && numClasses > 2){
          return layer.statisticsPlugin.getClassBreaks({
            field: fieldName2,
            normalizationField: normFieldName2 ? normFieldName2 : null,
@@ -370,21 +394,39 @@ require([
 
   function setLabels(classes){
 
-    col1.innerHTML = BBREAKS[0].label;
-    col2.innerHTML = BBREAKS[1].label;
-    col3.innerHTML = BBREAKS[2].label;
 
+    if(classes === 2){
+      col1.innerHTML = BBREAKS[0].label;
+      col2.innerHTML = BBREAKS[1].label;
+      col3.style.visibility = "hidden";
+      col4.style.visibility = "hidden";
+      col1.style.left = "15px";
+      col2.style.left = "40px";
+
+      row4.style.visibility = "hidden";
+      row3.style.visibility = "hidden";
+      row2.innerHTML = ABREAKS[0].label;
+      row1.innerHTML = ABREAKS[1].label;
+      row1.style.top = "15px";
+      row2.style.top = "40px";
+    }
     if(classes === 3){
+      col1.innerHTML = BBREAKS[0].label;
+      col2.innerHTML = BBREAKS[1].label;
+      col3.innerHTML = BBREAKS[2].label;
+
       row3.innerHTML = ABREAKS[0].label;
       row2.innerHTML = ABREAKS[1].label;
       row1.innerHTML = ABREAKS[2].label;
       row1.style.top = "-15px";
       row2.style.top = "15px";
       row3.style.top = "40px";
+      row3.style.visibility = "visible";
       row4.style.visibility = "hidden";
       col1.style.left = "-15px";
       col2.style.left = "-40px";
       col3.style.left = "-80px";
+      col3.style.visibility = "visible";
       col4.style.visibility = "hidden";
     }
     if (classes === 4){
@@ -393,14 +435,19 @@ require([
       row2.innerHTML = ABREAKS[2].label;
       row1.innerHTML = ABREAKS[3].label;
 
+      col1.innerHTML = BBREAKS[0].label;
+      col2.innerHTML = BBREAKS[1].label;
+      col3.innerHTML = BBREAKS[2].label;
       col4.innerHTML = BBREAKS[3].label;
       row1.style.top = "5px";
       row2.style.top = "10px";
       row3.style.top = "20px";
+      row3.style.visibility = "visible";
       row4.style.visibility = "visible";
       col1.style.left = "-15px";
       col2.style.left = "-30px";
       col3.style.left = "-60px";
+      col3.style.visibility = "visible";
       col4.style.visibility = "visible";
     }
 
@@ -432,6 +479,36 @@ require([
       field1Breaks: ABREAKS,
       field2Breaks: BBREAKS
     });
+
+//    var groupBySql = arcadeGenerator.getGroupBySQL({
+//      field1: getFieldName(),
+//      normField1: getNormalizedField(),
+//      field2: getFieldName2(),
+//      normField2: getNormalizedField2(),
+//      field1Breaks: ABREAKS,
+//      field2Breaks: BBREAKS
+//    });
+//
+//    var onStatFieldSql = arcadeGenerator.getOnStatisticFieldSQL({
+//      field1: getFieldName(),
+//      normField1: getNormalizedField(),
+//      field2: getFieldName2(),
+//      normField2: getNormalizedField2(),
+//      field1Breaks: ABREAKS,
+//      field2Breaks: BBREAKS
+//    });
+
+//    console.log("arcade: ", arcade);
+//
+//    console.log(arcadeGenerator.getSqlStats({
+//      onStatField: onStatFieldSql,
+//      groupBy: groupBySql
+//    }));
+//
+//    console.log(JSON.stringify(arcadeGenerator.getSqlStats({
+//      onStatField: onStatFieldSql,
+//      groupBy: groupBySql
+//    })));
 
     arcadeEditor.value = expression ? expression : arcade;
 
@@ -565,12 +642,16 @@ require([
   on(dom.byId("redraw"), "click", updateSmartMapping);
 
   function swapLegend (classes){
-    if (classes === 3){
-      legend.src = "../img/bivariate-legend-3.png";
-    }
-    if (classes === 4){
-      legend.src = "../img/bivariate-legend-4.png";
-    }
+    var legendImages = [
+      { numClasses: 2, url: "../img/bivariate-legend-2.png" },
+      { numClasses: 3, url: "../img/bivariate-legend-3.png" },
+      { numClasses: 4, url: "../img/bivariate-legend-4.png" }
+    ];
+
+    legend.src = legendImages.find(function(item, i){
+      return item.numClasses === classes;
+    }).url;
+
     setLabels(classes);
   }
 
@@ -591,6 +672,15 @@ require([
     var newExpression = arcadeEditor.value;
     createRenderer(newExpression);
 
+  });
+
+  on(dom.byId("num-classes"), "change", function(evt){
+    var val = evt.target.value;
+    if(val === "2"){
+      dom.byId("class-method").disabled = true;
+    } else {
+      dom.byId("class-method").disabled = false;
+    }
   });
 
 });
