@@ -2,6 +2,10 @@ define([], function(){
 
   return {
 
+    test: function() {
+      console.log("hello world");
+    },
+
     getArcade: function(params) {
       var field1 = params.field1;
       var normField1 = params.normField1;
@@ -52,7 +56,7 @@ define([], function(){
       return arcade;
     },
 
-    getSQL: function(params){
+    getGroupBySQL: function(params){
       var field1 = params.field1;
       var normField1 = params.normField1;
       var field2 = params.field2;
@@ -96,6 +100,51 @@ define([], function(){
       sql = sql.join("");
 
       return sql;
+    },
+
+    getOnStatisticFieldSQL: function(params){
+      var field1 = params.field1;
+      var normField1 = params.normField1;
+      var field2 = params.field2;
+      var normField2 = params.normField2;
+      var field1Breaks = params.field1Breaks;
+      var field2Breaks = params.field2Breaks;
+
+      var field1Val = normField1 ? (field1 + "/" + normField1) : field1;
+      var field2Val = normField2 ? (field2 + "/" + normField2) : field2;
+
+      var sql = [ "CASE" ];
+
+      field2Breaks.forEach(function(field2Break, i){
+        field1Breaks.forEach(function(field1Break, j){
+
+          sql.push( " WHEN ", field1Val, " >= ", field1Break.minValue, " AND ", field1Val, " < ", field1Break.maxValue,
+               " AND ", field2Val, " >= ", field2Break.minValue, " AND ", field2Val, " < ", field2Break.maxValue,
+                  " THEN 1");
+        });
+      });
+
+      sql.push( " ELSE 1 END" );
+      sql = sql.join("");
+
+      return sql;
+    },
+
+    getSqlStats: function(params){
+      var onStatField = params.onStatField;
+      var groupBy = params.groupBy;
+
+      var outputStats = [{
+        statisticType: "count",
+        outStatisticFieldName: "bivariate count",
+        onStatisticField: onStatField
+      }];
+
+      return {
+        outStatistics: outputStats,
+        groupByFieldsForStatistics: groupBy,
+        orderByFields: groupBy
+      };
     }
 
   };
