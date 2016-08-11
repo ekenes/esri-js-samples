@@ -9,6 +9,7 @@ require([
   "esri/renderers/UniqueValueRenderer",
   "esri/symbols/SimpleFillSymbol",
   "esri/symbols/SimpleLineSymbol",
+  "esri/symbols/SimpleMarkerSymbol",
   "dojo/_base/array",
   "dojo/dom",
   "dojo/dom-construct",
@@ -18,8 +19,8 @@ require([
 ], function (
   Color, BasemapToggle,
   PopupTemplate, FeatureLayer, Map, FeatureLayerStatistics, smartMapping,
-  UniqueValueRenderer, SimpleFillSymbol, SimpleLineSymbol, array, dom, domConstruct, on,
-  arcadeGenerator
+  UniqueValueRenderer, SimpleFillSymbol, SimpleLineSymbol, SimpleMarkerSymbol,
+  array, dom, domConstruct, on, arcadeGenerator
 ){
 
   var url = dom.byId("url-input").value;
@@ -38,17 +39,36 @@ require([
   var busySpinner = dom.byId("spinner");
   var legend = dom.byId("legend");
 
-  var defaultSym = createSymbol([194, 194, 194, 0.25]);
+  var validGeomTypes = [ "esriGeometryPolygon", "esriGeometryPoint", "esriGeometryPolyline" ];
 
-  function createSymbol(color){
+  var defaultColor = [194, 194, 194, 0.25];
+
+  function createSymbol(color, geometryType){
+    var sym;
     var line = new SimpleLineSymbol();
     line.setColor(new Color([255, 255, 255, 0.5]));
     line.setWidth(0.5);
-    var fill = new SimpleFillSymbol();
-    fill.setOutline(line);
-    fill.setColor(new Color(color));
 
-    return fill;
+    if(geometryType === "esriGeometryPolygon"){
+      sym = new SimpleFillSymbol();
+      sym.setOutline(line);
+      sym.setColor(new Color(color));
+    }
+
+    if(geometryType === "esriGeometryPolyline"){
+      sym = new SimpleLineSymbol();
+      sym.setColor(new Color(color));
+      sym.setWidth(2);
+    }
+
+    if(geometryType === "esriGeometryPoint"){
+      sym = new SimpleMarkerSymbol();
+      sym.setColor(new Color(color));
+      sym.setSize(8);
+      sym.setOutline(line);
+    }
+
+    return sym;
   }
 
   function round (num){
@@ -513,7 +533,7 @@ require([
     arcadeEditor.value = expression ? expression : arcade;
 
     var uvr = new UniqueValueRenderer({
-      defaultSymbol: defaultSym,
+      defaultSymbol: createSymbol(defaultColor, lyr.geometryType),
       valueExpression: expression ? expression : arcade
     });
 
@@ -534,7 +554,7 @@ require([
 
         uvr.addValue({
           value: val,
-          symbol: createSymbol(getColor(val, classes))
+          symbol: createSymbol(getColor(val, classes), lyr.geometryType)
         });
       });
     });
@@ -588,8 +608,6 @@ require([
     });
 
     on(lyr, "load", function(evt){
-
-      var validGeomTypes = [ "esriGeometryPolygon" ];
 
       if(validGeomTypes.indexOf(evt.layer.geometryType) === -1){
         alert(evt.layer.geometryType + " geometry type not supported. Layer must contain polygon geometries.");
