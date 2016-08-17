@@ -89,81 +89,82 @@ require([
     /////// 3X3
     {
       value: "A1",
-      color: "#ebebe8"
+      color: "#ffefe2"
     }, {
       value: "A2",
-      color: "#cadaba"
+      color: "#98cfe5"
     }, {
       value: "A3",
-      color: "#84d783"
+      color: "#00afe7"
     }, {
       value: "B1",
-      color: "#d6bee2"
+      color: "#ffb286"
     }, {
       value: "B2",
-      color: "#a1b5cf"
+      color: "#af978b"
     }, {
       value: "B3",
-      color: "#76b0b4"
+      color: "#427a8e"
     }, {
       value: "C1",
-      color: "#eaa5ea"
+      color: "#f97529"
     }, {
       value: "C2",
-      color: "#9491d4"
+      color: "#aa5f37"
     }, {
       value: "C3",
-      color: "#4474e0"
+      color: "#5c473d"
     }];
+
     ///// 4X4
     var colors4 = [{
       value: "A1",
-      color: "#f3ded9"
+      color: "#fffaed"
     }, {
       value: "A2",
-      color: "#c7c791"
+      color: "#c3e2f0"
     }, {
       value: "A3",
-      color: "#95b246"
+      color: "#4ccaf2"
     }, {
       value: "A4",
-      color: "#599c01"
+      color: "#00b1f3"
     }, {
       value: "B1",
-      color: "#e0bcea"
+      color: "#ffcda7"
     }, {
       value: "B2",
-      color: "#b8a6a4"
+      color: "#d0b7ab"
     }, {
       value: "B3",
-      color: "#8b925f"
+      color: "#82a0ad"
     }, {
       value: "B4",
-      color: "#587d09"
+      color: "#0089af"
     }, {
       value: "C1",
-      color: "#c69af9"
+      color: "#ff9f63"
     }, {
       value: "C2",
-      color: "#a386b4"
+      color: "#d08c69"
     }, {
       value: "C3",
-      color: "#7d7270"
+      color: "#8f786c"
     }, {
       value: "C4",
-      color: "#535f2f"
+      color: "#46636f"
     }, {
       value: "D1",
-      color: "#a57aff"
+      color: "#ff6f16"
     }, {
       value: "D2",
-      color: "#8867c0"
+      color: "#c56027"
     }, {
       value: "D3",
-      color: "#6a5580"
+      color: "#8b4f30"
     }, {
       value: "D4",
-      color: "#484242"
+      color: "#533e34"
     }];
 
     var pair;
