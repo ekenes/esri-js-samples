@@ -13,13 +13,14 @@ define([], function(){
       var normField2 = params.normField2;
       var field1Breaks = JSON.stringify(params.field1Breaks);
       var field2Breaks = JSON.stringify(params.field2Breaks);
+      var classes = params.field1Breaks.length;
 
       if (!field1 || !field2 || !field1Breaks || !field2Breaks){
         console.error("Two fields and two sets of breaks must be specified.");
         return;
       }
 
-      if(params.field1Breaks.length !== params.field2Breaks.length){
+      if(classes !== params.field2Breaks.length){
         console.error("The number of class breaks for both fields must match.");
         return;
       }
@@ -29,6 +30,7 @@ define([], function(){
         'var normField1 = ', normField1 ? '$feature.' + normField1 + ';\n' : 'null;\n',
         'var field2 = $feature.', field2, ';\n',
         'var normField2 = ', normField2 ? '$feature.' + normField2 + ';\n' : 'null;\n',
+        'var classes = ', classes, ';\n',
 
         'var field1Val = IIf(IsEmpty(normField1), field1, (field1 / normField1));\n',
         'var field2Val = IIf(IsEmpty(normField2), field2, (field2 / normField2));\n\n',
@@ -39,7 +41,7 @@ define([], function(){
         'function getFieldCode (value, breaks, letter) {\n',
         '  var code = "Other";\n',
         '  for (var i in breaks){\n',
-        '    code = IIf (value >= breaks[i].minValue && value < breaks[i].maxValue, i+1, code);\n',
+        '    code = IIf (value >= breaks[i].minValue && IIf(classes == i+1, value <= breaks[i].maxValue, value < breaks[i].maxValue), i+1, code);\n',
         '  }\n',
         '  code = IIf (letter, WHEN( code==1, "A", code==2, "B", code==3, "C", code==4, "D", "Other" ), code);\n',
         '  return code;\n',
