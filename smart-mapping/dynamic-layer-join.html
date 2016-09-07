@@ -188,9 +188,7 @@ require([
     var dynamicLayerInfosArray = censusMapServiceLayer.createDynamicLayerInfosFromLayerInfos();
 
     // Find the dynamicLayerInfo object for the states sublayer
-    var dynamicLayerInfo = dynamicLayerInfosArray.find(function(dynamicLayerInfoItem){
-      return dynamicLayerInfoItem.name === "states";
-    });
+    var dynamicLayerInfo = dynamicLayerInfosArray[3];
 
     // set the dynamic layer info object on the census map service layer
     dynamicLayerInfo.source = dynamicLayerDataSource;
