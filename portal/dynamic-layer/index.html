@@ -38,10 +38,11 @@ require([
   "esri/layers/LayerDrawingOptions",
   "esri/renderers/jsonUtils",
   "esri/dijit/Legend",
+  "esri/dijit/PopupTemplate",
   "dojo/dom",
   "dojo/domReady!"
 ], function(
-  Map, arcgisUtils, ArcGISDynamicMapServiceLayer, LayerDrawingOptions, rendererJsonUtils, Legend, dom
+  Map, arcgisUtils, ArcGISDynamicMapServiceLayer, LayerDrawingOptions, rendererJsonUtils, Legend, PopupTemplate, dom
 ) {
 
   var map = new Map("viewDiv", {
@@ -56,8 +57,6 @@ require([
   arcgisUtils.getItem("7f6c20c3e1984310961fae7c313f152a")
     .then(function(response){
 
-      console.log("response: ", response);
-
       // Create dynamic layer from response url and
       // add to map and legend
       var url = response.item.url;
@@ -67,7 +66,7 @@ require([
         map: map,
         layerInfos: [{
           layer: layer,
-          title: "2016 Median Household Income"
+          title: response.item.title
         }]
       }, "legend");
       legend.startup();
@@ -110,9 +109,23 @@ require([
       return drawInfo;
     });
     layer.setLayerDrawingOptions(drawingInfos);
+    setPopupContent(layer);
   }
 
-
+  // Set infoTemplates on the sublayers;
+  function setPopupContent (layer){
+    var infoTemplates = {};
+    sublayers.forEach(function(sublayer, i){
+      if(sublayer.popupInfo){
+        var serviceId = sublayer.layerDefinition.source.mapLayerId;
+        infoTemplates[serviceId] = {
+          infoTemplate: new PopupTemplate(sublayer.popupInfo),
+          layerUrl: null
+        };
+      }
+    });
+    layer.setInfoTemplates(infoTemplates);
+  }
 
 });
 </script>
