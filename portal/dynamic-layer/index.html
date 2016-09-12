@@ -35,16 +35,13 @@ require([
   "esri/map",
   "esri/arcgis/utils",
   "esri/layers/ArcGISDynamicMapServiceLayer",
-  "esri/layers/DynamicLayerInfo",
   "esri/layers/LayerDrawingOptions",
-  "esri/layers/LayerMapSource",
-  "esri/renderers/ClassBreaksRenderer",
   "esri/renderers/jsonUtils",
   "esri/dijit/Legend",
   "dojo/dom",
   "dojo/domReady!"
 ], function(
-  Map, arcgisUtils, ArcGISDynamicMapServiceLayer, DynamicLayerInfo, LayerDrawingOptions, LayerMapSource, ClassBreaksRenderer, rendererJsonUtils, Legend, dom
+  Map, arcgisUtils, ArcGISDynamicMapServiceLayer, LayerDrawingOptions, rendererJsonUtils, Legend, dom
 ) {
 
   var map = new Map("viewDiv", {
