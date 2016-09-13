@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>VectorTileLayer with legend and popup</title>
+
+<link rel="stylesheet" href="//js.arcgis.com/3.18/dijit/themes/claro/claro.css">
+<link rel="stylesheet" href="//js.arcgis.com/3.18/esri/css/esri.css">
+
+<style>
+  html, body, #viewDiv{
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    width: 100%;
+  }
+  #info {
+    background: white;
+    color: black;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 5;
+    padding: 6px;
+  }
+</style>
+
+<script src="//js.arcgis.com/3.18/"></script>
+
+<script>
+require([
+  "esri/map",
+  "esri/arcgis/utils",
+  "esri/layers/VectorTileLayer",
+  "esri/layers/ArcGISDynamicMapServiceLayer",
+  "esri/layers/FeatureLayer",
+  "esri/renderers/jsonUtils",
+  "esri/dijit/Legend",
+  "esri/dijit/PopupTemplate",
+  "esri/tasks/query",
+  "dojo/dom",
+  "dojo/domReady!"
+], function(
+  Map, arcgisUtils, VectorTileLayer, ArcGISDynamicMapServiceLayer, FeatureLayer, rendererJsonUtils, Legend, PopupTemplate, Query, dom
+) {
+
+  var map = new Map("viewDiv", {
+    basemap: "gray",
+    center: [ -100, 38 ],
+    zoom: 5
+  });
+
+  // query features of active layer
+  // when user clicks the map
+  // to display popup content
+  map.on("click", executeQuery);
+
+  var sublayers, legendTitle, fields, featureLayers = [];
+
+  // load vector tile layer item metadata from ArcGIS Online
+  function getVectorTileLayer (response){
+    // Create vector tile layer from response url and
+    // add it to the map
+    var url = response.item.url;
+    var layer = new VectorTileLayer(url);
+    map.addLayer(layer);
+
+    // Once added to the map get the item metadata for the
+    // dynamic layer containing all the attributes
+    return arcgisUtils.getItem("394329f080414e65836dc8025ad2d5fc");
+  }
+
+  arcgisUtils.getItem("4c926d6c1d4649d7b9aef4e6042275c4")
+    .then(getVectorTileLayer)
+    .then(getDynamicLayer);
+
+  function getDynamicLayer (response){
+    // Create dynamic layer from response url and
+    // create dynamic layer infos to use for the
+    // feature layer source objects
+    var url = response.item.url;
+    var layer = new ArcGISDynamicMapServiceLayer(url);
+
+    // the fields to return for legend
+    // and popup query purposes
+    fields = response.itemData.thematicGroup.fieldNames;
+    legendTitle = response.item.title;
+
+    // get the dynamic layers saved to the item
+    // only return the dynamic layers with data-driven
+    // visualization defined in Thematic Group
+    sublayers = response.itemData.layers.filter(function(layer, i){
+      var layerIds = response.itemData.thematicGroup.layerIds;
+      var index = layerIds.findIndex(function(id, k){
+        return id === layer.id;
+      });
+
+      return index !== -1;
+    });
+    // when the layer loads, set the renderers, popupTemplates
+    // to their respective feature layers
+    layer.on("load", setDynamicInfos);
+  }
+
+  // get the dynamic source objects, renderers, and popupTemplates
+  // that will be used to create feature layers
+  function setDynamicInfos (evt){
+    var layer = evt.layer;
+    var serviceLayerInfos = layer.createDynamicLayerInfosFromLayerInfos();
+
+    // Create dynamic layer infos from the service and filter out
+    // the layer infos not included in the sublayers
+    var dynamicLayerInfos = serviceLayerInfos.filter(function(layerInfo, i){
+      var index = sublayers.findIndex(function(sublayer, k){
+        return sublayer.layerDefinition.source.mapLayerId === layerInfo.source.mapLayerId;
+      });
+
+      return index !== -1;
+    });
+
+    // get the renderer from each sublayer info
+    var renderers = sublayers.map(function(sublayer, i){
+      return {
+        mapLayerId: sublayer.layerDefinition.source.mapLayerId,
+        renderer:  rendererJsonUtils.fromJson(sublayer.layerDefinition.drawingInfo.renderer)
+      };
+    });
+
+    // get the popupTemplate from each sublayer info
+    var popupTemplates = sublayers.map(function(sublayer, i){
+      if(sublayer.popupInfo){
+        return {
+          mapLayerId: sublayer.layerDefinition.source.mapLayerId,
+          popupTemplate: new PopupTemplate(sublayer.popupInfo)
+        };
+      }
+    });
+
+    // create feature layers with the given information
+    createFeatureLayers({
+      dynamicUrl: layer.url + "/dynamicLayer",
+      dynamicLayerInfos: dynamicLayerInfos,
+      renderers: renderers,
+      popupTemplates: popupTemplates
+    });
+  }
+
+  // Creates feature layers for each dynamic layer info
+  // defined in the portal item data
+  function createFeatureLayers(response){
+    var dynamicLayerInfos = response.dynamicLayerInfos;
+    var renderers = response.renderers;
+    var popupTemplates = response.popupTemplates;
+    var url = response.dynamicUrl;
+
+    var legendLayerInfos = [];
+
+    var layerOptions = {
+      mode: FeatureLayer.MODE_SNAPSHOT,
+      outFields: fields
+    };
+
+    dynamicLayerInfos.forEach(function(layerInfo, i){
+      var minScale = layerInfo.minScale ? layerInfo.minScale : null;
+      var maxScale = layerInfo.maxScale ? layerInfo.maxScale : null;
+      layerOptions.source = layerInfo.source;  // straight json. Didn't construct anything
+
+      var fl = new FeatureLayer(url, layerOptions);
+      fl.setRenderer(renderers[i].renderer);
+      fl.setScaleRange(minScale, maxScale);
+      fl.setInfoTemplate(popupTemplates[i].popupTemplate);
+
+      featureLayers.push(fl);
+      // create layer infos for use in the legend
+      legendLayerInfos.push({
+        layer: fl,
+        title: layerInfo.name
+      });
+    });
+
+    createLegend(legendLayerInfos);
+  }
+
+  function createLegend (layerInfos){
+    var legend = new Legend({
+      map: map,
+      layerInfos: layerInfos
+    }, "legend");
+    legend.startup();
+  }
+
+  var clickLocation;
+
+  // queries the active feature layer (the feature layer that would be visible
+  // if it were added to the map) and displays the attributes in the popup
+  function executeQuery (evt){
+    // the clicked x,y location
+    clickLocation = evt.mapPoint;
+
+    // gets the feature layer within the given map scale
+    var activeLayerIndex = featureLayers.findIndex(function(layer, i){
+      var scale = map.getScale();
+      var passMinScale = layer.minScale ? scale <= layer.minScale : true;
+      var passMaxScale = layer.maxScale ? scale >= layer.maxScale : true;
+      return passMinScale && passMaxScale;
+    });
+    var activeLayer = featureLayers[activeLayerIndex];
+
+    var query = new Query();
+    query.geometry = clickLocation;
+    query.outFields = fields;
+    query.returnGeometry = false;
+
+    // queries for features in the active layer where the map was clicked
+    activeLayer.queryFeatures(query, openPopup);
+  }
+
+  // open the popup when the query completes
+  function openPopup (response){
+    map.infoWindow.setFeatures(response.features);
+    map.infoWindow.show(clickLocation);
+  }
+
+  // close the popup when the user zooms in or out
+  map.on("zoom-end", function(evt){
+    map.infoWindow.clearFeatures();
+    map.infoWindow.hide();
+  });
+
+});
+</script>
+
+</head>
+
+<body class="claro">
+  <div id="viewDiv"></div>
+  <div id="info"><div id="legend"></div></div>
+</body>
+
+</html>
