@@ -53,7 +53,7 @@ require([
 
   var sublayers;
 
-  // load layer item from ArcGIS Online
+  // load layer item metadata from ArcGIS Online
   arcgisUtils.getItem("7f6c20c3e1984310961fae7c313f152a")
     .then(function(response){
 
@@ -62,6 +62,7 @@ require([
       var url = response.item.url;
       var layer = new ArcGISDynamicMapServiceLayer(url);
       map.addLayer(layer);
+
       var legend = new Legend({
         map: map,
         layerInfos: [{
