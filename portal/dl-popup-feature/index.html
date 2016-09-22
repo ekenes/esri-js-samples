@@ -51,6 +51,28 @@ require([
     zoom: 5
   });
 
+  ////////////////////////////////////////////////////////////
+
+  // Demonstrates how to get the selected feature from a popup
+  // when a dynamic layer is displayed in the map
+  var popup;
+
+  map.on("load", function(){
+    popup = map.infoWindow;
+
+    // Get the selected feature in two different ways
+    // 1. From the event object's target property
+    // 2. From the map's infoWindow object if it is in scope
+    // 3. From the popup.features array
+    popup.on("set-features", function(evt){
+      console.log("set features event: ", evt.target.getSelectedFeature());
+      console.log("selected feature: ", popup.getSelectedFeature());
+      console.log("all features in popup: ", popup.features);
+    });
+  });
+
+  ////////////////////////////////////////////////////////////
+
   var sublayers;
 
   // load layer item metadata from ArcGIS Online
