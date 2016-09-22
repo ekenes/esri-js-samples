@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Create dynamic layer from id</title>
+
+<link rel="stylesheet" href="//js.arcgis.com/3.17/dijit/themes/claro/claro.css">
+<link rel="stylesheet" href="//js.arcgis.com/3.17/esri/css/esri.css">
+
+<style>
+  html, body, #viewDiv{
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    width: 100%;
+  }
+  #info {
+    background: white;
+    color: black;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 5;
+    padding: 6px;
+    width: 300px;
+  }
+</style>
+
+<script src="//js.arcgis.com/3.17/"></script>
+
+<script>
+require([
+  "esri/map",
+  "esri/arcgis/utils",
+  "esri/layers/ArcGISDynamicMapServiceLayer",
+  "esri/layers/LayerDrawingOptions",
+  "esri/renderers/jsonUtils",
+  "esri/dijit/Legend",
+  "esri/dijit/PopupTemplate",
+  "dojo/dom",
+  "dojo/domReady!"
+], function(
+  Map, arcgisUtils, ArcGISDynamicMapServiceLayer, LayerDrawingOptions, rendererJsonUtils, Legend, PopupTemplate, dom
+) {
+
+  var map = new Map("viewDiv", {
+    basemap: "gray",
+    center: [ -100, 38 ],
+    zoom: 5
+  });
+
+  ////////////////////////////////////////////////////////////
+
+  // Demonstrates how to get the selected feature from a popup
+  // when a dynamic layer is displayed in the map
+  var popup;
+
+  map.on("load", function(){
+    popup = map.infoWindow;
+
+    // Get the selected feature in two different ways
+    // 1. From the event object's target property
+    // 2. From the map's infoWindow object if it is in scope
+    // 3. From the popup.features array
+    popup.on("set-features", function(evt){
+      console.log("set features event: ", evt.target.getSelectedFeature());
+      console.log("selected feature: ", popup.getSelectedFeature());
+      console.log("all features in popup: ", popup.features);
+    });
+  });
+
+  ////////////////////////////////////////////////////////////
+
+  var sublayers;
+
+  // load layer item metadata from ArcGIS Online
+  arcgisUtils.getItem("7f6c20c3e1984310961fae7c313f152a")
+    .then(function(response){
+
+      // Create dynamic layer from response url and
+      // add to map and legend
+      var url = response.item.url;
+      var layer = new ArcGISDynamicMapServiceLayer(url);
+      map.addLayer(layer);
+
+      var legend = new Legend({
+        map: map,
+        layerInfos: [{
+          layer: layer,
+          title: response.item.title
+        }]
+      }, "legend");
+      legend.startup();
+
+      // get the dynamic layers saved to the item
+      sublayers = response.itemData.layers.filter(function(layer, i){
+        var layerIds = response.itemData.thematicGroup.layerIds;
+        var index = layerIds.findIndex(function(id, k){
+          return id === layer.id;
+        });
+
+        return index !== -1;
+      });
+
+      // when the layer loads, set the dynamic layers to the layer
+      layer.on("load", setDynamicInfos);
+    });
+
+
+  function setDynamicInfos (evt){
+
+    var layer = evt.layer;
+    var serviceLayerInfos = layer.createDynamicLayerInfosFromLayerInfos();
+
+    // Create dynamic layer infos from the service and filter out
+    // the layer infos not included in the sublayers
+    var dynamicLayerInfos = serviceLayerInfos.filter(function(layerInfo, i){
+      var index = sublayers.findIndex(function(sublayer, k){
+        return sublayer.layerDefinition.source.mapLayerId === layerInfo.source.mapLayerId;
+      });
+
+      return index !== -1;
+    });
+    // set the dynamic layers on the parent layer
+    layer.setDynamicLayerInfos(dynamicLayerInfos, true);
+
+    // set the drawingInfos (renderers) on the dynamic layers
+    var drawingInfos = serviceLayerInfos.map(function(layerInfo, i){
+      var drawInfo = null;
+      sublayers.forEach(function(sublayer, k){
+        if (i === sublayer.layerDefinition.source.mapLayerId){
+          var rendererJson = sublayer.layerDefinition.drawingInfo.renderer;
+          drawInfo = new LayerDrawingOptions();
+          drawInfo.renderer = rendererJsonUtils.fromJson(rendererJson);
+        }
+      });
+
+      return drawInfo;
+    });
+    layer.setLayerDrawingOptions(drawingInfos);
+    setPopupContent(layer);
+  }
+
+  // Set infoTemplates on the sublayers;
+  function setPopupContent (layer){
+    var infoTemplates = {};
+    sublayers.forEach(function(sublayer, i){
+      if(sublayer.popupInfo){
+        var serviceId = sublayer.layerDefinition.source.mapLayerId;
+        infoTemplates[serviceId] = {
+          infoTemplate: new PopupTemplate(sublayer.popupInfo),
+          layerUrl: null
+        };
+      }
+    });
+    layer.setInfoTemplates(infoTemplates);
+  }
+
+});
+</script>
+
+</head>
+
+<body class="claro">
+  <div id="viewDiv"></div>
+  <div id="info"><div id="legend"></div></div>
+</body>
+
+</html>
