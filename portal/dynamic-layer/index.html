@@ -73,7 +73,15 @@ require([
       legend.startup();
 
       // get the dynamic layers saved to the item
-      sublayers = response.itemData.layers;
+      sublayers = response.itemData.layers.filter(function(layer, i){
+        var layerIds = response.itemData.thematicGroup.layerIds;
+        var index = layerIds.findIndex(function(id, k){
+          return id === layer.id;
+        });
+
+        return index !== -1;
+      });
+
       // when the layer loads, set the dynamic layers to the layer
       layer.on("load", setDynamicInfos);
     });
