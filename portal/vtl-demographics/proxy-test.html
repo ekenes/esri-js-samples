@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>VectorTileLayer with legend and popup</title>
+
+<link rel="stylesheet" href="//js.arcgis.com/3.18/dijit/themes/claro/claro.css">
+<link rel="stylesheet" href="//js.arcgis.com/3.18/esri/css/esri.css">
+
+<style>
+  html, body, #viewDiv{
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    width: 100%;
+  }
+  #info {
+    background: white;
+    color: black;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 5;
+    padding: 6px;
+  }
+</style>
+
+<script src="//js.arcgis.com/3.18/"></script>
+
+<script>
+require([
+  "esri/map",
+  "esri/arcgis/utils",
+  "esri/urlUtils",
+  "esri/layers/VectorTileLayer",
+  "esri/layers/LayerMapSource",
+  "esri/layers/FeatureLayer",
+  "esri/renderers/jsonUtils",
+  "esri/dijit/Legend",
+  "esri/dijit/PopupTemplate",
+  "esri/tasks/query",
+  "dojo/dom",
+  "dojo/domReady!"
+], function(
+  Map, arcgisUtils, urlUtils, VectorTileLayer, LayerMapSource, FeatureLayer, rendererJsonUtils, Legend, PopupTemplate, Query, dom
+) {
+
+  var dynamicUrl;
+
+//    SET UP PROXY RULE HERE
+//    urlUtils.addProxyRule({
+//      proxyUrl: "http://utility.arcgis.com/usrsvcs/servers/1054432052f048ebac63c5b11c8ddc10",
+//      urlPrefix: "http://demographics6.arcgis.com/arcgis"
+//    });
+
+  var map = new Map("viewDiv", {
+    basemap: "gray",
+    center: [ -100, 38 ],
+    zoom: 5
+  });
+
+  map.on("click", openPopup);
+
+  // an array of related vector tile and dynamic layer items
+  var relatedItems = [{
+    vectorTileItem: "4c926d6c1d4649d7b9aef4e6042275c4",
+    dynamicLayerItem: "394329f080414e65836dc8025ad2d5fc"
+  }];
+
+  arcgisUtils.getItem(relatedItems[0].vectorTileItem)
+    .then(createVectorTileLayer)
+    .then(getRelatedItem)
+    .then(createFeatureLayers);
+
+  // load vector tile layer item metadata from ArcGIS Online
+  function createVectorTileLayer (response){
+    // Create vector tile layer from response url and
+    // add it to the map
+    var url = response.item.url;
+    var layer = new VectorTileLayer(url);
+    map.addLayer(layer);
+
+    // Once added to the map get the item metadata for the
+    // dynamic layer containing all the attributes
+    return response.item.id;
+  }
+
+  function getRelatedItem (id) {
+    var relatedId = relatedItems[0].dynamicLayerItem;
+    // get the item id of the related dynamic layer item
+    return arcgisUtils.getItem(relatedId);
+  }
+
+  // Creates feature layers for each dynamic layer info
+  // defined in the portal item data
+  function createFeatureLayers (response){
+
+    // url for querying dynamic map layer source
+    var url = response.item.url;
+    // proxy url - This is where you would do the swap
+    var url = "http://utility.arcgis.com/usrsvcs/servers/1054432052f048ebac63c5b11c8ddc10/rest/services/USA_Demographics_and_Boundaries_2016/MapServer";
+
+    dynamicUrl = url + "/dynamicLayer";
+
+    // the fields to return for legend
+    // and popup query purposes
+    var fields = response.itemData.thematicGroup.fieldNames;
+
+    // get the dynamic layers saved to the item
+    // only return the dynamic layers with data-driven
+    // visualization defined in the given Thematic Group
+    var sublayers = response.itemData.layers.filter(function(layer, i){
+      var layerIds = response.itemData.thematicGroup.layerIds;
+      var index = layerIds.findIndex(function(id, k){
+        return id === layer.id;
+      });
+
+      return index !== -1;
+    });
+
+    // FeatureLayer options that apply to all layers
+    var layerOptions = {
+      mode: FeatureLayer.MODE_SELECTION,
+      outFields: fields
+    };
+
+    // layer infos that will be used for legend
+    var legendLayerInfos = [];
+
+    // Create feature layers for each dynamic sublayer
+    // defined in the portal item
+    sublayers.forEach(function(layer, i){
+
+      layerOptions.source = new LayerMapSource(layer.layerDefinition.source);
+      var fl = new FeatureLayer(dynamicUrl, layerOptions);
+
+      var rendererJson = layer.layerDefinition.drawingInfo.renderer;
+      fl.setRenderer(rendererJsonUtils.fromJson(rendererJson));
+
+      var minScale = layer.layerDefinition.minScale ? layer.layerDefinition.minScale : null;
+      var maxScale = layer.layerDefinition.maxScale ? layer.layerDefinition.maxScale : null;
+      fl.setScaleRange(minScale, maxScale);
+
+      var popupTemplate = layer.popupInfo ? new PopupTemplate(layer.popupInfo) : null;
+      fl.setInfoTemplate(popupTemplate);
+
+      map.addLayer(fl);
+
+      legendLayerInfos.push({
+        layer: fl,
+        title: layer.name
+      });
+
+    });
+
+    createLegend(legendLayerInfos);
+  }
+
+  function createLegend (layerInfos){
+    var legend = new Legend({
+      map: map,
+      layerInfos: layerInfos
+    }, "legend");
+    legend.startup();
+  }
+
+  // select a feature for the active layer
+  // and open the popup
+  function openPopup(evt){
+    var clickedLocation = evt.mapPoint;
+    var query = new Query();
+    query.geometry = clickedLocation;
+    query.returnGeometry = false;
+
+    var visibleLayers = map.getLayersVisibleAtScale();
+    var layerIndex = visibleLayers.findIndex(function(layer){
+      return layer.url && layer.url === dynamicUrl;
+    });
+    var activeLayer = visibleLayers[layerIndex];
+
+    activeLayer.selectFeatures(query, FeatureLayer.SELECTION_NEW, function(features){
+      map.infoWindow.setFeatures(features);
+      map.infoWindow.show(clickedLocation);
+    });
+  }
+
+});
+</script>
+
+</head>
+
+<body class="claro">
+  <div id="viewDiv"></div>
+  <div id="info"><div id="legend"></div></div>
+</body>
+
+</html>
