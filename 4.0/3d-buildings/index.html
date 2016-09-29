@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Load a basic WebScene - 4.1</title>
+
+  <link rel="stylesheet" href="//js.arcgis.com/4.1/esri/css/main.css">
+  <script src="//js.arcgis.com/4.1/"></script>
+
+  <link rel="stylesheet" href="app.css">
+  <script src="app.js"></script>
+</head>
+
+<body>
+  <div id="viewDiv">
+    <div id="titleDiv"></div>
+    <div id="sidebarDiv">
+      <div>
+        Usage type: <select id="type-select">
+          <option value="3">All</option>
+          <option value="1">Residential</option>
+          <option value="0">Commercial</option>
+          <option value="2">Mixed</option>
+        </select>
+      </div><br>
+      <input type="checkbox" id="market-check"> Show days on market
+    </div>
+    <div id="slidesDiv">
+      <div id="slides-title">Slides</div>
+    </div>
+  </div>
+</body>
+
+</html>
