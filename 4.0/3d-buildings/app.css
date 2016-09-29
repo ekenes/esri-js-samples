@@ -48,7 +48,7 @@ body,
   margin-bottom: 6px;
 }
 
-#slidesDiv .slide .title {
+#slidesDiv .slide {
   /* Center the title text */
   text-align: center;
 }

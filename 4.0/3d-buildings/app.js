@@ -17,7 +17,14 @@ require([
 ) {
 
   var titleDiv = dom.byId("titleDiv");
+  var slidesDiv = dom.byId("slidesDiv");
 
+  /**
+   * Returns a 3D Mesh Symbol with the given fill color.
+   * @param   {esri/Color} color - Autocastable color value.
+   * @return {esri/symbols/MeshSymbol3D} A 3D Mesh Symbol shaded with the
+   *                                     input color value.
+   */
   function createSymbol(color){
     return new MeshSymbol3D({
       symbolLayers: [
@@ -28,20 +35,24 @@ require([
     });
   }
 
-  var slidesDiv = dom.byId("slidesDiv");
-
+  // When the user's mouse location leaves the slides div,
+  // scroll the position back to the top so "Slides" always shows
   on(slidesDiv, "mouseleave", function(){
     slidesDiv.scrollTop = 0;
   });
 
 
+  /**
+   * Creates the UI for working with the scene's slides
+   *
+   * @param {esri/webscene/Slide} slide - The slide to add to the UI.
+   */
   function createSlideUI(slide) {
     var slideElement = domConstruct.create("div", {
       // Assign the ID of the slide to the <span> element
       id: slide.id,
       className: "slide"
     });
-
     domConstruct.place(slideElement, "slidesDiv", "last");
 
     domConstruct.create("div", {
@@ -55,6 +66,8 @@ require([
       title: slide.title.text
     }, slideElement); // Place the image inside the new <div> element
 
+    // When the slide element is clicked, apply the
+    // slide's settings to the view
     on(slideElement, "click", function() {
       query(".slide").removeClass("active");
       domClass.add(slideElement, "active");
@@ -62,44 +75,32 @@ require([
     });
   }
 
+  // Create the initial renderer used for visualizing building
+  // floors. Each floor is colored based on whether it is
+  // "residential", "commerical", or "mixed"
   var initialRenderer = new UniqueValueRenderer({
     field: "usageReport",
     defaultLabel: "Other",
     defaultSymbol: createSymbol([ 128,128,128,0.2 ]),
-    uniqueValueInfos: [{
-      value: 1,
-      label: "Residential",
-      symbol: createSymbol("#FFBF0B")
-    }, {
-      value: 2,
-      label: "Mixed",
-      symbol: createSymbol("#E10952")
-    }, {
-      value: 0,
-      label: "Commercial",
-      symbol: createSymbol("#1844AB")
-    }]
+    uniqueValueInfos: getUniqueInfoFromValue("all")
   });
 
   /************************************************************
-   * Creates a new WebScene instance. A WebScene must reference
-   * a PortalItem ID that represents a WebScene saved to
-   * arcgis.com or an on-premise portal.
-   *
-   * To load a WebScene from an on-premise portal, set the portal
-   * url in esriConfig.portalUrl.
-   ************************************************************/
-//  esriConfig.portalUrl = "https://devtesting.mapsdevext.arcgis.com";
+  * Creates a new WebScene instance. A WebScene must reference
+  * a PortalItem ID that represents a WebScene saved to
+  * arcgis.com or an on-premise portal.
+  *
+  * To load a WebScene from an on-premise portal, set the portal
+  * url in esriConfig.portalUrl.
+  ************************************************************/
 
   var scene = new WebScene({
     portalItem: {
-      id: "c0378029c7fc4a58b6d22c76adca1cc0"
+      id: "f0a2199020344acbbefdea18ee5cd8b8"
     }
   });
 
-  /************************************************************
-   * Set the WebScene instance to the map property in a SceneView.
-   ************************************************************/
+  // Set the WebScene instance to the map property in a SceneView.
   var view = new SceneView({
     map: scene,
     container: "viewDiv",
@@ -108,44 +109,47 @@ require([
     }
   });
 
+  var buildingsLayer;
+
   view.then(function() {
     // when the scene and view resolve, display the scene's
     // title in the DOM
     var title = scene.portalItem.title;
     titleDiv.innerHTML = title;
 
+    // Add the scene's slides to the slides dive
     var slides = scene.presentation.slides;
-
     slides.forEach(createSlideUI);
 
-    console.log("slides: ", slides);
-
-    var buildingsLayer = scene.layers.find(function(layer){
-      return layer.layerId === 0;
+    // Get the buildings layer for visualization purposes
+    buildingsLayer = scene.allLayers.find(function(layer){
+      return layer.title === "Thematic buildings";
     });
 
     buildingsLayer.renderer = initialRenderer;
 
+    // Configure popup programmatically
     buildingsLayer.popupTemplate = {
-      title: "{addr__housenumber} {addr__street}, New York, NY {addr__postcode}",
+      title: "{name}",
       content: [{
         type: "fields",
         fieldInfos: [{
-          fieldName: "name",
-          label: "Building name"
+          fieldName: "building",
+          label: "Building type"
         }, {
           fieldName: "height",
-          label: "Height"
+          label: "Height (ft)"
         }, {
           fieldName: "daysMarketReport",
           label: "Days on the market"
         }, {
-          fieldName: "usageReport",
-          label: "Usage type"
+          fieldName: "website",
+          label: "Website"
         }]
       }]
     };
 
+    // Set up UI elements
     var legend = new Legend({
       view: view
     });
@@ -154,165 +158,184 @@ require([
     view.ui.add("sidebarDiv", "bottom-right");
     view.ui.add("slidesDiv", "top-right");
 
-    console.log("layers: ", buildingsLayer);
+    // Set up event handlers for filtering and visualization
+    on(dom.byId("type-select"), "change", selectUsageType);
+    on(dom.byId("market-check"), "change", viewDaysOnMarket);
+  });
 
-    on(dom.byId("type-select"), "change", function(evt){
-      var newVal = evt.target.value;
-      var renderer = buildingsLayer.renderer.clone();
+  /**
+   * Highlights all floors of the given usage type.
+   * @param {Object} evt - Event object. Grab the new value
+   *                     to use for rendering purposes.
+   */
+  function selectUsageType (evt){
+    var newVal = parseInt(evt.target.value);
+    var renderer = buildingsLayer.renderer.clone();
 
-      if (newVal === "3"){
+    // if the user wants to see the days on market
+    // for all floors, set visual variables on all floors.
+    if (newVal === 3){
 
-        if (dom.byId("market-check").checked){
-          renderer.uniqueValueInfos = [];
-          renderer.visualVariables = [{
-            type: "color",
-            field: "daysMarketReport",
-            stops: getColorStops("0")
-          }];
-          buildingsLayer.renderer = renderer;
-        } else {
-          buildingsLayer.renderer = initialRenderer;
-        }
-
-        return;
-      }
-
-
-
-
-
-      renderer.uniqueValueInfos = [
-        getUniqueInfoFromValue(newVal)
-      ];
-
-      if(renderer.visualVariables){
-        var typeValue = parseInt(newVal);
-        renderer.visualVariables = [{
-          type: "color",
-          field: "daysMarketReport",
-          stops: getColorStops(newVal)
-        }, {
-          type: "opacity",
-          field: "usageReport",
-          stops: [
-            { value: typeValue-0.1, opacity: 0.10 },
-            { value: typeValue, opacity: 1 },
-            { value: typeValue+0.1, opacity: 0.10 }
-          ]
-        }];
-      }
-
-      buildingsLayer.renderer = renderer;
-    });
-
-
-    on(dom.byId("market-check"), "change", function(evt){
-      var checked = evt.target.checked;
-      var typeValue = parseInt(dom.byId("type-select").value);
-      var renderer = buildingsLayer.renderer.clone();
-      if(checked && typeValue < 3){
-        renderer.visualVariables = [{
-          type: "color",
-          field: "daysMarketReport",
-          stops: getColorStops(dom.byId("type-select").value)
-        }, {
-          type: "opacity",
-          field: "usageReport",
-          stops: [
-            { value: typeValue-0.1, opacity: 0.10 },
-            { value: typeValue, opacity: 1 },
-            { value: typeValue+0.1, opacity: 0.10 }
-          ]
-        }];
-      }
-      else if (checked && typeValue === 3){
+      if (dom.byId("market-check").checked){
         renderer.uniqueValueInfos = [];
         renderer.visualVariables = [{
           type: "color",
           field: "daysMarketReport",
-          stops: getColorStops("0")
+          stops: getColorStops(0)
         }];
+        buildingsLayer.renderer = renderer;
+      } else {
+        buildingsLayer.renderer = initialRenderer;
       }
-      else if (!checked && typeValue === 3){
-        renderer = initialRenderer;
-      }
-      else {
-        renderer.visualVariables = [];
-      }
-      buildingsLayer.renderer = renderer;
-    });
 
+      return;
+    }
 
-
-  });
-
-  function getColorStops(value){
-    console.log("label value; ",  value);
-    var residentialScheme = [
-      { value: 0, color: "#FFD868" },
-      { value: 60, color: "#FFCD3F" },
-      { value: 120, color: "#CB9600" },
-      { value: 200, color: "#A07600" }
+    // set only one unique value when the user
+    // selects a usage type.
+    renderer.uniqueValueInfos = [
+      getUniqueInfoFromValue(newVal)
     ];
 
-    var mixedScheme = [
-      { value: 0, color: "#EA608E" },
-      { value: 60, color: "#E43872" },
-      { value: 120, color: "#B4003D" },
-      { value: 200, color: "#8D002F" }
-    ];
+    // If the number of days on the market box is
+    // still checked, then re-apply visual variables
+    // using the scheme of the newly selected usage type
+    if(dom.byId("market-check").checked){
+      renderer.visualVariables = [{
+        type: "color",
+        field: "daysMarketReport",
+        stops: getColorStops(newVal)
+      }, {
+        type: "opacity",
+        field: "usageReport",
+        stops: [
+          { value: newVal-0.1, opacity: 0.10 },
+          { value: newVal, opacity: 1 },
+          { value: newVal+0.1, opacity: 0.10 }
+        ]
+      }];
+    }
 
-    var commercialScheme = [
-      { value: 0, color: "#5C7BC3" },
-      { value: 60, color: "#3A5EB2" },
-      { value: 120, color: "#0E3388" },
-      { value: 200, color: "#09276B" }
-    ];
-
-    if (value === "1"){
-      return residentialScheme;
-    }
-    else if (value === "0"){
-      return commercialScheme;
-    }
-    else if (value === "2"){
-      return mixedScheme;
-    }
-    else {
-      console.log("Couldn't find a match");
-    }
+    buildingsLayer.renderer = renderer;
   }
 
+  /**
+   * Applies visual variables to the floors with a weak
+   * to strong color ramp for depicting how long the floor
+   * has been on the market.
+   *
+   * @param {Object} evt The event object used to indicate
+   *                     whether the box has been checked or not.
+   */
+  function viewDaysOnMarket (evt){
+    var checked = evt.target.checked;
+    // the currently selected usage type
+    var typeValue = parseInt(dom.byId("type-select").value);
+    var renderer = buildingsLayer.renderer.clone();
 
-  function getUniqueInfoFromValue(value){
-    var info = {};
-    if( value === "0" ){
-      info = {
-        value: 0,
-        label: "Commercial",
-        symbol: createSymbol("#1844AB")
-      };
+    if(checked && typeValue < 3){
+      renderer.visualVariables = [{
+        type: "color",
+        field: "daysMarketReport",
+        stops: getColorStops(typeValue)
+      }, {
+        type: "opacity",
+        field: "usageReport",
+        stops: [
+          { value: typeValue-0.1, opacity: 0.10 },
+          { value: typeValue, opacity: 1 },
+          { value: typeValue+0.1, opacity: 0.10 }
+        ]
+      }];
     }
-    else if ( value === "1" ){
-      info = {
-        value: 1,
-        label: "Residential",
-        symbol: createSymbol("#FFBF0B")
-      };
+    else if (checked && typeValue === 3){
+      renderer.uniqueValueInfos = [];
+      renderer.visualVariables = [{
+        type: "color",
+        field: "daysMarketReport",
+        stops: getColorStops(0)
+      }];
     }
-    else if ( value === "2" ) {
-      info = {
-        value: 2,
-        label: "Mixed",
-        symbol: createSymbol("#E10952")
-      };
+    else if (!checked && typeValue === 3){
+      renderer = initialRenderer;
     }
     else {
-      info = {
-        label: "Other",
-        symbol: createSymbol("black")
-      };
+      renderer.visualVariables = [];
     }
+    buildingsLayer.renderer = renderer;
+  }
+
+  /**
+   * Returns the color scheme to use in the visual variables
+   * stops property based on the provided usage type value
+   * @param   {number} value - The usage type value.
+   * @return {Object[]} The stops used for the color visual variable.
+   */
+  function getColorStops(value){
+
+    var schemes = [{
+      usageType: 0,
+      scheme: [
+        { value: 0, color: "#5C7BC3" },
+        { value: 60, color: "#3A5EB2" },
+        { value: 120, color: "#0E3388" },
+        { value: 200, color: "#09276B" }
+      ]
+    },{
+      usageType: 1,
+      scheme: [
+        { value: 0, color: "#FFD868" },
+        { value: 60, color: "#FFCD3F" },
+        { value: 120, color: "#CB9600" },
+        { value: 200, color: "#A07600" }
+      ]
+    }, {
+      usageType: 2,
+      scheme: [
+        { value: 0, color: "#EA608E" },
+        { value: 60, color: "#E43872" },
+        { value: 120, color: "#B4003D" },
+        { value: 200, color: "#8D002F" }
+      ]
+    }];
+
+    var results = schemes.filter(function(schemeInfo){
+      return schemeInfo.usageType === value;
+    });
+    var scheme = results[0].scheme;
+    return scheme;
+  }
+
+  /**
+   * Returns the unique value object based on the provided
+   * usage type value.
+   *
+   * @param   {number|string} value - The usage type as a number. Using
+   *                                `all` as input is valid for returning all
+   *                                unique value infos.
+   * @return {Object|Object[]} The unique value info object
+   */
+  function getUniqueInfoFromValue(value){
+
+    var infos = [{
+      value: 0,
+      label: "Commercial",
+      symbol: createSymbol("#1844AB")
+    }, {
+      value: 1,
+      label: "Residential",
+      symbol: createSymbol("#FFBF0B")
+    }, {
+      value: 2,
+      label: "Mixed",
+      symbol: createSymbol("#E10952")
+    }];
+
+    var results = infos.filter(function(info){
+      return info.value === value;
+    });
+
+    var info = (value === "all") ? infos : results[0];
     return info;
   }
 
