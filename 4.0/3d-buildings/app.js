@@ -114,6 +114,8 @@ require([
   view.then(function() {
     // when the scene and view resolve, display the scene's
     // title in the DOM
+
+    console.log(scene);
     var title = scene.portalItem.title;
     titleDiv.innerHTML = title;
 

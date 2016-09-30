@@ -5,6 +5,9 @@ body,
   margin: 0;
   height: 100%;
   width: 100%;
+  font-family: "Avenir Next W00","Helvetica Neue",Helvetica,Arial,sans-serif;
+  color: #323232;
+  font-size: 14px;
 }
 
 #sidebarDiv{
@@ -13,7 +16,7 @@ body,
 }
 
 #titleDiv {
-  background-color: lightgray;
+  background-color: white;
   color: black;
   padding: 5px;
   position: absolute;
@@ -31,7 +34,6 @@ body,
 #slidesDiv {
   background-color: white;
   height: 15px;
-/*  max-height: 400px;*/
   padding: 8px;
   overflow-y: scroll;
   transition: height 1s;
