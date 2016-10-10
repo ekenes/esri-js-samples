@@ -5,16 +5,19 @@ body,
   margin: 0;
   height: 100%;
   width: 100%;
+  font-family: "Avenir Next W00","Helvetica Neue",Helvetica,Arial,sans-serif;
+  color: #323232;
+  font-size: 14px;
 }
 
 #sidebarDiv{
-  background-color: white;
   padding: 8px;
+  width: 175px;
+  background-color: #242424;
+  color: #d1d1d1;
 }
 
 #titleDiv {
-  background-color: lightgray;
-  color: black;
   padding: 5px;
   position: absolute;
   z-index: 2;
@@ -25,13 +28,15 @@ body,
   width: 100%;
   height: 30px;
   text-align: center;
-  opacity: 0.75;
+  background-color: #242424;
+  color: #d1d1d1;
 }
 
 #slidesDiv {
-  background-color: white;
+  background-color: #242424;
+  color: #d1d1d1;
   height: 15px;
-/*  max-height: 400px;*/
+  width: 175px;
   padding: 8px;
   overflow-y: scroll;
   transition: height 1s;

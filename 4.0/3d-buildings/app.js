@@ -71,6 +71,7 @@ require([
     on(slideElement, "click", function() {
       query(".slide").removeClass("active");
       domClass.add(slideElement, "active");
+      titleDiv.innerHTML = slide.title.text;
       slide.applyTo(view);
     });
   }
@@ -109,11 +110,13 @@ require([
     }
   });
 
-  var buildingsLayer;
+  var buildingsLayer, legend;
 
   view.then(function() {
     // when the scene and view resolve, display the scene's
     // title in the DOM
+
+    console.log(scene);
     var title = scene.portalItem.title;
     titleDiv.innerHTML = title;
 
@@ -150,12 +153,12 @@ require([
     };
 
     // Set up UI elements
-    var legend = new Legend({
+    legend = new Legend({
       view: view
     });
 
     view.ui.add(legend, "bottom-left");
-    view.ui.add("sidebarDiv", "bottom-right");
+    view.ui.add("sidebarDiv", "top-right");
     view.ui.add("slidesDiv", "top-right");
 
     // Set up event handlers for filtering and visualization
@@ -233,6 +236,8 @@ require([
     var typeValue = parseInt(dom.byId("type-select").value);
     var renderer = buildingsLayer.renderer.clone();
 
+    legend.visible = !checked;
+
     if(checked && typeValue < 3){
       renderer.visualVariables = [{
         type: "color",
@@ -276,24 +281,24 @@ require([
     var schemes = [{
       usageType: 0,
       scheme: [
-        { value: 0, color: "#5C7BC3" },
-        { value: 60, color: "#3A5EB2" },
+        { value: 0, color: "#f7f7f7" },  // 5C7BC3
+        { value: 60, color: "#5C7BC3" },  // 3A5EB2
         { value: 120, color: "#0E3388" },
         { value: 200, color: "#09276B" }
       ]
     },{
       usageType: 1,
       scheme: [
-        { value: 0, color: "#FFD868" },
-        { value: 60, color: "#FFCD3F" },
+        { value: 0, color: "#f7f7f7" },  // FFD868
+        { value: 60, color: "#FFD868" },  // FFCD3F
         { value: 120, color: "#CB9600" },
         { value: 200, color: "#A07600" }
       ]
     }, {
       usageType: 2,
       scheme: [
-        { value: 0, color: "#EA608E" },
-        { value: 60, color: "#E43872" },
+        { value: 0, color: "#f7f7f7" },  // EA608E
+        { value: 60, color: "#EA608E" },  // E43872
         { value: 120, color: "#B4003D" },
         { value: 200, color: "#8D002F" }
       ]
