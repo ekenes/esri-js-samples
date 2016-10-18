@@ -3,244 +3,67 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
-<title>Basic 3D camera - 4.0 beta 1</title>
+<title>Basic 3D camera</title>
 <style>
   html, body, #viewDiv {
     padding: 0;
     margin: 0;
     height: 100%;
+    width: 100%;
   }
-    #controls{
-  top: 120px;
-  right: 20px;
-  width: 300px;
-  min-height: 100px;
-}      
-    
-#title{
-  top: 20px;
-  width: 50%; 
-  height: 50px;;
-  padding-top: 5px;
-  text-align: center;
-  margin: 0 0 0 25%;
-}
-.mainStyle{
-  position: absolute;
-  z-index: 99;
-  background-color: black;
-  color: whitesmoke;
-  border-radius: 8px;
-  border-width: medium;
-  border-color: cornflowerblue;
-  padding: 15px;
-  opacity: 0.75;
+
+#properties{
+  padding: 5px;
+  background-color: white;
+  color: #2e2e2e;
+  width: 160px;
 }
 </style>
-<script>dojoConfig = {async: true, parseOnLoad: false}</script>
-<link rel="stylesheet" href="http://js.arcgis.com/4.0beta1/dijit/themes/claro/claro.css">    
-<link href="//js.arcgis.com/4.0beta1/esri/css/esri.css" rel="stylesheet" type="text/css">
-<script src="//js.arcgis.com/4.0beta1/"></script>
+
+<link rel="stylesheet" href="//js.arcgis.com/4.1/esri/css/main.css">
+<script src="//js.arcgis.com/4.1/"></script>
 
 <script>
-var map, view, myCamera, point;
-
 require([
   "esri/Map",
   "esri/views/SceneView",
-  "esri/geometry/Point",
-  "esri/geometry/SpatialReference",
-  "esri/geometry/support/webMercatorUtils",
-  "esri/Camera",
-  "dojo/parser",
-  "dijit/form/HorizontalSlider",
   "dojo/on",
   "dojo/dom",
   "dojo/domReady!"
-], function (Map, SceneView, Point, SpatialReference, webMercatorUtils, Camera, parser, HorizontalSlider, on, dom){
-  parser.parse();
-    
-  var sr = new SpatialReference(4326);
-    
-  point = new Point({
-     x: 13,
-     y: 55,
-     z: 10000,
-     spatialReference: sr
-  });
-        
-    
-  myCamera = new Camera({
-      heading: 0,
-      position: point,
-      tilt: 75,
-      fov: 55
-  });    
-    
-  var fovSlider = new HorizontalSlider({
-      name: "fovSlider",
-      value: myCamera.fov,
-      minimum: 0,
-      maximum: 90,
-      intermediateChanges: true,
-      style: "width: 300px;",
-      onChange: function(value){
-          view.camera.fov = value;
-          view.animateTo(view.camera);
-      }
-  }, "fovSliderDiv");
-  fovSlider.startup();
-    
-  var headingSlider = new HorizontalSlider({
-      name: "headingSlider",
-      value: myCamera.heading,
-      minimum: 0,
-      maximum: 360,
-      intermediateChanges: true,
-      style: "width: 300px;",
-      onChange: function(value){
-          view.camera.heading = value;
-          view.animateTo(view.camera);
-      }
-  }, "headingSliderDiv");
-  headingSlider.startup();
-    
-  var tiltSlider = new HorizontalSlider({
-      name: "tiltSlider",
-      value: myCamera.tilt,
-      minimum: 0,
-      maximum: 90,
-      intermediateChanges: true,
-      style: "width: 300px;",
-      onChange: function(value){
-          view.camera.tilt = value;
-          view.animateTo(view.camera);
-      }
-  }, "tiltSliderDiv");
-  tiltSlider.startup();
-    
-  var xSlider = new HorizontalSlider({
-      name: "xSlider",
-      value: myCamera.position.x,
-      minimum: -179,
-      maximum: 179,
-      intermediateChanges: true,
-      style: "width: 300px;",
-      onChange: function(value){
-          view.camera.position.x = setCoor(view.camera.position, "x", value);
-          view.animateTo(view.camera);
-      }
-  }, "xSliderDiv");
-  xSlider.startup();
-    
-  var ySlider = new HorizontalSlider({
-      name: "ySlider",
-      value: myCamera.position.y,
-      minimum: -88,
-      maximum: 88,
-      intermediateChanges: true,
-      style: "width: 300px;",
-      onChange: function(value){
-          view.camera.position.y = setCoor(view.camera.position, "y", value);
-          view.animateTo(view.camera);
-      }
-  }, "ySliderDiv");
-  ySlider.startup();
-    
-  var zSlider = new HorizontalSlider({
-      name: "zSlider",
-      value: myCamera.position.z,
-      minimum: 100,
-      maximum: 5000000,
-      intermediateChanges: true,
-      style: "width: 300px;",
-      onChange: function(value){
-          view.camera.position.z = value;
-          view.animateTo(view.camera);
-      }
-  }, "zSliderDiv");
-  zSlider.startup();
-    
-  function setCoor(point, param, value){
-      var geoCoor = webMercatorUtils.webMercatorToGeographic(point);
-      var newCoor;
-      if(param === "x"){
-          geoCoor.x = value;
-          newCoor = webMercatorUtils.geographicToWebMercator(geoCoor);
-          return newCoor.x;
-      }
-      else if(param === "y"){
-          geoCoor.y = value;
-          newCoor = webMercatorUtils.geographicToWebMercator(geoCoor);
-          return newCoor.y;
-      }
-      else{
-          console.error("Specify X or Y value.");
-          return;
-      }
-  }
-    
-  dom.byId("currentTilt").innerHTML = myCamera.tilt;
-  dom.byId("currentHeading").innerHTML = myCamera.heading;
-  dom.byId("currentFov").innerHTML = myCamera.fov;
-  dom.byId("currentX").innerHTML = myCamera.position.x;
-  dom.byId("currentY").innerHTML = myCamera.position.y;
-  dom.byId("currentZ").innerHTML = myCamera.position.z;
+], function (Map, SceneView, on, dom){
 
-  map = new Map({
+  var map = new Map({
     basemap: "topo"
   });
 
-  view = new SceneView({
+  var view = new SceneView({
     container: "viewDiv",
-    map: map,
-    camera: myCamera,
-    scale: 2400000
-  });  
-    
-  view.watch("camera", function(camera){
-      dom.byId("currentTilt").innerHTML = Math.round(camera.tilt);
-      dom.byId("currentHeading").innerHTML = Math.round(camera.heading);
-      dom.byId("currentFov").innerHTML = Math.round(camera.fov);
-      dom.byId("currentX").innerHTML = Math.round(webMercatorUtils.webMercatorToGeographic(camera.position).x * 1000) / 1000;
-      dom.byId("currentY").innerHTML = Math.round(webMercatorUtils.webMercatorToGeographic(camera.position).y * 1000) / 1000;
-      dom.byId("currentZ").innerHTML = Math.round(camera.position.z);
+    map: map
+  });
 
-      if(Math.round(tiltSlider.value) != Math.round(camera.tilt))
-        tiltSlider.setValue(camera.tilt);
-      if(Math.round(headingSlider.value) != Math.round(camera.heading))
-        headingSlider.setValue(camera.heading);
-      if(Math.round(fovSlider.value) != Math.round(camera.fov))
-        fovSlider.setValue(camera.fov);
-      if(Math.round(xSlider.value) != Math.round(dom.byId("currentX").innerHTML))
-        xSlider.setValue(dom.byId("currentX").innerHTML);
-      if(Math.round(ySlider.value) != Math.round(dom.byId("currentY").innerHTML))
-        ySlider.setValue(dom.byId("currentY").innerHTML);
-      if(Math.round(zSlider.value) != Math.round(camera.position.z))
-        zSlider.setValue(camera.position.z);
-  });    
-    
+  view.ui.add("properties", "top-right");
+
+  view.watch("camera", function(camera){
+    dom.byId("currentTilt").innerHTML = Math.round(camera.tilt * 100) / 100;
+    dom.byId("currentHeading").innerHTML = Math.round(camera.heading * 100) / 100;
+    dom.byId("currentX").innerHTML = Math.round(camera.position.longitude * 100) / 100;
+    dom.byId("currentY").innerHTML = Math.round(camera.position.latitude * 100) / 100;
+    dom.byId("currentZ").innerHTML = Math.round(camera.position.z * 100) / 100;
+  });
+
 });
 </script>
 </head>
 
-<body class="claro">
+<body>
   <div id="viewDiv">
-    <div class="mainStyle" id="title"><h2>SceneView: Camera</h2></div>
-      <div class="mainStyle" id="controls">Modify the camera properties using the handles below.<br><br>
-          <b>Heading:</b> <span id='currentHeading'></span><br>
-          <div id="headingSliderDiv"></div><br>
-          <b>Tilt:</b> <span id='currentTilt'></span><br>
-          <div id="tiltSliderDiv"></div><br>
-          <b>Field of View:</b> <span id='currentFov'></span><br>
-          <div id="fovSliderDiv"></div><br>
-          <b>Position.X:</b> <span id='currentX'></span><br>
-          <div id="xSliderDiv"></div><br>
-          <b>Position.Y:</b> <span id='currentY'></span><br>
-          <div id="ySliderDiv"></div><br>
-          <b>Position.Z:</b> <span id='currentZ'></span><br>
-          <div id="zSliderDiv"></div><br>
-          </div>
+    <div id="properties"><h2>Camera</h2>
+      <b>Heading:</b> <span id='currentHeading'></span><br>
+      <b>Tilt:</b> <span id='currentTilt'></span><br>
+      <b>Longitude:</b> <span id='currentX'></span><br>
+      <b>Latitude:</b> <span id='currentY'></span><br>
+      <b>Elevation:</b> <span id='currentZ'></span><br>
     </div>
+  </div>
 </body>
 </html>
