@@ -15,12 +15,13 @@ require([
   "dojo/dom-construct",
   "dojo/on",
   "modules/arcade-generator",
+  "modules/color-ramps",
   "dojo/domReady!"
 ], function (
   Color, BasemapToggle,
   PopupTemplate, FeatureLayer, Map, FeatureLayerStatistics, smartMapping,
   UniqueValueRenderer, SimpleFillSymbol, SimpleLineSymbol, SimpleMarkerSymbol,
-  array, dom, domConstruct, on, arcadeGenerator
+  array, dom, domConstruct, on, arcadeGenerator, colorRamps
 ){
 
   var url = dom.byId("url-input").value;
@@ -76,106 +77,10 @@ require([
   }
 
   function getColor(value, classes) {
-    ///////// 2x2
 
-    var colors2 = [
-      { value: "A1", color: "#f3d8cb" },
-      { value: "A2", color: "#07a9d0" },
-      { value: "B1", color: "#ea7f45" },
-      { value: "B2", color: "#705a50" },
-    ];
-
-    var colors3 = [
-    /////// 3X3
-    {
-      value: "A1",
-      color: "#ffefe2"
-    }, {
-      value: "A2",
-      color: "#98cfe5"
-    }, {
-      value: "A3",
-      color: "#00afe7"
-    }, {
-      value: "B1",
-      color: "#ffb286"
-    }, {
-      value: "B2",
-      color: "#af978b"
-    }, {
-      value: "B3",
-      color: "#427a8e"
-    }, {
-      value: "C1",
-      color: "#f97529"
-    }, {
-      value: "C2",
-      color: "#aa5f37"
-    }, {
-      value: "C3",
-      color: "#5c473d"
-    }];
-
-    ///// 4X4
-    var colors4 = [{
-      value: "A1",
-      color: "#fffaed"
-    }, {
-      value: "A2",
-      color: "#c3e2f0"
-    }, {
-      value: "A3",
-      color: "#4ccaf2"
-    }, {
-      value: "A4",
-      color: "#00b1f3"
-    }, {
-      value: "B1",
-      color: "#ffcda7"
-    }, {
-      value: "B2",
-      color: "#d0b7ab"
-    }, {
-      value: "B3",
-      color: "#82a0ad"
-    }, {
-      value: "B4",
-      color: "#0089af"
-    }, {
-      value: "C1",
-      color: "#ff9f63"
-    }, {
-      value: "C2",
-      color: "#d08c69"
-    }, {
-      value: "C3",
-      color: "#8f786c"
-    }, {
-      value: "C4",
-      color: "#46636f"
-    }, {
-      value: "D1",
-      color: "#ff6f16"
-    }, {
-      value: "D2",
-      color: "#c56027"
-    }, {
-      value: "D3",
-      color: "#8b4f30"
-    }, {
-      value: "D4",
-      color: "#533e34"
-    }];
-
-    var pair;
-
-    if (classes === 2){
-      pair = colors2.find(findColor);
-    } else if (classes === 3){
-      pair = colors3.find(findColor);
-    } else {
-      pair = colors4.find(findColor);
-    }
+    var rampId = dom.byId("ramp-select").value + "-" + classes;
+    var ramp = colorRamps.getColorRamp(rampId);
+    var pair = ramp.find(findColor);
 
     function findColor(item, i){
       return item.value === value;
@@ -560,7 +465,7 @@ require([
       });
     });
 
-    swapLegend(classes);
+    swapLegend();
 
     lyr.setRenderer(uvr);
     lyr.redraw();
@@ -660,18 +565,14 @@ require([
 
   on(dom.byId("redraw"), "click", updateSmartMapping);
 
-  function swapLegend (classes){
-    var legendImages = [
-      { numClasses: 2, url: "../img/bivariate-legend-2.png" },
-      { numClasses: 3, url: "../img/bivariate-legend-3.png" },
-      { numClasses: 4, url: "../img/bivariate-legend-4.png" }
-    ];
+  function swapLegend (){
 
-    legend.src = legendImages.find(function(item, i){
-      return item.numClasses === classes;
-    }).url;
+    var classes = dom.byId("num-classes").value;
+    var colorRamp = dom.byId("ramp-select").value;
+    var imagePath = "../img/" + colorRamp + "-" + classes + ".png";
+    legend.src = imagePath;
 
-    setLabels(classes);
+    setLabels(parseInt(classes));
   }
 
   on(arcadeBtn, "click", function(){
