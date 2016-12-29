@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Arcade labels</title>
+
+<link rel="stylesheet" href="https://jsdev.arcgis.com/3.19/esri/css/esri.css">
+<script src="https://jsdev.arcgis.com/3.19/"></script>
+
+<style>
+  html, body, #viewDiv {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+</style>
+
+<script>
+  require([
+    "esri/map",
+    "esri/layers/FeatureLayer",
+    "esri/layers/LabelClass",
+    "esri/renderers/SimpleRenderer",
+    "esri/symbols/SimpleMarkerSymbol",
+    "esri/symbols/SimpleLineSymbol",
+    "esri/symbols/TextSymbol",
+    "esri/Color",
+    "dojo/domReady!"
+  ], function(Map, FeatureLayer, LabelClass, SimpleRenderer,
+    SimpleMarkerSymbol, SimpleLineSymbol, TextSymbol, Color
+  ) {
+
+    var map = new Map("viewDiv", {
+      basemap: "satellite",
+      center: [ -89.5554, 45.4840 ],
+      zoom: 9,
+      showLabels: true
+    });
+
+    /////////////////////////////////
+    ////                         ////
+    //// temperature label class ////
+    ////                         ////
+    /////////////////////////////////
+
+    // Arcade expression that converts the temperature to a
+    // string and concatenates it with the degree symbol and units
+
+    var tempArcade = "$feature.TEMP + '° F';";
+
+    var tempClass = new LabelClass({
+      labelExpressionInfo: {
+        expression: tempArcade
+      },
+      labelPlacement: "above-left",
+      minScale: 2500000
+    });
+    tempClass.symbol = createTextSymbol("#4792c1", 11, { x: -3, y: 3 });
+
+
+    //////////////////////////
+    ////                  ////
+    //// wind label class ////
+    ////                  ////
+    //////////////////////////
+
+    // Arcade expression that determines the compass direction wind
+    // is blowing based on a field indicating the compass degrees
+    // of the wind direction. This is appended to the wind speed
+
+    var windArcade = "var DEG = $feature.WIND_DIRECT;"
+      + "var SPEED = $feature.WIND_SPEED;"
+      + "var DIR = When( SPEED == 0, null,"
+      + "              (DEG < 22.5 && DEG >= 0) || DEG > 337.5, 'N',"
+      + "               DEG >= 22.5 && DEG < 67.5, 'NE',"
+      + "               DEG >= 67.5 && DEG < 112.5, 'E',"
+      + "               DEG >= 112.5 && DEG < 157.5, 'SE',"
+      + "               DEG >= 157.5 && DEG < 202.5, 'S',"
+      + "               DEG >= 202.5 && DEG < 247.5, 'SW',"
+      + "               DEG >= 247.5 && DEG < 292.5, 'W',"
+      + "               DEG >= 292.5 && DEG < 337.5, 'NW', null );"
+      + "var WIND = SPEED + ' mph ' + DIR;"
+      + "return WIND;";
+
+    var windClass = new LabelClass({
+      labelExpressionInfo: {
+        expression: windArcade
+      },
+      labelPlacement: "above-right",
+      minScale: 2500000
+    });
+    windClass.symbol = createTextSymbol("#3ba53f", 11, { x: 3, y: 3 });
+
+    //////////////////////////////
+    ////                      ////
+    //// humidity label class ////
+    ////                      ////
+    //////////////////////////////
+
+    // Arcade expression that converts the humidity value
+    // to a string and appends it to a % symbol.
+
+    var humidityArcade = "$feature.R_HUMIDITY + '% RH'";
+
+    var humidityClass = new LabelClass({
+      labelExpressionInfo: {
+        expression: humidityArcade
+      },
+      labelPlacement: "below-left",
+      minScale: 2500000
+    });
+    humidityClass.symbol = createTextSymbol("#c17c47", 11, { x: -3, y: -3 });
+
+
+    //////////////////////////////////
+    ////                          ////
+    //// station name label class ////
+    ////                          ////
+    //////////////////////////////////
+
+    // Arcade expression that outputs the name of the station
+    // based on teh STATION_NAME field
+
+    var nameArcade = "$feature.STATION_NAME";
+
+    var nameClass = new LabelClass({
+      labelExpressionInfo: {
+        expression: nameArcade
+      },
+      labelPlacement: "below-right",
+      minScale: 2500000
+    });
+    nameClass.symbol = createTextSymbol("black", 11, { x: 3, y: -3 });
+
+
+    // Create the layer and add it to the map
+
+    var serviceUrl = "https://tmservices1.esri.com/arcgis/rest/services/LiveFeeds/NOAA_METAR_current_wind_speed_direction/MapServer/0";
+    var layer = new FeatureLayer(serviceUrl, {
+      outFields: [ "WIND_SPEED", "WIND_DIRECT", "TEMP", "STATION_NAME", "R_HUMIDITY", "DEW_POINT", "SKY_CONDTN" ]
+    });
+
+    // Add the label classes to the layer
+
+    var renderer = new SimpleRenderer(createSymbol([255,255,255,1]));
+    layer.setRenderer(renderer);
+    layer.setLabelingInfo([ nameClass, tempClass, windClass, humidityClass ]);
+
+    map.addLayer(layer);
+
+    // function for creating a symbol symbol for visualizing cities and towns
+
+    function createSymbol (color){
+      var outline = new SimpleLineSymbol()
+        .setColor(new Color([ 0, 0, 0, 0.4 ]))
+        .setWidth(.5);
+
+      return new SimpleMarkerSymbol()
+        .setColor(new Color(color))
+        .setSize(8)
+        .setOutline(outline);
+    }
+
+    // function for creating a text symbol to be used in a label class
+
+    function createTextSymbol(color, size, offset){
+      var textSize = size + "pt";
+      var textSymbol = new TextSymbol().setColor(new Color("#fff"))
+      textSymbol.font.setSize(textSize);
+      textSymbol.setHaloColor(new Color(color)).setHaloSize(1)
+      textSymbol.yoffset = offset ? offset.y : null;
+      textSymbol.xoffset = offset ? offset.x : null;
+
+      return textSymbol;
+    }
+  });
+
+</script>
+
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>

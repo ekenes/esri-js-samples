@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Arcade</title>
+
+<link rel="stylesheet" href="https://jsdev.arcgis.com/3.19/esri/css/esri.css">
+<link rel="stylesheet" href="https://jsdev.arcgis.com/3.19/dijit/themes/claro/claro.css">
+<script src="https://jsdev.arcgis.com/3.19/"></script>
+
+<style>
+  html, body, #viewDiv {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  #info{
+    top: 0px;
+    right: 0px;
+    position: absolute;
+    z-index: 99;
+    opacity: 0.9;
+    background-color: white;
+    padding: 0px 0px 0px 10px;
+    max-width: 200px;
+  }
+</style>
+
+<script>
+  require([
+    "esri/map",
+    "esri/layers/FeatureLayer",
+    "esri/renderers/UniqueValueRenderer",
+    "esri/symbols/SimpleFillSymbol",
+    "esri/symbols/SimpleLineSymbol",
+    "esri/Color",
+    "esri/dijit/PopupTemplate",
+    "esri/dijit/Legend",
+    "dojo/domReady!"
+  ], function(Map, FeatureLayer, UniqueValueRenderer,
+    SimpleFillSymbol, SimpleLineSymbol, Color,
+    PopupTemplate, Legend
+  ) {
+
+    var map = new Map("viewDiv", {
+      basemap: "dark-gray",
+      center: [ -95, 39 ],
+      zoom: 5
+    });
+
+    // Arcade expression that determines the predominant political
+    // party in each feature. First, feature values are assigned
+    // to meaningful variable names and placed in an array.
+    // Then the maximum count is determined with the Max() function.
+    // That count is then compared with each variable using Decode()
+    // Once a match is found, a string for the corresponding party is
+    // returned implicitly.
+
+    var arcade = "var republican = $feature.MP06025a_B;"
+      + "var democrat = $feature.MP06024a_B;"
+      + "var independent = $feature.MP06026a_B;"
+      + "var parties = [republican, democrat, independent];"
+      + "Decode(Max(parties),republican, 'republican', democrat, 'democrat', independent, 'independent', 'n/a');";
+
+    // Add the expression to a unique value renderer and create a fill
+    // symbol for each possible value.
+
+    var renderer = new UniqueValueRenderer({
+      valueExpression: arcade,
+      uniqueValueInfos: [{
+        value: "democrat",
+        symbol: createSymbol("#00c3ff"),
+        label: "Democrat"
+      }, {
+        value: "republican",
+        symbol: createSymbol("#ff002e"),
+        label: "Republican"
+      }, {
+        value: "independent",
+        symbol: createSymbol("#faff00"),
+        label: "Independent/other party"
+      }]
+    });
+
+    // Arcade expression determining the strength of the predominant party
+    // in each feature based on the proportion of that party to all others.
+    // A simple percentage is calculated and returned for the max value.
+
+    var opacityArcade = "var republican = $feature.MP06025a_B;"
+      + "var democrat = $feature.MP06024a_B;"
+      + "var independent = $feature.MP06026a_B;"
+      + "var parties = [republican, democrat, independent];"
+      + "var total = Sum(parties);"
+      + "var max = Max(parties);"
+      + "return (max / total) * 100;";
+
+    // Add the expression to an opacityInfo visual variable. Counties where
+    // the predominant party is nearly equal with the others (33%) are very
+    // transparent. Counties where the dominant party makes up at least 44%
+    // of all people registered to a party are fully opaque.
+
+    var opacityVisualVariable = {
+      type: "opacityInfo",
+      valueExpression: opacityArcade,
+      stops: [
+        { value: 33, opacity: 0.05 },
+        { value: 44, opacity: 1.0 }
+      ]
+    };
+    // set the visual variable on the layer
+    renderer.setVisualVariables([ opacityVisualVariable ]);
+
+    // Create the layer and add it to the map
+
+    var serviceUrl = "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/counties_politics_poverty/FeatureServer/0";
+
+    var layer = new FeatureLayer(serviceUrl, {
+      outFields: [ "MP06025a_B", "MP06024a_B", "MP06026a_B", "COUNTY", "STATE", "POPULATION" ],
+      infoTemplate: new PopupTemplate({
+        title: "{COUNTY}, {STATE}",
+        description: "Population: {POPULATION}",
+        fieldInfos: [{
+          fieldName: "MP06024a_B",
+          label: "Democrat",
+          format: {
+            digitSeparator: true,
+            places: 0
+          }
+        }, {
+          fieldName: "MP06025a_B",
+          label: "Republican",
+          format: {
+            digitSeparator: true,
+            places: 0
+          }
+        }, {
+          fieldName: "MP06026a_B",
+          label: "Independent/Other",
+          format: {
+            digitSeparator: true,
+            places: 0
+          }
+        }],
+        mediaInfos: [{
+          type: "piechart",
+          caption: "",
+          value: {
+            fields: [ "MP06024a_B", "MP06025a_B", "MP06026a_B" ]
+          }
+        }]
+      })
+    });
+
+    layer.setRenderer(renderer);
+    map.addLayer(layer);
+
+    // Create a legend when the map loads
+
+    map.on("load", function(evt){
+      var legend = new Legend({
+        map: map,
+        layerInfos: [{
+          layer: layer,
+          title: "Dominant political party by U.S. County"
+        }]
+      }, "legendDiv");
+
+      legend.startup();
+    });
+
+    function createSymbol (color){
+      var outline = new SimpleLineSymbol()
+        .setColor(new Color([ 0, 0, 0, 0.2 ]))
+        .setWidth(0.5);
+
+      return new SimpleFillSymbol()
+        .setColor(new Color(color))
+        .setOutline(outline);
+    }
+  });
+
+</script>
+
+</head>
+
+<body class="claro">
+  <div id="viewDiv"></div>
+  <div id="info"><div id="legendDiv"></div></div>
+</body>
+
+</html>
