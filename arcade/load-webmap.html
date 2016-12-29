@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
+    <title>Create web map from id</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/3.19/dijit/themes/claro/claro.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/3.19/esri/css/esri.css">
+
+    <script src="https://js.arcgis.com/3.19/"></script>
+    <script>
+      require([
+        "dojo/parser",
+        "dojo/ready",
+        "dijit/layout/BorderContainer",
+        "dijit/layout/ContentPane",
+        "dojo/dom",
+        "esri/map",
+        "esri/urlUtils",
+        "esri/arcgis/utils",
+        "esri/dijit/Legend",
+        "esri/dijit/Scalebar",
+        "dojo/domReady!"
+      ], function(
+        parser,
+        ready,
+        BorderContainer,
+        ContentPane,
+        dom,
+        Map,
+        urlUtils,
+        arcgisUtils,
+        Legend,
+        Scalebar
+      ) {
+        ready(function(){
+
+        parser.parse();
+
+//if accessing webmap from a portal outside of ArcGIS Online, uncomment and replace path with portal URL
+       //arcgisUtils.arcgisUrl = "https://pathto/portal/sharing/content/items";
+        arcgisUtils.createMap("449c3beeee454d7a946e774cf784cf99","map").then(function(response){
+          //update the app
+          dom.byId("title").innerHTML = response.itemInfo.item.title;
+          dom.byId("subtitle").innerHTML = response.itemInfo.item.snippet;
+
+          var map = response.map;
+
+
+
+          //add the scalebar
+          var scalebar = new Scalebar({
+            map: map,
+            scalebarUnit: "english"
+          });
+
+          //add the legend. Note that we use the utility method getLegendLayers to get
+          //the layers to display in the legend from the createMap response.
+          var legendLayers = arcgisUtils.getLegendLayers(response);
+          var legendDijit = new Legend({
+            map: map,
+            layerInfos: legendLayers
+          },"legend");
+          legendDijit.startup();
+        });
+        });
+
+      });
+    </script>
+    
+    <style>
+       html,body {
+        height:100%;
+        width:100%;
+        margin:0;
+        padding:0;
+      }
+
+      body {
+        background-color:#FFF;
+        overflow:hidden;
+        font-family:"Helvetica";
+      }
+
+      #header {
+        border:solid 1px #A8A8A8;
+        overflow:hidden;
+        background-color:#999;
+        background: -webkit-gradient(linear, left top, left bottom, from(#fff), to(#C0C0C0));
+        background: -moz-linear-gradient(top,  #fff,  #C0C0C0);
+        height:65px;
+        margin: 5px 5px;
+      }
+
+      .roundedCorners {
+        -o-border-radius:4px;
+        -moz-border-radius:4px;
+        -webkit-border-radius:4px;
+        border-radius:4px;
+      }
+
+      .shadow {
+        -webkit-box-shadow:4px 4px 8px #adadad;
+        -moz-box-shadow:4px 4px 8px #adadad;
+        -o-box-shadow:4px 4px 8px #adadad;
+        box-shadow:4px 4px 8px #adadad;
+      }
+      #title{
+        padding-top:2px;
+        padding-left:10px;
+        color:#000;
+        font-size:18pt;
+        text-align:left;
+        text-shadow: 0px 1px 0px #e5e5ee;
+        font-weight:700;
+      }
+      #subtitle {
+        font-size:small;
+        padding-left:40px;
+        text-shadow: 0px 1px 0px #e5e5ee;
+        color:#000;
+      }
+      #rightPane{
+        background-color:#E8E8E8;
+        border:solid 2px #B8B8B8;
+        margin:5px; 
+        width:20%;
+      }
+      #map {
+        background-color:#FFF;
+        border:solid 2px #B8B8B8;
+        margin:5px;
+        padding:0;
+      }
+      .esriLegendServiceLabel{
+        display:none;
+      }
+    </style>
+  </head>
+
+  <body class="claro">
+    <div id="mainWindow" data-dojo-type="dijit/layout/BorderContainer" data-dojo-props="design:'headline'" style="width:100%; height:100%;">
+      <div id="header" class="shadow roundedCorners" data-dojo-type="dijit/layout/ContentPane" data-dojo-props="region:'top'">
+        <div id="title"></div>
+        <div id="subtitle"></div>
+      </div>
+      <div id="map" class="roundedCorners shadow" data-dojo-type="dijit/layout/ContentPane" data-dojo-props="region:'center'"></div>
+      <div id="rightPane" class="roundedCorners shadow" data-dojo-type="dijit/layout/ContentPane" data-dojo-props="region:'right'" >
+        <div id="legend"></div>
+      </div>
+    </div>
+  </body>
+</html>
