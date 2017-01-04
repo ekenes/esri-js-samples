@@ -40,7 +40,7 @@
 
 //if accessing webmap from a portal outside of ArcGIS Online, uncomment and replace path with portal URL
        //arcgisUtils.arcgisUrl = "https://pathto/portal/sharing/content/items";
-        arcgisUtils.createMap("449c3beeee454d7a946e774cf784cf99","map").then(function(response){
+        arcgisUtils.createMap("46223ad53505412e86cb3a621d89831f","map").then(function(response){
           //update the app
           dom.byId("title").innerHTML = response.itemInfo.item.title;
           dom.byId("subtitle").innerHTML = response.itemInfo.item.snippet;
