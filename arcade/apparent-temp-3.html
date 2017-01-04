@@ -86,6 +86,7 @@
 </script>
   
 <!--APPARENT TEMPERATURE (HOW IT FEELS)-->
+<!--https://graphical.weather.gov/definitions/defineApparentT.html-->
   
 <script type="text/esri-arcade" id="apparent-temp">
   // if no temp, rh, or ws is available don't render feature
@@ -290,13 +291,13 @@
     
     // FeatureLayer options
     
-    var serviceUrl = "https://tmservices1.esri.com/arcgis/rest/services/LiveFeeds/NOAA_METAR_current_wind_speed_direction/MapServer/0";
+    var serviceUrl = "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/weather_stations_010417/FeatureServer/0";
     
-    var outFields = [ "ELEVATION", "STATION_NAME", "TEMP", "R_HUMIDITY", 
+    var outFields = [ "ELEVATION", "STATION_NAME", "COUNTRY", "TEMP", "R_HUMIDITY", 
                      "WIND_SPEED", "WIND_CHILL", "HEAT_INDEX", "WEATHER" ];
     
     var popupTemplate = new PopupTemplate({
-      title: "{STATION_NAME}",
+      title: "{STATION_NAME}, {COUNTRY}",
       fieldInfos: [{
         fieldName: "ELEVATION",
         label: "Elevation",

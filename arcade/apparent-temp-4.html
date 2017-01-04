@@ -11,12 +11,17 @@
 <script src="https://js.arcgis.com/4.2/"></script>
 
 <style>
-  html, body, 
-  #viewDiv {
+  html, body, #viewDiv {
     height: 100%;
     width: 100%;
     margin: 0;
     padding: 0;
+  }
+  
+  #info{
+    background-color: white;
+    padding: 10px;
+    max-width: 280px;
   }
 </style>
   
@@ -26,8 +31,13 @@
   
   
 <!--WIND CHILL-->
+<!--http://www.nws.noaa.gov/om/winter/resources/wind-chill-brochure.pdf-->
   
 <script type="text/esri-arcade" id="wind-chill">
+  // if no temperature or wind speed is available don't render feature
+  if(IsEmpty($feature.TEMP) || IsEmpty($feature.WIND_SPEED)){
+    return null;
+  }
   var t = $feature.TEMP;
   // convert speed from kph to mph
   var ws = $feature.WIND_SPEED * 0.621371;
@@ -40,8 +50,14 @@
 </script>
   
 <!--HEAT INDEX-->
+<!--http://www.nws.noaa.gov/os/heat/heat_index.shtml  -->
   
 <script type="text/esri-arcade" id="heat-index">
+  // if no temperature or relative humidity is available don't render feature
+  if(IsEmpty($feature.TEMP) || IsEmpty($feature.R_HUMIDITY)){
+    return null;
+  }
+
   var c1 = -42.379;
   var c2 = 2.04901523;
   var c3 = 10.14333127;
@@ -60,13 +76,22 @@
     + (c6 * r * r) + (c7 * t * t * r) 
     + (c8 * t * r * r) + (c9 * t * t * r * r);
 
-  // Only for temps above 80F
-  return IIF(t >= 80, hi, null);
+  // Only for temps above 80F and RH above 40%
+  return IIF(t >= 80 && r >= 40, hi, null);
 </script>
   
 <!--APPARENT TEMPERATURE (HOW IT FEELS)-->
+<!--https://graphical.weather.gov/definitions/defineApparentT.html-->
   
 <script type="text/esri-arcade" id="apparent-temp">
+  // if no temp, rh, or ws is available don't render feature
+  if(  IsEmpty($feature.TEMP) 
+    || IsEmpty($feature.R_HUMIDITY)
+    || IsEmpty($feature.WIND_SPEED)
+  ){
+    return null;
+  }
+
   var t = $feature.TEMP;
   var ws = $feature.WIND_SPEED * 0.621371;  // convert to mph
   var r = $feature.R_HUMIDITY;
@@ -99,9 +124,10 @@
       // Only for temps below 50F and WS > 3mph
       // wind chill must be lower than the temperature
     t <= 50 && ws >= 3 && wc < t, wc,
-      // Only for temps above 80F
-    t >= 80, hi, 
-      t
+      // Only for temps above 80F and RH above 40%
+    t >= 80 && r >= 40, hi, 
+      // all other points will display air temperature
+    t
   );
   return apTemp;
 </script>
@@ -109,6 +135,14 @@
 <!--DIFFERENCE BETWEEN APPARENT (FELT) TEMPERATURE AND MEASURED AIR TEMPERATURE-->
   
 <script type="text/esri-arcade" id="felt-temp-diff">
+  // if no temp, rh, or ws is available don't render feature
+  if(  IsEmpty($feature.TEMP) 
+    || IsEmpty($feature.R_HUMIDITY)
+    || IsEmpty($feature.WIND_SPEED)
+  ){
+    return null;
+  }
+
   var t = $feature.TEMP;
   var ws = $feature.WIND_SPEED * 0.621371;
   var r = $feature.R_HUMIDITY;
@@ -140,73 +174,154 @@
       // Only for temps below 50F and WS > 3mph
       // wind chill must be lower than the temperature
     t <= 50 && ws >= 3 && wc < t, wc - t,
-      // Only for temps above 80F
-    t >= 80, hi - t, 
+      // Only for temps above 80F and RH above 40%
+    t >= 80 && r >= 40, hi - t, 
       0
   );
   
   return tempDiff;
 </script>  
+  
+<!--DIFFERENCE BETWEEN APPARENT (FELT) TEMPERATURE AND MEASURED AIR TEMPERATURE-->
+<!--same as script above except the result is returned as an absolute value-->
+  
+<script type="text/esri-arcade" id="felt-temp-diff-abs">
+  // if no temp, rh, or ws is available don't render feature
+  if(  IsEmpty($feature.TEMP) 
+    || IsEmpty($feature.R_HUMIDITY)
+    || IsEmpty($feature.WIND_SPEED)
+  ){
+    return null;
+  }
+
+  var t = $feature.TEMP;
+  var ws = $feature.WIND_SPEED * 0.621371;
+  var r = $feature.R_HUMIDITY;
+
+  // WIND CHILL
+
+  var wc = 35.74 + (0.6215 * t) 
+    - (35.75 * Pow(ws, 0.16)) 
+    + (0.4275 * t * Pow(ws, 0.16));
+
+  // HEAT INDEX
+
+  var c1 = -42.379;
+  var c2 = 2.04901523;
+  var c3 = 10.14333127;
+  var c4 = -0.22475541;
+  var c5 = -0.00683783;
+  var c6 = -0.05481717;
+  var c7 = 0.00122874;
+  var c8 = 0.00085282;
+  var c9 = -0.00000199;
+
+  var hi = c1 + (c2 * t) + (c3 * r) 
+    + (c4 * t * r) + (c5 * t * t) 
+    + (c6 * r * r) + (c7 * t * t * r) 
+    + (c8 * t * r * r) + (c9 * t * t * r * r);
+
+  var tempDiff = WHEN(  
+      // Only for temps below 50F and WS > 3mph
+      // wind chill must be lower than the temperature
+    t <= 50 && ws >= 3 && wc < t, wc - t,
+      // Only for temps above 80F and RH above 40%
+    t >= 80 && r >= 40, hi - t, 
+      0
+  );
+  
+  return Abs(tempDiff);
+</script>  
+  
+<!--
+--UP ARROW INDICATES TEMP IS HOTTER DUE TO HUMIDITY
+--DOWN ARROW INDICATES TEMP IS COOLER DUE TO WIND CHILL
+--SIDE ARROW INDICATES AIR TEMP REFLECTS REALITY
+-->
+  
+<script type="text/esri-arcade" id="arrow-direction">
+  // if no temp, rh, or ws is available don't render feature
+  if(  IsEmpty($feature.TEMP) 
+    || IsEmpty($feature.R_HUMIDITY)
+    || IsEmpty($feature.WIND_SPEED)
+  ){
+    return null;
+  }
+
+  var t = $feature.TEMP;
+  var ws = $feature.WIND_SPEED * 0.621371;
+  var r = $feature.R_HUMIDITY;
+
+  var rotation = WHEN(  
+      // if wind chill is used then point arrow
+      // down 180 degrees
+    t <= 50 && ws >= 3, 0,
+      // if heat index is used, then point arrow
+      // upward 0 degrees
+    t >= 80 && r >= 40, 180, 
+      // otherwise point it 90 degrees to the right
+    270
+  );
+  
+  return rotation;
+</script>    
 
 <script>
   require([
     "esri/Map",
     "esri/views/MapView",
     "esri/layers/FeatureLayer",
-    "esri/layers/GroupLayer",
-    "esri/renderers/UniqueValueRenderer",
     "esri/renderers/SimpleRenderer",
     "esri/symbols/SimpleMarkerSymbol",
     "esri/widgets/Legend",
     "dojo/dom",
     "dojo/on",
     "dojo/domReady!"
-  ], function(Map, MapView, FeatureLayer, GroupLayer, 
-    UniqueValueRenderer, SimpleRenderer,
-    SimpleMarkerSymbol, Legend,
-    dom, on
+  ], function(Map, MapView, FeatureLayer, 
+    SimpleRenderer, SimpleMarkerSymbol,
+    Legend, dom, on
   ) {
     
-    var serviceUrl = "https://tmservices1.esri.com/arcgis/rest/services/LiveFeeds/NOAA_METAR_current_wind_speed_direction/MapServer/0";
+    // FeatureLayer options
     
-    var outFields = [ "ELEVATION", "STATION_NAME", "TEMP", "R_HUMIDITY", 
+    var serviceUrl = "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/weather_stations_010417/FeatureServer/0";
+    
+    var outFields = [ "ELEVATION", "STATION_NAME", "COUNTRY", "TEMP", "R_HUMIDITY", 
                      "WIND_SPEED", "WIND_CHILL", "HEAT_INDEX", "WEATHER" ];
     
     var popupTemplate = {
-      title: "{STATION_NAME}",
+      title: "{STATION_NAME}, {COUNTRY}",
       content: [{
         type: "fields",
         fieldInfos: [{
           fieldName: "ELEVATION",
+          label: "Elevation"
         }, {
           fieldName: "TEMP",
+          label: "Temperature (°F)"
         }, {
           fieldName: "R_HUMIDITY",
+          label: "Relative humidity"
         }, {
           fieldName: "WIND_SPEED",
+          label: "Wind speed (km/hr)"
         }, {
           fieldName: "WIND_CHILL",
+          label: "Wind chill"
         }, {
           fieldName: "HEAT_INDEX",
+          label: "Heat index"
         }, {
           fieldName: "WEATHER",
+          label: "Weather conditions"
         }]
       }]
     };
     
-    // Stores each arcade expression as a string variable 
-    // to be used in renderers
-    
-    var windChillArcade = dom.byId("wind-chill").innerHTML;
-    var heatIndexArcade = dom.byId("heat-index").innerHTML;
-    var apparentTempArcade = dom.byId("apparent-temp").innerHTML;
-    var feltTempDiffArcade = dom.byId("felt-temp-diff").innerHTML;
-
     var weatherStationLayer = new FeatureLayer({
       url: serviceUrl,
       outFields: outFields, 
-      popupTemplate: popupTemplate,
-      definitionExpression: "LONGITUDE <= -30 AND LONGITUDE >= -150"
+      popupTemplate: popupTemplate
     });
     
     var map = new Map({
@@ -221,86 +336,198 @@
       zoom: 3
     });
     
+    view.then(function(evt){
+      
+      var legend = new Legend({
+        view: view,
+        layerInfos: [{
+          layer: weatherStationLayer,
+          title: "Weather conditions"
+        }],
+        container: "legendDiv"
+      });
+      view.ui.add("info", "bottom-left");
+      
+      changeRenderer(dom.byId("change-viz").value);
+    });
+    
+    // Stores each arcade expression as a string variable 
+    // to be used in renderers
+    
+    var windChillArcade = dom.byId("wind-chill").innerHTML;
+    var heatIndexArcade = dom.byId("heat-index").innerHTML;
+    var apparentTempArcade = dom.byId("apparent-temp").innerHTML;
+    var feltTempDiffArcade = dom.byId("felt-temp-diff").innerHTML;
+    var arrowDirectionArcade = dom.byId("arrow-direction").innerHTML;
+    var feltTempDiffAbsArcade = dom.byId("felt-temp-diff-abs").innerHTML;
+    
+    // Renderers based on each of the Arcade expressions above
+    
+    // WIND CHILL
+    
     var windChillRenderer = new SimpleRenderer({
-      symbol: createSymbol("white"),
+      symbol: createSymbol(),
+      label: "Weather station",
       visualVariables: [{
         type: "color",
         valueExpression: windChillArcade,
-        valueExpressionTitle: "Wind chill",
+        valueExpressionTitle: "Wind chill (°F)",
         stops: [
-          { value: 9, color: "#f8f8db" },
-          { value: 23, color: "#82b1bf" },
-          { value: 37, color: "#425970" }
+          { value: -2, color: "#425970" },
+          { value: 18, color: "#82b1bf" },
+          { value: 37, color: "#f8f8db" }
         ]
       }]
     });
     
+    // HEAT INDEX
+
     var heatIndexRenderer = new SimpleRenderer({
-      symbol: createSymbol("white"),
+      symbol: createSymbol(),
+      label: "Weather station",
       visualVariables: [{
         type: "color",
         valueExpression: heatIndexArcade,
-        valueExpressionTitle: "Heat index",
+        valueExpressionTitle: "Heat index (°F)",
         stops: [
-          { value: 84, color: "#fdf4d2" },
-          { value: 88, color: "#df9465" },
-          { value: 93, color: "#873634" }
+          { value: 85, color: "#fdf4d2" },
+          { value: 89, color: "#df9465" },
+          { value: 94, color: "#873634" }
         ]
       }]
     });
     
+    // APPARENT TEMPERATURE (WHAT IT ACTUALLY FEELS LIKE)
+
     var apparentTempRenderer = new SimpleRenderer({
-      symbol: createSymbol("white"),
+      symbol: createSymbol(),
+      label: "Weather station",
       visualVariables: [{
         type: "color",
         valueExpression: apparentTempArcade,
-        valueExpressionTitle: "Apparent temperature (how it feels)",
+        valueExpressionTitle: "Apparent temperature (°F)",
         stops: [
           { value: -15, color: "#00C5FF" },
           { value: 12, color: "#BEE8FF" },
           { value: 32, color: "#fdf4d2" },
           { value: 64, color: "#FF7F7F" },
-          { value: 87, color: "#E60000" }
+          { value: 82, color: "#E60000" }
         ]
       }]
     });
+
+    // CHANGE BETWEEN APPARENT TEMPERATURE AND ACTUAL MEASURED AIR TEMP
     
     var feltTempDiffRenderer = new SimpleRenderer({
-      symbol: createSymbol("white"),
+      symbol: createSymbol(),
+      label: "Weather station",
       visualVariables: [{
         type: "color",
         valueExpression: feltTempDiffArcade,
         valueExpressionTitle: "Difference between apparent temperature and measured air temperature",
         stops: [
-          { value: -34, color: "#0571b0" },
-          { value: -15, color: "#0571b0" },
-          { value: 0, color: "#fdf4d2" },
-          { value: 10, color: "#E60000" },
-          { value: 17, color: "#E60000" }
+          { value: -27, color: "#0571b0", label: "< -27 (colder than air temp)" },
+          { value: -11, color: "#0571b0", label: "-11 (colder than air temp)" },
+          { value: 0, color: "#fdf4d2", label: "0 (same as air temp)" },
+          { value: 11, color: "#E60000", label: "11 (warmer than air temp)" },
+          { value: 25, color: "#E60000", label: "> 25 (warmer than air temp)" }
         ]
       }]
     });
     
-    weatherStationLayer.renderer = feltTempDiffRenderer;
-    map.add(weatherStationLayer);
-
-    view.then(function(){
-      var legend = new Legend({
-        view: view
-      });
+    // Multivariate visualization of 
+    // CHANGE BETWEEN APPARENT TEMPERATURE AND ACTUAL MEASURED AIR TEMP
+    // and whether the change was warmer or cooler
+    
+    var feltTempDiffRotationRenderer = new SimpleRenderer({
+      symbol: createSymbol(true),
+      label: "Weather station",
+      visualVariables: [{
+        type: "color",
+        valueExpression: apparentTempArcade,
+        valueExpressionTitle: "Apparent temperature (°F)",
+        stops: [
+          { value: -15, color: "#00C5FF" },
+          { value: 12, color: "#BEE8FF" },
+          { value: 32, color: "#fdf4d2" },
+          { value: 64, color: "#FF7F7F" },
+          { value: 82, color: "#E60000" }
+        ]
+      }, {
+        type: "size",
+        valueExpression: feltTempDiffAbsArcade,
+        valueExpressionTitle: "Difference between apparent temperature and measured air temperature",
+        minDataValue: 2,
+        maxDataValue: 25,
+        minSize: 6,
+        maxSize: 36
+      }, {
+        type: "rotation",
+        valueExpression: arrowDirectionArcade,
+      }]
+    });
+  
+    // Map renderers to select options and basemaps
+    
+    var renderers = {
+      "wind-chill": {
+        renderer: windChillRenderer,
+        basemap: "gray"
+      },
+      "heat-index": {
+        renderer: heatIndexRenderer,
+        basemap: "gray"
+      },
+      "felt-temp": {
+        renderer: apparentTempRenderer,
+        basemap: "dark-gray"
+      },
+      "felt-temp-diff": {
+        renderer: feltTempDiffRenderer,
+        basemap: "dark-gray"
+      },
+      "felt-temp-diff-rotation": {
+        renderer: feltTempDiffRotationRenderer,
+        basemap: "dark-gray"
+      }
+    };
+    
+    // executes each time the user selects a new 
+    // variable to visualize
+    
+    function changeRenderer (variable){
+      var renderer = renderers[variable].renderer;
+      weatherStationLayer.renderer = renderer;
       
-      view.ui.add(legend, "bottom-left");
+      var basemap = renderers[variable].basemap;
+      if (basemap !== map.basemap){
+        map.basemap = basemap;
+      }
+    }
+    
+    // fires on each change of the select
+    
+    on(dom.byId("change-viz"), "change", function(evt){
+      changeRenderer(evt.target.value);
     });
 
-    function createSymbol (color){
-      return new SimpleMarkerSymbol({
-        color: color,
-        size: "5px",
+    // helper function for creating symbols
+    
+    function createSymbol (isArrow){
+      var symbol = new SimpleMarkerSymbol({
         outline: {
-          width: 0.5,
-          color: [ 92, 92, 92, 0.5 ]
-        }
+          color: [ 92, 92, 92, 0.2 ],
+          width: 0.5
+        },
+        color: [0,0,0,0],
+        size: 5
       });
+      
+      if (isArrow){
+        symbol.path = "M14.5,29 23.5,0 14.5,9 5.5,0z";
+      }
+      
+      return symbol;
     }
   });
 
@@ -310,6 +537,16 @@
 
 <body>
   <div id="viewDiv"></div>
+  <div id="info">
+    <select id="change-viz">
+      <option value="wind-chill">Wind chill</option>
+      <option value="heat-index">Heat index</option>
+      <option value="felt-temp" selected>Apparent temperature</option>
+      <option value="felt-temp-diff">Difference between felt and measured temp</option>
+      <option value="felt-temp-diff-rotation">Apparent temp w/ difference measured</option>
+    </select>
+    <div id="legendDiv"></div>
+  </div>
 </body>
 
 </html>
