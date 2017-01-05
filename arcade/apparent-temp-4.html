@@ -274,12 +274,12 @@
     "esri/renderers/SimpleRenderer",
     "esri/symbols/SimpleMarkerSymbol",
     "esri/widgets/Legend",
-    "dojo/dom",
+    
     "dojo/on",
     "dojo/domReady!"
   ], function(Map, MapView, FeatureLayer, 
     SimpleRenderer, SimpleMarkerSymbol,
-    Legend, dom, on
+    Legend, on
   ) {
     
     // FeatureLayer options
@@ -348,18 +348,18 @@
       });
       view.ui.add("info", "bottom-left");
       
-      changeRenderer(dom.byId("change-viz").value);
+      changeRenderer(document.getElementById("change-viz").value);
     });
     
     // Stores each arcade expression as a string variable 
     // to be used in renderers
     
-    var windChillArcade = dom.byId("wind-chill").innerHTML;
-    var heatIndexArcade = dom.byId("heat-index").innerHTML;
-    var apparentTempArcade = dom.byId("apparent-temp").innerHTML;
-    var feltTempDiffArcade = dom.byId("felt-temp-diff").innerHTML;
-    var arrowDirectionArcade = dom.byId("arrow-direction").innerHTML;
-    var feltTempDiffAbsArcade = dom.byId("felt-temp-diff-abs").innerHTML;
+    var windChillArcade = document.getElementById("wind-chill").innerHTML;
+    var heatIndexArcade = document.getElementById("heat-index").innerHTML;
+    var apparentTempArcade = document.getElementById("apparent-temp").innerHTML;
+    var feltTempDiffArcade = document.getElementById("felt-temp-diff").innerHTML;
+    var arrowDirectionArcade = document.getElementById("arrow-direction").innerHTML;
+    var feltTempDiffAbsArcade = document.getElementById("felt-temp-diff-abs").innerHTML;
     
     // Renderers based on each of the Arcade expressions above
     
@@ -507,7 +507,7 @@
     
     // fires on each change of the select
     
-    on(dom.byId("change-viz"), "change", function(evt){
+    on(document.getElementById("change-viz"), "change", function(evt){
       changeRenderer(evt.target.value);
     });
 
