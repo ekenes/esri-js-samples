@@ -38,7 +38,7 @@
 <!--WIND CHILL-->
 <!--http://www.nws.noaa.gov/om/winter/resources/wind-chill-brochure.pdf-->
   
-<script type="text/esri-arcade" id="wind-chill">
+<script type="text/plain" id="wind-chill">
   // if no temperature or wind speed is available don't render feature
   if(IsEmpty($feature.TEMP) || IsEmpty($feature.WIND_SPEED)){
     return null;
@@ -57,7 +57,7 @@
 <!--HEAT INDEX-->
 <!--http://www.nws.noaa.gov/os/heat/heat_index.shtml  -->
   
-<script type="text/esri-arcade" id="heat-index">
+<script type="text/plain" id="heat-index">
   // if no temperature or relative humidity is available don't render feature
   if(IsEmpty($feature.TEMP) || IsEmpty($feature.R_HUMIDITY)){
     return null;
@@ -88,7 +88,7 @@
 <!--APPARENT TEMPERATURE (HOW IT FEELS)-->
 <!--https://graphical.weather.gov/definitions/defineApparentT.html-->
   
-<script type="text/esri-arcade" id="apparent-temp">
+<script type="text/plain" id="apparent-temp">
   // if no temp, rh, or ws is available don't render feature
   if(  IsEmpty($feature.TEMP) 
     || IsEmpty($feature.R_HUMIDITY)
@@ -139,7 +139,7 @@
   
 <!--DIFFERENCE BETWEEN APPARENT (FELT) TEMPERATURE AND MEASURED AIR TEMPERATURE-->
   
-<script type="text/esri-arcade" id="felt-temp-diff">
+<script type="text/plain" id="felt-temp-diff">
   // if no temp, rh, or ws is available don't render feature
   if(  IsEmpty($feature.TEMP) 
     || IsEmpty($feature.R_HUMIDITY)
@@ -190,7 +190,7 @@
 <!--DIFFERENCE BETWEEN APPARENT (FELT) TEMPERATURE AND MEASURED AIR TEMPERATURE-->
 <!--same as script above except the result is returned as an absolute value-->
   
-<script type="text/esri-arcade" id="felt-temp-diff-abs">
+<script type="text/plain" id="felt-temp-diff-abs">
   // if no temp, rh, or ws is available don't render feature
   if(  IsEmpty($feature.TEMP) 
     || IsEmpty($feature.R_HUMIDITY)
@@ -244,7 +244,7 @@
 --SIDE ARROW INDICATES AIR TEMP REFLECTS REALITY
 -->
   
-<script type="text/esri-arcade" id="arrow-direction">
+<script type="text/plain" id="arrow-direction">
   // if no temp, rh, or ws is available don't render feature
   if(  IsEmpty($feature.TEMP) 
     || IsEmpty($feature.R_HUMIDITY)
