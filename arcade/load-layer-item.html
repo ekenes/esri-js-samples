@@ -26,9 +26,10 @@
       "esri/Map",
       "esri/views/MapView",
       "esri/layers/Layer",
+      "esri/widgets/Legend",
       "dojo/domReady!"
     ], function(
-      Map, MapView, Layer
+      Map, MapView, Layer, Legend
     ) {
 
       var map = new Map({
@@ -40,6 +41,13 @@
         container: "viewDiv",
         center: [ -100, 40],
         zoom: 4
+      });
+      
+      view.then(function(){
+        var legend = new Legend({
+          view: view
+        });
+        view.ui.add(legend, "bottom-left");
       });
 
       /************************************************
