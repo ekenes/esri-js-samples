@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no" />
+<title>Feature Layer dynamic source query</title>
+
+<link rel="stylesheet" href="//js.arcgis.com/3.19/esri/css/esri.css">
+
+<style>
+
+html, body, #map {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+</style>
+
+<script src="//js.arcgis.com/3.19/"></script>
+
+<script>
+require([
+  "esri/tasks/query",
+  "esri/tasks/QueryTask",
+  "esri/layers/FeatureLayer",
+  "esri/layers/JoinDataSource",
+  "esri/layers/LayerDataSource",
+  "esri/layers/LayerMapSource",
+  "esri/layers/TableDataSource",
+  "esri/map",
+  "esri/request",
+  "dojo/domReady!"
+], function (
+   Query, QueryTask, FeatureLayer, JoinDataSource, LayerDataSource,
+   LayerMapSource, TableDataSource, Map,
+   esriRequest
+){
+
+  /////////////////////////////////////////////////////////////
+  //
+  // Create the map and add a dynamic layer to it.
+  //
+  /////////////////////////////////////////////////////////////
+
+  var map = new Map("map", {
+    basemap: "gray",  //For full list of pre-defined basemaps, navigate to http://arcg.is/1JVo6Wd
+    center: [-99.12, 38.79], // longitude, latitude
+    zoom: 4
+  });
+  var layerUrl = "https://sampleserver6.arcgisonline.com/arcgis/rest/services/Census/MapServer/dynamicLayer";
+
+  ///////////////////////////////////////////////////////////////////////
+  //
+  // Create the JoinDataSource object - This joins the ancestry table with
+  // the right table key (the state field name) to the states layer in
+  // the map service via the the left table key (the state field name in the layer).
+  //
+  // This object defines the sources to join together. In this case
+  // the left table source is the states sublayer of the map service.
+  // The right table source is the ancestry table in the
+  // CensusFileGDBWorkspaceID dynamic workspace defined in the service.
+  //
+  //////////////////////////////////////////////////////////////////////
+
+  var joinDataSource = new JoinDataSource({
+    joinType: "left-outer-join",
+    //////////////////////////////////////////////////////////////////////
+    //
+    // Set the left table source (layer with geometries) to the joinDataSource
+    // object. All we need to specify is the sublayer id of the map layer.
+    //
+    //////////////////////////////////////////////////////////////////////
+    leftTableSource: new LayerMapSource({
+      type: "mapLayer",
+      mapLayerId: 3  // the index of the states sublayer
+    }),
+    // the field in the map service indicating the state name
+    leftTableKey: "STATE_NAME",
+    // the field in the joining table indicating the state name
+    rightTableKey: "State",
+    //////////////////////////////////////////////////////////////////////
+    //
+    // Sets the right table source (the attribute table to join) to
+    // the states layer in the map service. This object will be used to complete
+    // the join to the dynamic service (the layer with the geometries).
+    //
+    //////////////////////////////////////////////////////////////////////
+    rightTableSource: new LayerDataSource({
+      dataSource: new TableDataSource({
+        type: "table",  // indicates the data source is a table
+        workspaceId: "CensusFileGDBWorkspaceID",  // workspace where the table resides (defined in ArcGIS Server Manager)
+        dataSourceName: "ancestry"  // the table name
+      })
+    })
+  });
+
+  //////////////////////////////////////////////////////////////////////
+  //
+  // Create the dynamic layer data source for the DynamicLayerInfo instance.
+  // This is a join data source and completes the join between the table
+  // full of attributes and the layer containing geometries.
+  //
+  //////////////////////////////////////////////////////////////////////
+
+  var dynamicLayerDataSource = new LayerDataSource({
+    dataSource: joinDataSource
+  });
+
+  //////////////////////////////////////////////////////////////////////
+  //
+  // Send a request for the DynamicLayer to obtain a list of its
+  // joined fields and provide them to the user.
+  //
+  //////////////////////////////////////////////////////////////////////
+
+  var requestParams = {
+    url: layerUrl,
+    content: {
+      f: "json",
+      layer: JSON.stringify({ source: dynamicLayerDataSource.toJson() })
+    },
+    handleAs: "json",
+    callbackParamName: "callback"
+  };
+
+  esriRequest(requestParams).then(
+    function (response){
+      var response = response;
+      console.log('request: ', response);
+
+    }).otherwise(function (error){
+      console.error(error);
+    });
+
+  // Set options for the feature layer instance
+  var layerOptions = {
+    mode: FeatureLayer.MODE_SNAPSHOT,
+    outFields: ["*"],
+    // set the source to the JoinDataSource so the SmartMapping module
+    // can have access to the data in the fields from the joined table
+    source: dynamicLayerDataSource
+  };
+
+  // Create the layer with the url to the dynamic layer
+  var featureLayer = new FeatureLayer(layerUrl, layerOptions);
+  
+  map.addLayer(featureLayer);
+  
+  var qParams = new Query();
+  qParams.where = "(ancestry.Norwegian / states.POP2007) >= 0.10";
+  qParams.outFields = ["*"];
+  
+  featureLayer.queryFeatures(qParams)
+    .then(function(response){
+      console.log("query response: ", response);
+  });
+    
+});
+</script>
+
+</head>
+
+<body>
+  <div id="map"></div>
+</body>
+</html>
