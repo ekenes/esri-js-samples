@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html>
+  
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
+<title>StreamLayer - 4.2</title>
+  
+<style>
+  html,
+  body, #viewDiv {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  #info{
+    background-color: white;
+    padding: 7px;
+  }
+</style>
+  
+<link rel="stylesheet" href="https://js.arcgis.com/4.2/esri/css/main.css">
+<script src="https://js.arcgis.com/4.2"></script>
+  
+<script>
+  require([
+    "esri/Map",
+    "esri/views/SceneView",
+    "esri/Camera",
+    "esri/layers/StreamLayer",
+    "esri/widgets/Legend",
+    
+    "esri/symbols/SimpleMarkerSymbol",
+    "esri/symbols/SimpleLineSymbol",
+    "esri/symbols/PointSymbol3D",
+    "esri/symbols/IconSymbol3DLayer",
+    "esri/symbols/ObjectSymbol3DLayer",
+    "esri/symbols/LineSymbol3D",
+    "esri/symbols/LineSymbol3DLayer",
+    "esri/symbols/PathSymbol3DLayer",
+    "esri/symbols/WebStyleSymbol",
+    "esri/symbols/TextSymbol",
+    "esri/symbols/TextSymbol3DLayer",
+    "esri/symbols/LabelSymbol3D",
+    "esri/layers/support/LabelClass",
+    
+    "esri/renderers/SimpleRenderer",
+    "esri/renderers/UniqueValueRenderer",
+    "esri/renderers/ClassBreaksRenderer",
+
+    "dojo/on",
+    "dojo/dom",
+    "dojo/domReady!"
+  ], function(Map, SceneView, Camera, StreamLayer, Legend,
+    SimpleMarkerSymbol, SimpleLineSymbol, PointSymbol3D, 
+    IconSymbol3DLayer, ObjectSymbol3DLayer, LineSymbol3D, 
+    LineSymbol3DLayer, PathSymbol3DLayer, WebStyleSymbol,
+    TextSymbol, TextSymbol3DLayer, LabelSymbol3D, LabelClass,
+    SimpleRenderer, UniqueValueRenderer, ClassBreaksRenderer, 
+    on, dom) {
+    
+    var seattleBusesUrl = "https://geoeventsample3.esri.com:6443/arcgis/rest/services/SeattleBus/StreamServer";
+    var laBusesUrl = "https://geoeventsample3.esri.com:6443/arcgis/rest/services/LABus/StreamServer";
+    var satellitesUrl = "https://geoeventsample3.esri.com:6443/arcgis/rest/services/WorldSatellites/StreamServer";
+    var nycTransit = "https://geoeventsample3.esri.com:6443/arcgis/rest/services/NYCMonitoredVehicleJourney/StreamServer";
+    
+    var laCamJson = {"position":{"x":-13178076.2484949,"y":4028711.5147758326,"z":2998.0664465958253,"spatialReference":{"latestWkid":3857,"wkid":102100}},"heading":75.82411819098952,"tilt":74.95778213189726};
+    var seattleCamJson = {"position":{"x":-13620151.45889992,"y":6045100.865700875,"z":648.800600329414,"spatialReference":{"latestWkid":3857,"wkid":102100}},"heading":148.8654140148485,"tilt":77.5453653977748};
+    var nycCamJson = {"position":{"x":-8241002.800826884,"y":4965695.497047729,"z":1398.3088571010157,"spatialReference":{"latestWkid":3857,"wkid":102100}},"heading":29.311907072636128,"tilt":71.01449621443763};
+    var worldCamJson = {"position":{"x":-3139109.8002275466,"y":789294.2727035728,"z":25512569.547833953,"spatialReference":{"latestWkid":3857,"wkid":102100}},"heading":6.963291341770791,"tilt":0.09992488522876455};
+    
+    var layer = new StreamLayer({
+      url: laBusesUrl,
+      popupTemplate: {
+        content: "{*}"
+      },
+      title: "Los Angeles buses",
+      purgeOptions: {
+        displayCount: 2000,
+        age: 10
+      }
+    });
+
+    var map = new Map({
+      basemap: "topo",
+      ground: "world-elevation",
+      layers: [ layer ]
+    });
+    
+    var view = new SceneView({
+      map: map,
+      container: "viewDiv",
+      camera: Camera.fromJSON(laCamJson)
+    });
+    
+    view.then(function(){
+      var legend = new Legend({
+        view: view
+      });
+      view.ui.add(legend, "bottom-left");
+      view.ui.add("info", "top-right");
+    });
+    
+    function createSimpleRenderer(type){
+      
+      var symbolParams = {
+        size: (type === "3d-volumetric" || type === "3d-realistic") ? 60 : 6,
+        color: "darkorange",
+        outline: {
+          width: 3,
+          color: [255,128,0,0.5]
+        },
+        type: type
+      };
+      
+      return new SimpleRenderer({
+        symbol: createSymbol(symbolParams)
+      });
+    }
+    
+    function createSymbol(params){
+      var sym;
+      var size = params.size,
+          color = params.color,
+          shape = params.shape,
+          outline = params.outline,
+          type = params.type;
+      
+      if (type === "2d" || !type){
+        sym = new SimpleMarkerSymbol({
+          size: size,
+          color: color,
+          outline: outline
+        });
+      } else if (type === "3d-flat") {
+        sym = new PointSymbol3D({
+          symbolLayers: [new IconSymbol3DLayer({
+            size: size,
+            material: { color: color },
+            outline: outline
+          })]
+        });
+      } else if (type === "3d-volumetric") {
+        sym = new PointSymbol3D({
+          symbolLayers: [new ObjectSymbol3DLayer({
+            width: size,
+            material: { color: color },
+            resource: { primitive: (shape) ? shape : "sphere" }
+          })]
+        });
+      } else if (type === "3d-realistic") {
+        sym = new WebStyleSymbol({
+          portal: {
+            url: "https://www.arcgis.com"
+          },
+          styleName: "EsriRealisticTransportationStyle",
+          name: "Bus"
+        });
+      } else {
+        console.error(type + " is not a valid type. Use `2d`, `3d-flat`, or `3d-volumetric`.");
+      }
+      return sym;
+    }
+    
+    function getRouteIdCategory (id){
+      return Math.floor(id * 0.1) * 10;
+    }
+    
+    function getRandomColor () {
+      return [ 
+        Math.floor(Math.random() * 255),
+        Math.floor(Math.random() * 255),
+        Math.floor(Math.random() * 255)
+      ];
+    }
+    
+    function createUniqueValueRenderer(type){
+      
+      var renderer = new UniqueValueRenderer({
+//        field: function (graphic){
+//          return getRouteIdCategory(graphic.attributes.route_id);
+//        },
+        valueExpression: "Floor($feature.route_id * 0.1) * 10",
+        valueExpressionTitle: "Bus routes by 10s",
+        defaultSymbol: createSymbol({
+          color: "gray",
+          outline: { width: 1, color: "white" },
+          size: (type === "3d-volumetric" || type === "3d-realistic") ? 60 : 6,
+          type: type
+        })
+      });
+      
+      for (var i = 0; i <= 1000; i+=10){
+        renderer.addUniqueValueInfo({
+          value: i,
+          symbol: createSymbol({
+            size: (type === "3d-volumetric" || type === "3d-realistic") ? 60 : 6,
+            color: getRandomColor(),
+            outline: {
+              width: 1,
+              color: "white"
+            },
+            type: type
+          }),
+          label: i + "'s route"
+        });
+      }
+      
+      return renderer;
+    }
+    
+    function createClassBreaksRenderer(type){
+      var symbolParams = {
+        outline: {
+          width: 1,
+          color: "white"
+        },
+        type: type,
+        size: (type === "3d-volumetric" || type === "3d-realistic") ? 60 : 6,
+      };
+      
+      var now = Date.now();
+      
+      var renderer = new ClassBreaksRenderer({
+        field: "seconds_since_report",
+//        valueExpression: "Abs(DateDiff($feature.received_time, Date(" + now + "), 'seconds'))",
+        legendOptions: {
+          title: "Seconds since last report"
+        },
+        defaultSymbol: createSymbol({
+          color: "gray",
+          outline: { width: 1, color: "white" },
+          size: (type === "3d-volumetric" || type === "3d-realistic") ? 60 : 6,
+          type: type
+        })
+      });
+      
+      for (var i=0; i<240; i+=30){
+        var r = 255;
+        var g = (i===0) ? 255 : 255 - (i * 1.0625); 
+        var b = (i===0) ? 255 : 255 - (i * 1.0625);
+        
+        symbolParams.color = [r,g,b];
+        
+        renderer.addClassBreakInfo({
+          minValue: i,
+          maxValue: i+30,
+          symbol: createSymbol(symbolParams)
+        });
+      }
+      
+      return renderer;
+    }
+    
+    function createColorVV(){
+      var vv = {
+        type: "color",
+        field: "heading",
+        stops: [
+          { value: 0, color: "#9afb0c" },
+          { value: 22.50, color: "#9afb0c" },
+          { value: 67.50, color: "#00ad43" },
+          { value: 112.50, color: "#0068c0" },
+          { value: 157.50, color: "#6c00a3" },
+          { value: 202.50, color: "#ca009c" },
+          { value: 247.50, color: "#ff5568" },
+          { value: 292.50, color: "#ffab47" },
+          { value: 337.50, color: "#f4fa00" },
+          { value: 360, color: "#9afb0c" }
+        ]
+      };
+      
+      return vv;
+    }
+    
+    function createSizeVV(type){
+      var vv = {
+        type: "size",
+        field: "heading",
+        stops: [
+          { value: 0, size: (type === "3d-volumetric" || type === "3d-realistic") ? 60 : 6 },
+          { value: 360, size: (type === "3d-volumetric" || type === "3d-realistic") ? 1000 : 60 }
+        ]
+      };
+      
+      return vv;
+    }
+    
+    function createOpacityVV(){
+      var vv = {
+        type: "opacity",
+        field: "heading",
+        stops: [
+          { value: 0, opacity: 0.05 },
+          { value: 360, opacity: 1.0 }
+        ]
+      };
+      
+      return vv;
+    }
+    
+    function createRotationVV(){
+      var vv = {
+        type: "rotation",
+        valueExpression: "$feature.heading - 90",
+        rotationType: "geographic"
+      }
+      
+      return vv;
+    }
+    
+    function setLabels(type){
+      
+      var sym;
+      
+      if(type === "none"){
+        layer.labelsVisible = false;
+        layer.labelingInfo = null;
+        return;
+      } else if (type === "3d"){
+        sym = new LabelSymbol3D({
+          symbolLayers: [
+            new TextSymbol3DLayer({
+              material: { color: "black" },
+              size: 10
+            })
+          ]
+        });
+      } else if (type === "2d"){
+        sym = new TextSymbol({
+          color: "black",
+          haloColor: "yellow",
+          haloSize: 2,
+          font: {
+            size: 10,
+            style: "oblique",
+            weight: "bolder"
+          }
+        });
+      }
+      
+      var labelClass = new LabelClass({
+        symbol: sym,
+        labelPlacement: "above-right",
+        labelExpressionInfo: {
+          value: "Route {route_id}"
+        }
+      });
+      
+      layer.labelsVisible = true;
+      layer.labelingInfo = [labelClass];
+    }
+    
+    function setElevationInfo (params){
+      var mode = params.mode;
+      var offset = (params.offset) ? parseFloat(params.offset) : 0;
+      layer.elevationInfo = {
+        mode: mode,
+        offset: offset
+      };
+    }
+    
+    function setMaxTrackPoints (value){
+      layer.maximumTrackPoints = (value) ? parseInt(value) : 1;
+    }
+    
+    function setPurgeOptions (params){
+      var displayCount = (params.displayCount) ? parseInt(params.displayCount) : 2000;
+      var age = (params.age) ? parseFloat(params.age) : 1;
+      layer.purgeOptions = {
+        displayCount: displayCount,
+        age: age
+      };
+    }
+    
+    on(dom.byId("redraw"), "click", function(){
+      var symType = dom.byId("symbol-type").value;
+      var rendererType = dom.byId("renderer-type").value;
+      var hasColorVV = dom.byId("color-check").checked;
+      var hasSizeVV = dom.byId("size-check").checked;
+      var hasOpacityVV = dom.byId("opacity-check").checked;
+      var hasRotationVV = dom.byId("rotation-check").checked;
+      var labelType = dom.byId("labels").value;
+      var elevationMode = dom.byId("elevation-mode").value;
+      var elevationOffset = dom.byId("elevation-offset").value;
+      var maxTrackPoints = dom.byId("max-track").value;
+      var maxCount = dom.byId("max-count").value;
+      var maxAge = dom.byId("max-age").value;
+      
+      var renderer;
+      
+      if (rendererType === "default"){
+        renderer = defaultRenderer.clone();
+      } else if (rendererType === "sr"){
+        renderer = createSimpleRenderer(symType);
+      } else if (rendererType === "uvr"){
+        renderer = createUniqueValueRenderer(symType);
+      } else if (rendererType === "cbr"){
+        renderer = createClassBreaksRenderer(symType);
+      }
+
+      var vvs = [];
+      
+      if (hasColorVV){
+        vvs.push(createColorVV());
+      }
+      if (hasSizeVV){
+        if (rendererType === "default") { symType = "2d"; }
+        vvs.push(createSizeVV(symType));
+      }
+      if (hasOpacityVV){
+        vvs.push(createOpacityVV());
+      }
+      if (hasRotationVV){
+        vvs.push(createRotationVV());
+      }
+      
+      renderer.visualVariables = vvs;
+      
+      layer.renderer = renderer;
+      
+      setLabels(labelType);
+      setElevationInfo({
+        mode: elevationMode,
+        offset: elevationOffset
+      });
+      setMaxTrackPoints(maxTrackPoints);
+      setPurgeOptions({
+        displayCount: maxCount,
+        age: maxAge
+      });
+    });
+    
+    var defaultRenderer;
+    
+    layer.then(function(){
+      defaultRenderer = layer.renderer.clone();
+    });
+    
+    view.on("click", function(evt){
+      view.hitTest(evt.screenPoint)
+        .then(function(response){
+          console.log("hit test: ", response);
+          var graphic = response.results[0].graphic;
+          var defExp;
+          if (graphic){
+            var route = graphic.attributes.route_id;
+            defExp = "route_id = " + route;
+          } else {
+            defExp = null;
+          }
+          console.log(defExp);
+          layer.definitionExpression = defExp;
+      });
+    });
+
+  });
+</script>
+</head>
+  
+<body>
+  <div id="viewDiv"></div>
+  <div id="info">
+    <button id="redraw">Redraw</button>
+    <strong>Symbol type:</strong> <select id="symbol-type">
+      <option value="2d" selected>2d</option>
+      <option value="3d-flat">3d flat</option>
+      <option value="3d-volumetric">3d volumetric</option>
+      <option value="3d-realistic">3d realistic</option>
+    </select>
+    <strong>Renderer type:</strong> <select id="renderer-type">
+      <option value="default">Default</option>
+      <option value="sr" selected>Simple</option>
+      <option value="uvr">Unique values</option>
+      <option value="cbr">Class breaks</option>
+    </select>
+    <strong>Visual Variables:</strong> <input type="checkbox" id="color-check">Color
+    <input type="checkbox" id="size-check">Size
+    <input type="checkbox" id="opacity-check">Opacity
+    <input type="checkbox" id="rotation-check">Rotation
+    <strong>Labels:</strong> <select id="labels">
+      <option value="none" selected>None</option>
+      <option value="2d">2D</option>
+      <option value="3d">3D</option>
+    </select><br>
+    <strong>Elevation mode:</strong> <select id="elevation-mode">
+      <option value="on-the-ground">on ground</option>
+      <option value="relative-to-ground" selected>relative to ground</option>
+      <option value="absolute-height">absolute height</option>
+    </select>
+    <strong>Elevation offset:</strong> <input type="text" id="elevation-offset">
+    <strong>Max track points:</strong> <input type="text" id="max-track">
+    <strong>Max count:</strong> <input type="text" id="max-count">
+    <strong>Max age:</strong> <input type="text" id="max-age">
+  </div>
+</body>
+</html>
