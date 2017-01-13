@@ -30,6 +30,7 @@
     "esri/Camera",
     "esri/layers/StreamLayer",
     "esri/widgets/Legend",
+    "esri/Graphic",
     
     "esri/symbols/SimpleMarkerSymbol",
     "esri/symbols/SimpleLineSymbol",
@@ -45,6 +46,12 @@
     "esri/symbols/LabelSymbol3D",
     "esri/layers/support/LabelClass",
     
+    "esri/geometry/Extent",
+    "esri/geometry/Polygon",
+    "esri/symbols/PolygonSymbol3D",
+    "esri/symbols/ExtrudeSymbol3DLayer",
+    "esri/symbols/FillSymbol3DLayer",
+    
     "esri/renderers/SimpleRenderer",
     "esri/renderers/UniqueValueRenderer",
     "esri/renderers/ClassBreaksRenderer",
@@ -52,11 +59,12 @@
     "dojo/on",
     "dojo/dom",
     "dojo/domReady!"
-  ], function(Map, SceneView, Camera, StreamLayer, Legend,
+  ], function(Map, SceneView, Camera, StreamLayer, Legend, Graphic,
     SimpleMarkerSymbol, SimpleLineSymbol, PointSymbol3D, 
     IconSymbol3DLayer, ObjectSymbol3DLayer, LineSymbol3D, 
     LineSymbol3DLayer, PathSymbol3DLayer, WebStyleSymbol,
     TextSymbol, TextSymbol3DLayer, LabelSymbol3D, LabelClass,
+    Extent, Polygon, PolygonSymbol3D, ExtrudeSymbol3DLayer, FillSymbol3DLayer,
     SimpleRenderer, UniqueValueRenderer, ClassBreaksRenderer, 
     on, dom) {
     
@@ -80,6 +88,12 @@
         displayCount: 2000,
         age: 10
       }
+    });
+    
+    var controller;
+    
+    on(layer, "graphics-controller-create", function(evt){
+      controller = evt.graphicsController;
     });
 
     var map = new Map({
@@ -374,6 +388,46 @@
       };
     }
     
+    function setGeoFilter (enabled, type){
+      view.graphics.removeAll();
+      
+      var sym = new PolygonSymbol3D();
+      if (type === "3d-volumetric" || type === "3d-realistic"){
+        sym.symbolLayers = [ new ExtrudeSymbol3DLayer({
+          material: { color: [ 0,255,0,0.3 ] },
+          size: 1000
+        }) ];
+      } else {
+        sym.symbolLayers = [ new FillSymbol3DLayer({
+          material: { color: [ 0,255,0,0.3 ] }
+        }) ];
+      }
+      
+      if (enabled){
+        controller.graphics.removeAll();
+        var downtownExtent = Extent.fromJSON({
+          "xmin":-13168408.804281574,
+          "ymin":4031489.518958395,
+          "xmax":-13157535.637008023,
+          "ymax":4038015.3302482334,
+          "zmax": 1000,
+          "spatialReference":{
+            "latestWkid":3857,
+            "wkid":102100
+          }
+        });
+        view.graphics.add(new Graphic({
+          geometry: Polygon.fromExtent(downtownExtent),
+          symbol: sym
+        }));
+        // not set on layer; set on controller
+        // See SDK sample
+        controller.geometryDefinition = downtownExtent;
+      } else {
+        controller.geometryDefinition = null;
+      }
+    }
+    
     on(dom.byId("redraw"), "click", function(){
       var symType = dom.byId("symbol-type").value;
       var rendererType = dom.byId("renderer-type").value;
@@ -387,6 +441,7 @@
       var maxTrackPoints = dom.byId("max-track").value;
       var maxCount = dom.byId("max-count").value;
       var maxAge = dom.byId("max-age").value;
+      var geoFilterEnabled = dom.byId("geo-filter-check").checked;
       
       var renderer;
       
@@ -430,6 +485,9 @@
         displayCount: maxCount,
         age: maxAge
       });
+      
+      setGeoFilter(geoFilterEnabled, symType);
+      
     });
     
     var defaultRenderer;
@@ -451,6 +509,7 @@
             defExp = null;
           }
           console.log(defExp);
+//         controller.definitionExpression ???
           layer.definitionExpression = defExp;
       });
     });
@@ -493,6 +552,7 @@
     <strong>Max track points:</strong> <input type="text" id="max-track">
     <strong>Max count:</strong> <input type="text" id="max-count">
     <strong>Max age:</strong> <input type="text" id="max-age">
+    <strong>Filter by downtown LA?:</strong> <input type="checkbox" id="geo-filter-check">
   </div>
 </body>
 </html>
