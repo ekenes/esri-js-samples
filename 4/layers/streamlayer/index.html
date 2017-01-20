@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
-  
+
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
 <title>StreamLayer - 4.2</title>
-  
+
 <style>
   html,
   body, #viewDiv {
@@ -17,12 +17,13 @@
   #info{
     background-color: white;
     padding: 7px;
+    max-width: 85%;
   }
 </style>
-  
+
 <link rel="stylesheet" href="https://js.arcgis.com/4.2/esri/css/main.css">
 <script src="https://js.arcgis.com/4.2"></script>
-  
+
 <script>
   require([
     "esri/Map",
@@ -31,7 +32,7 @@
     "esri/layers/StreamLayer",
     "esri/widgets/Legend",
     "esri/Graphic",
-    
+
     "esri/symbols/SimpleMarkerSymbol",
     "esri/symbols/SimpleLineSymbol",
     "esri/symbols/PointSymbol3D",
@@ -45,13 +46,13 @@
     "esri/symbols/TextSymbol3DLayer",
     "esri/symbols/LabelSymbol3D",
     "esri/layers/support/LabelClass",
-    
+
     "esri/geometry/Extent",
     "esri/geometry/Polygon",
     "esri/symbols/PolygonSymbol3D",
     "esri/symbols/ExtrudeSymbol3DLayer",
     "esri/symbols/FillSymbol3DLayer",
-    
+
     "esri/renderers/SimpleRenderer",
     "esri/renderers/UniqueValueRenderer",
     "esri/renderers/ClassBreaksRenderer",
@@ -60,54 +61,100 @@
     "dojo/dom",
     "dojo/domReady!"
   ], function(Map, SceneView, Camera, StreamLayer, Legend, Graphic,
-    SimpleMarkerSymbol, SimpleLineSymbol, PointSymbol3D, 
-    IconSymbol3DLayer, ObjectSymbol3DLayer, LineSymbol3D, 
+    SimpleMarkerSymbol, SimpleLineSymbol, PointSymbol3D,
+    IconSymbol3DLayer, ObjectSymbol3DLayer, LineSymbol3D,
     LineSymbol3DLayer, PathSymbol3DLayer, WebStyleSymbol,
     TextSymbol, TextSymbol3DLayer, LabelSymbol3D, LabelClass,
     Extent, Polygon, PolygonSymbol3D, ExtrudeSymbol3DLayer, FillSymbol3DLayer,
-    SimpleRenderer, UniqueValueRenderer, ClassBreaksRenderer, 
+    SimpleRenderer, UniqueValueRenderer, ClassBreaksRenderer,
     on, dom) {
-    
+
     var seattleBusesUrl = "https://geoeventsample3.esri.com:6443/arcgis/rest/services/SeattleBus/StreamServer";
     var laBusesUrl = "https://geoeventsample3.esri.com:6443/arcgis/rest/services/LABus/StreamServer";
     var satellitesUrl = "https://geoeventsample3.esri.com:6443/arcgis/rest/services/WorldSatellites/StreamServer";
     var nycTransit = "https://geoeventsample3.esri.com:6443/arcgis/rest/services/NYCMonitoredVehicleJourney/StreamServer";
-    
+
     var laCamJson = {"position":{"x":-13178076.2484949,"y":4028711.5147758326,"z":2998.0664465958253,"spatialReference":{"latestWkid":3857,"wkid":102100}},"heading":75.82411819098952,"tilt":74.95778213189726};
     var seattleCamJson = {"position":{"x":-13620151.45889992,"y":6045100.865700875,"z":648.800600329414,"spatialReference":{"latestWkid":3857,"wkid":102100}},"heading":148.8654140148485,"tilt":77.5453653977748};
     var nycCamJson = {"position":{"x":-8241002.800826884,"y":4965695.497047729,"z":1398.3088571010157,"spatialReference":{"latestWkid":3857,"wkid":102100}},"heading":29.311907072636128,"tilt":71.01449621443763};
     var worldCamJson = {"position":{"x":-3139109.8002275466,"y":789294.2727035728,"z":25512569.547833953,"spatialReference":{"latestWkid":3857,"wkid":102100}},"heading":6.963291341770791,"tilt":0.09992488522876455};
-    
+
+    var layerOptions = {
+      "seattle": {
+        url: seattleBusesUrl,
+        camera: Camera.fromJSON(seattleCamJson)
+      },
+      "la": {
+        url: laBusesUrl,
+        camera: Camera.fromJSON(laCamJson)
+      },
+      "satellite": {
+        url: satellitesUrl,
+        camera: Camera.fromJSON(worldCamJson)
+      },
+      "new-york": {
+        url: nycTransit,
+        camera: Camera.fromJSON(nycCamJson)
+      }
+    };
+
     var layer = new StreamLayer({
-      url: laBusesUrl,
+      url: layerOptions["la"].url,
       popupTemplate: {
         content: "{*}"
       },
       title: "Los Angeles buses",
       purgeOptions: {
-        displayCount: 2000,
+        displayCount: 10000,
         age: 10
       }
     });
-    
+
     var controller;
-    
+
     on(layer, "graphics-controller-create", function(evt){
       controller = evt.graphicsController;
+
+      controller.on("connect", function(evt){
+        console.log("connect: ", evt);
+
+        var seconds = 0;
+        var oldFeatures = 0;
+        setInterval(function(){
+          if (!controller){
+            dom.byId("num-features").innerHTML = 0;
+            dom.byId("features-second").innerHTML = 0;
+            return;
+          }
+          seconds++;
+          var numFeatures = controller.graphics.length;
+          var newFeatures = numFeatures - oldFeatures;
+          oldFeatures = numFeatures;
+          dom.byId("num-features").innerHTML = numFeatures;
+          dom.byId("features-second").innerHTML = newFeatures;//Math.round((numFeatures / seconds) * 100) / 100;
+        }, 1000);
+
+      });
+
+      controller.on("disconnect", function(evt){
+        console.log("disconnect: ", evt);
+      });
     });
+
+
 
     var map = new Map({
       basemap: "topo",
       ground: "world-elevation",
       layers: [ layer ]
     });
-    
+
     var view = new SceneView({
       map: map,
       container: "viewDiv",
-      camera: Camera.fromJSON(laCamJson)
+      camera: layerOptions["la"].camera
     });
-    
+
     view.then(function(){
       var legend = new Legend({
         view: view
@@ -115,9 +162,9 @@
       view.ui.add(legend, "bottom-left");
       view.ui.add("info", "top-right");
     });
-    
+
     function createSimpleRenderer(type){
-      
+
       var symbolParams = {
         size: (type === "3d-volumetric" || type === "3d-realistic") ? 60 : 6,
         color: "darkorange",
@@ -127,12 +174,12 @@
         },
         type: type
       };
-      
+
       return new SimpleRenderer({
         symbol: createSymbol(symbolParams)
       });
     }
-    
+
     function createSymbol(params){
       var sym;
       var size = params.size,
@@ -140,7 +187,7 @@
           shape = params.shape,
           outline = params.outline,
           type = params.type;
-      
+
       if (type === "2d" || !type){
         sym = new SimpleMarkerSymbol({
           size: size,
@@ -176,21 +223,21 @@
       }
       return sym;
     }
-    
+
     function getRouteIdCategory (id){
       return Math.floor(id * 0.1) * 10;
     }
-    
+
     function getRandomColor () {
-      return [ 
+      return [
         Math.floor(Math.random() * 255),
         Math.floor(Math.random() * 255),
         Math.floor(Math.random() * 255)
       ];
     }
-    
+
     function createUniqueValueRenderer(type){
-      
+
       var renderer = new UniqueValueRenderer({
 //        field: function (graphic){
 //          return getRouteIdCategory(graphic.attributes.route_id);
@@ -204,7 +251,7 @@
           type: type
         })
       });
-      
+
       for (var i = 0; i <= 1000; i+=10){
         renderer.addUniqueValueInfo({
           value: i,
@@ -220,10 +267,10 @@
           label: i + "'s route"
         });
       }
-      
+
       return renderer;
     }
-    
+
     function createClassBreaksRenderer(type){
       var symbolParams = {
         outline: {
@@ -233,9 +280,9 @@
         type: type,
         size: (type === "3d-volumetric" || type === "3d-realistic") ? 60 : 6,
       };
-      
+
       var now = Date.now();
-      
+
       var renderer = new ClassBreaksRenderer({
         field: "seconds_since_report",
 //        valueExpression: "Abs(DateDiff($feature.received_time, Date(" + now + "), 'seconds'))",
@@ -249,24 +296,24 @@
           type: type
         })
       });
-      
+
       for (var i=0; i<240; i+=30){
         var r = 255;
-        var g = (i===0) ? 255 : 255 - (i * 1.0625); 
+        var g = (i===0) ? 255 : 255 - (i * 1.0625);
         var b = (i===0) ? 255 : 255 - (i * 1.0625);
-        
+
         symbolParams.color = [r,g,b];
-        
+
         renderer.addClassBreakInfo({
           minValue: i,
           maxValue: i+30,
           symbol: createSymbol(symbolParams)
         });
       }
-      
+
       return renderer;
     }
-    
+
     function createColorVV(){
       var vv = {
         type: "color",
@@ -284,10 +331,10 @@
           { value: 360, color: "#9afb0c" }
         ]
       };
-      
+
       return vv;
     }
-    
+
     function createSizeVV(type){
       var vv = {
         type: "size",
@@ -297,10 +344,10 @@
           { value: 360, size: (type === "3d-volumetric" || type === "3d-realistic") ? 1000 : 60 }
         ]
       };
-      
+
       return vv;
     }
-    
+
     function createOpacityVV(){
       var vv = {
         type: "opacity",
@@ -310,24 +357,24 @@
           { value: 360, opacity: 1.0 }
         ]
       };
-      
+
       return vv;
     }
-    
+
     function createRotationVV(){
       var vv = {
         type: "rotation",
         valueExpression: "$feature.heading - 90",
         rotationType: "geographic"
       }
-      
+
       return vv;
     }
-    
+
     function setLabels(type){
-      
+
       var sym;
-      
+
       if(type === "none"){
         layer.labelsVisible = false;
         layer.labelingInfo = null;
@@ -353,7 +400,7 @@
           }
         });
       }
-      
+
       var labelClass = new LabelClass({
         symbol: sym,
         labelPlacement: "above-right",
@@ -361,11 +408,11 @@
           value: "Route {route_id}"
         }
       });
-      
+
       layer.labelsVisible = true;
       layer.labelingInfo = [labelClass];
     }
-    
+
     function setElevationInfo (params){
       var mode = params.mode;
       var offset = (params.offset) ? parseFloat(params.offset) : 0;
@@ -374,11 +421,11 @@
         offset: offset
       };
     }
-    
+
     function setMaxTrackPoints (value){
       layer.maximumTrackPoints = (value) ? parseInt(value) : 1;
     }
-    
+
     function setPurgeOptions (params){
       var displayCount = (params.displayCount) ? parseInt(params.displayCount) : 2000;
       var age = (params.age) ? parseFloat(params.age) : 1;
@@ -387,10 +434,10 @@
         age: age
       };
     }
-    
+
     function setGeoFilter (enabled, type){
       view.graphics.removeAll();
-      
+
       var sym = new PolygonSymbol3D();
       if (type === "3d-volumetric" || type === "3d-realistic"){
         sym.symbolLayers = [ new ExtrudeSymbol3DLayer({
@@ -402,7 +449,7 @@
           material: { color: [ 0,255,0,0.3 ] }
         }) ];
       }
-      
+
       if (enabled){
         controller.graphics.removeAll();
         var downtownExtent = Extent.fromJSON({
@@ -427,7 +474,7 @@
         controller.geometryDefinition = null;
       }
     }
-    
+
     on(dom.byId("redraw"), "click", function(){
       var symType = dom.byId("symbol-type").value;
       var rendererType = dom.byId("renderer-type").value;
@@ -442,9 +489,9 @@
       var maxCount = dom.byId("max-count").value;
       var maxAge = dom.byId("max-age").value;
       var geoFilterEnabled = dom.byId("geo-filter-check").checked;
-      
+
       var renderer;
-      
+
       if (rendererType === "default"){
         renderer = defaultRenderer.clone();
       } else if (rendererType === "sr"){
@@ -456,7 +503,7 @@
       }
 
       var vvs = [];
-      
+
       if (hasColorVV){
         vvs.push(createColorVV());
       }
@@ -470,11 +517,11 @@
       if (hasRotationVV){
         vvs.push(createRotationVV());
       }
-      
+
       renderer.visualVariables = vvs;
-      
+
       layer.renderer = renderer;
-      
+
       setLabels(labelType);
       setElevationInfo({
         mode: elevationMode,
@@ -485,17 +532,17 @@
         displayCount: maxCount,
         age: maxAge
       });
-      
+
       setGeoFilter(geoFilterEnabled, symType);
-      
+
     });
-    
+
     var defaultRenderer;
-    
+
     layer.then(function(){
       defaultRenderer = layer.renderer.clone();
     });
-    
+
     view.on("click", function(evt){
       view.hitTest(evt.screenPoint)
         .then(function(response){
@@ -514,10 +561,32 @@
       });
     });
 
+    on(dom.byId("layer"), "change", function(evt){
+      var selection = evt.target.value;
+      map.remove(layer);
+      layer.destroy();
+      controller = null;
+
+      layer = new StreamLayer({
+        url: layerOptions[selection].url,
+        popupTemplate: {
+          content: "{*}"
+        },
+        title: "Los Angeles buses",
+        purgeOptions: {
+          displayCount: 10000,
+          age: 10
+        }
+      });
+      map.add(layer);
+
+      view.goTo(layerOptions[selection].camera);
+    });
+
   });
 </script>
 </head>
-  
+
 <body>
   <div id="viewDiv"></div>
   <div id="info">
@@ -553,6 +622,14 @@
     <strong>Max count:</strong> <input type="text" id="max-count">
     <strong>Max age:</strong> <input type="text" id="max-age">
     <strong>Filter by downtown LA?:</strong> <input type="checkbox" id="geo-filter-check">
+    <strong>Num of features: </strong><span id="num-features">0</span>
+    <strong>Features/second: </strong><span id="features-second">0</span><br>
+    <strong>Layer:</strong> <select id="layer" disabled>
+      <option value="la" selected>Los Angeles buses</option>
+      <option value="seattle">Seattle buses</option>
+      <option value="satellite">Satellites</option>
+      <option value="new-york">New York transit</option>
+    </select>
   </div>
 </body>
 </html>
