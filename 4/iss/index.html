@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Get started with SceneView - Create a 3D map - 4.2</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+    #infoDiv {
+      color: orange;
+      font-size: 26pt;
+      width: 450px;
+      padding: 3px;
+    }
+    #track-button{
+      float: left;
+      background-color: orange;
+      color: white;
+      max-width: 120px;
+      padding: 8px;
+      opacity: 0.85;
+      cursor: pointer;
+    }
+    #results{
+      padding-left: 32%;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.2/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.2/"></script>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/SceneView",
+      "esri/geometry/Point",
+      "esri/geometry/Polyline",
+      "esri/geometry/geometryEngineAsync",
+      "esri/geometry/support/webMercatorUtils",
+      "esri/Graphic",
+
+      "esri/symbols/PointSymbol3D",
+      "esri/symbols/ObjectSymbol3DLayer",
+      "esri/symbols/LineSymbol3D",
+      "esri/symbols/PathSymbol3DLayer",
+      "esri/symbols/SimpleLineSymbol",
+
+      "esri/request",
+      "esri/config",
+      "dojo/dom",
+      "dojo/on",
+      "dojo/domReady!"
+    ], function(
+      Map, SceneView, Point, Polyline, geometryEngine, webMercatorUtils, Graphic,
+      PointSymbol3D, ObjectSymbol3DLayer, LineSymbol3D, PathSymbol3DLayer, SimpleLineSymbol,
+      esriRequest, esriConfig, dom, on) {
+
+      var url = "//api.open-notify.org/iss-now.json";
+      esriConfig.request.corsEnabledServers.push(url);
+
+      var feature, previousFeature,
+          path, lineGraphic, lineShadow,
+          interval;
+      var totalDistance = 0;
+
+      var map = new Map({
+        basemap: "satellite"
+      });
+
+      var view = new SceneView({
+        container: "viewDiv",
+        map: map
+      });
+      view.ui.add("infoDiv", "top-right");
+
+      view.then(function(){
+        on(dom.byId("track-button"), "click", function(evt){
+          if (dom.byId("track-button").innerHTML === "Stop Tracking"){
+            dom.byId("track-button").innerHTML = "Start Tracking";
+            dom.byId("speed").innerHTML = 0;
+            dom.byId("distance").innerHTML = 0;
+
+            stopTracking();
+          } else {
+            dom.byId("track-button").innerHTML = "Stop Tracking";
+
+            startTracking();
+          }
+        });
+      });
+
+      // Get ISS position and plot every second
+
+      function startTracking (){
+        interval = setInterval(function(){
+          getIssPosition()
+          .then(plotPosition)
+          .then(addLine)
+          .then(getSpeed)
+          .otherwise(function(error){
+            console.log("error: ", error);
+          });
+        }, 1000);
+
+        return interval;
+      }
+
+      function stopTracking (){
+        clearInterval(interval);
+        view.graphics.removeAll();
+        feature = null;
+        previousFeature = null;
+        path = null;
+        lineGraphic = null;
+        lineShadow = null;
+        totalDistance = 0;
+      }
+
+      function getIssPosition (){
+        return esriRequest(url);
+      }
+
+      function plotPosition (response){
+        if (feature){
+          previousFeature = feature;
+          view.graphics.remove(feature);
+        }
+        var position = response.data.iss_position;
+        var xy = webMercatorUtils.lngLatToXY(position.longitude, position.latitude);
+        var currentPosition = new Point({
+          x: xy[0],
+          y: xy[1],
+          z: 400727,
+          spatialReference: { wkid: 3857 }
+        });
+
+        feature = new Graphic({
+          geometry: currentPosition,
+          symbol: new PointSymbol3D({
+            symbolLayers: [
+              new ObjectSymbol3DLayer({
+                material: { color: "orange" },
+                width: 100000,
+                resource: { primitive: "sphere" }
+              })
+            ]
+          }),
+          attributes: {
+            timestamp: response.data.timestamp * 1000
+          },
+          popupTemplate: {
+            title: "International Space Station",
+            content: [{
+              type: "fields",
+              fieldInfos: [{
+                fieldName: "timestamp",
+                label: "time",
+                visible: true,
+                format: {
+                  dateFormat: "short-date-short-time"
+                }
+              }]
+            }]
+          }
+        });
+
+        view.graphics.add(feature);
+
+        return {
+          currentPosition: feature,
+          previousPosition: previousFeature
+        };
+      }
+
+      function addLine (params){
+        if (!params.previousPosition){
+          console.log("First logged location.");
+          view.goTo({
+            target: params.currentPosition,
+            tilt: 75
+          });
+          return;
+        }
+
+        if (!path){
+          path = createPath(params);
+        } else {
+          path = updatePath(path, params.currentPosition);
+        }
+
+        return geometryEngine.geodesicDensify(path, 10, "kilometers")
+          .then(function(geodesicPath){
+
+            if(lineGraphic){
+              view.graphics.removeMany([lineGraphic, lineShadow]);
+            }
+
+            lineGraphic = new Graphic({
+              geometry: geodesicPath,
+              symbol: new LineSymbol3D({
+                symbolLayers: [
+                  new PathSymbol3DLayer({
+                    material: { color: [ 128,128,128,0.3 ] },
+                    size: 85000
+                  })
+                ]
+              })
+            });
+
+            lineShadow = lineGraphic.clone();
+            var geomNoZ = lineShadow.geometry.clone();
+            geomNoZ.hasZ = false;
+            lineShadow.geometry = geomNoZ;
+            lineShadow.symbol = new SimpleLineSymbol({
+              color: [ 128,128,128,0.6 ],
+              width: 15
+            });
+
+            view.graphics.addMany([lineGraphic, lineShadow]);
+
+            return {
+              path: createPath(params),
+              startTime: params.previousPosition.attributes.timestamp,
+              endTime: params.currentPosition.attributes.timestamp
+            };
+
+          });
+      }
+
+      function createPath (params){
+
+        var startPoint = [
+          params.previousPosition.geometry.x,
+          params.previousPosition.geometry.y,
+          params.previousPosition.geometry.z,
+        ];
+
+        var endPoint = [
+          params.currentPosition.geometry.x,
+          params.currentPosition.geometry.y,
+          params.currentPosition.geometry.z,
+        ];
+
+        return new Polyline({
+          spatialReference: { wkid: 3857 },
+          hasZ: true,
+          paths: [[
+            startPoint,
+            endPoint
+          ]]
+        });
+      }
+
+      function updatePath (line, newPoint){
+        var polyline = line.clone();
+        var lastPointIndex = line.paths[0].length;
+        var endPoint = newPoint.geometry;
+        polyline.insertPoint(0,lastPointIndex, endPoint);
+        return polyline;
+      }
+
+      function getSpeed (params) {
+        if (!params){
+          console.log("Missing required parameters in getSpeed().",
+                     " This may be a result of only obtaining the first location.");
+          return;
+        }
+        var path = params.path;
+        var startTime = params.startTime;
+        var endTime = params.endTime;
+        var timeInterval = (endTime !== startTime) ? (endTime - startTime) : 1000;
+        var seconds = timeInterval * 0.001;
+        var minutes = (timeInterval / 60000);
+
+        return getDistance(path)
+          .then(function(distance){
+            totalDistance += distance;
+            var speed = distance / seconds;
+
+            dom.byId("speed").innerHTML = Math.round(speed*100)/100;
+            dom.byId("distance").innerHTML = Math.round(totalDistance*100)/100;
+            return speed;
+          });
+      }
+
+      function getDistance (line) {
+        return geometryEngine.geodesicLength(line, "kilometers");
+      }
+
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+  <div id="infoDiv">
+    <strong>International Space Station</strong><br>
+    <div id="track-button">Start Tracking</div>
+    <div id="results">
+      Speed: <span id="speed">0</span> km/s<br>
+      Distance: <span id="distance">0</span> km
+    </div>
+  </div>
+</body>
+</html>
