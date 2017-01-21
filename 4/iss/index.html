@@ -51,6 +51,7 @@
       "esri/symbols/LineSymbol3D",
       "esri/symbols/PathSymbol3DLayer",
       "esri/symbols/SimpleLineSymbol",
+      "esri/widgets/BasemapToggle",
 
       "esri/request",
       "esri/config",
@@ -60,7 +61,7 @@
     ], function(
       Map, SceneView, Point, Polyline, geometryEngine, webMercatorUtils, Graphic,
       PointSymbol3D, ObjectSymbol3DLayer, LineSymbol3D, PathSymbol3DLayer, SimpleLineSymbol,
-      esriRequest, esriConfig, dom, on) {
+      BasemapToggle, esriRequest, esriConfig, dom, on) {
 
       var url = "//api.open-notify.org/iss-now.json";
       esriConfig.request.corsEnabledServers.push(url);
@@ -71,7 +72,7 @@
       var totalDistance = 0;
 
       var map = new Map({
-        basemap: "satellite"
+        basemap: "dark-gray"
       });
 
       var view = new SceneView({
@@ -79,6 +80,15 @@
         map: map
       });
       view.ui.add("infoDiv", "top-right");
+
+      var toggleBasemap = new BasemapToggle({
+        view: view,
+        nextBasemap: "satellite"
+      });
+      view.ui.add(toggleBasemap, {
+        position: "top-left",
+        index: 0
+      });
 
       view.then(function(){
         on(dom.byId("track-button"), "click", function(evt){
