@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
+<title>3D Labels</title>
+
+<style>
+  html,
+  body, #viewDiv {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  #info{
+    background-color: white;
+    padding: 7px;
+    max-width: 85%;
+  }
+</style>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.2/esri/css/main.css">
+<script src="https://js.arcgis.com/4.2"></script>
+
+<script>
+  require([
+    "esri/Map",
+    "esri/views/SceneView",
+    "esri/Camera",
+    "esri/layers/FeatureLayer",
+    "esri/layers/SceneLayer",
+
+    "esri/symbols/SimpleMarkerSymbol",
+    "esri/symbols/SimpleLineSymbol",
+    "esri/symbols/PointSymbol3D",
+    "esri/symbols/IconSymbol3DLayer",
+    "esri/symbols/ObjectSymbol3DLayer",
+    "esri/symbols/LineSymbol3D",
+    "esri/symbols/LineSymbol3DLayer",
+    "esri/symbols/PathSymbol3DLayer",
+    "esri/symbols/WebStyleSymbol",
+    "esri/symbols/TextSymbol",
+    "esri/symbols/TextSymbol3DLayer",
+    "esri/symbols/LabelSymbol3D",
+    "esri/layers/support/LabelClass",
+
+    "esri/geometry/Extent",
+    "esri/geometry/Polygon",
+    "esri/symbols/PolygonSymbol3D",
+    "esri/symbols/ExtrudeSymbol3DLayer",
+    "esri/symbols/FillSymbol3DLayer",
+
+    "esri/renderers/SimpleRenderer",
+    "esri/renderers/UniqueValueRenderer",
+    "esri/renderers/ClassBreaksRenderer",
+
+    "dojo/on",
+    "dojo/dom",
+    "dojo/domReady!"
+  ], function(Map, SceneView, Camera, FeatureLayer, SceneLayer,
+    SimpleMarkerSymbol, SimpleLineSymbol, PointSymbol3D,
+    IconSymbol3DLayer, ObjectSymbol3DLayer, LineSymbol3D,
+    LineSymbol3DLayer, PathSymbol3DLayer, WebStyleSymbol,
+    TextSymbol, TextSymbol3DLayer, LabelSymbol3D, LabelClass,
+    Extent, Polygon, PolygonSymbol3D, ExtrudeSymbol3DLayer, FillSymbol3DLayer,
+    SimpleRenderer, UniqueValueRenderer, ClassBreaksRenderer,
+    on, dom) {
+
+    var pointLayer = new FeatureLayer({
+      url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/WorldCities/FeatureServer/0",
+      outFields: ["*"]
+    });
+    var linesLayer = new FeatureLayer({
+      url: "https://services.arcgis.com/P3ePLMYs2RVChkJx/ArcGIS/rest/services/USA_Freeway_System/FeatureServer/2",
+      minScale: 0,
+      maxScale: 0,
+      outFields: ["*"]
+    });
+    var polysLayer = new FeatureLayer({
+      url: "https://sampleserver6.arcgisonline.com/arcgis/rest/services/Census/MapServer/3",
+      outFields: ["*"]
+    });
+    var sceneLayerMesh = new SceneLayer({
+      url: "https://tiles.arcgis.com/tiles/V6ZHFr6zdgNZuVG0/arcgis/rest/services/NYCatt/SceneServer",
+      outFields: ["*"],
+      popupTemplate: { content: "{*}" },
+      labelsVisible: true
+    });
+    var sceneLayerPoints = new SceneLayer({
+      url: "http://tiles.arcgis.com/tiles/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Airports_PointSceneLayer/SceneServer/layers/0",
+      outFields: ["*"],
+      popupTemplate: { content: "{*}" },
+      labelsVisible: true
+    });
+
+      sceneLayerPoints.then(function(){
+        console.log(sceneLayerPoints);
+        console.log(sceneLayerPoints.getFieldUsageInfo("name"));
+      });
+
+
+    var map = new Map({
+      basemap: "topo",
+      layers: [ pointLayer, linesLayer, polysLayer, sceneLayerPoints, sceneLayerMesh ]
+    });
+
+    var view = new SceneView({
+      map: map,
+      container: "viewDiv",
+      zoom: 5,
+      center: [ -95, 40 ]
+    });
+
+//    view.watch("scale", function(newScale){
+//      console.log("scale: ", newScale);
+//    });
+
+    view.then(function(){
+      view.ui.add("info", "top-right");
+      console.log("sr: ", view.spatialReference.wkid);
+      updateLabels();
+    });
+
+    function setLabels(layer, type, placement){
+
+      var sym;
+      var layerType = layer.geometryType;
+      var label;
+      var color = "black";
+
+      if(layerType === "point"){
+        label = "{name}";
+        color = "blue";
+      } else if (layerType === "polyline") {
+        label = "Route # {ROUTE_NUM}";
+        color = "red";
+      } else if (layerType === "polygon"){
+        label = "{STATE_NAME} state";
+        color = "green";
+      } else if (layerType === "mesh"){
+        label = "building {NAME}";
+        color = "black";
+        console.log("mesh");
+        view.goTo(new Camera({
+          position: {
+            x: -8241124,
+            y: 4968029,
+            z: 580,
+            spatialReference: 3857
+          },
+          heading: 58,
+          tilt: 86
+        }));
+      }
+
+      if(type === "none"){
+        layer.labelsVisible = false;
+        layer.labelingInfo = null;
+        return;
+      } else if (type === "3d"){
+        sym = new LabelSymbol3D({
+          symbolLayers: [
+            new TextSymbol3DLayer({
+              material: { color: color },
+              size: 25,
+              font: {
+                family: "cursive",
+                weight: "bold",
+                style: "italic"
+              }
+            })
+          ]
+        });
+      } else if (type === "2d"){
+        sym = new TextSymbol({
+          color: color,
+          haloColor: "yellow",
+          haloSize: 2,
+          angle: 90,
+          horizontalAlignment: "left",
+          font: {
+            size: 6,
+            style: "normal",
+            weight: "lighter",
+            variant: "small-caps",  //n
+            decoration: "line-through",  //n
+            family: "sans-serif"
+          },
+          verticalAlignment: "top", //no
+          xoffset: 100,  // no
+          yoffset: -100  //n
+        });
+      }
+
+      var labelClass = new LabelClass({
+        symbol: sym,
+        labelPlacement: placement,
+        labelExpressionInfo: {
+          value: (label) ? label : "default label"
+        }
+      });
+
+      layer.labelsVisible = true;
+      layer.labelingInfo = [labelClass];
+    }
+
+    function updateLabels () {
+      var labelType = dom.byId("labels").value;
+      var pointsLayerSelected = dom.byId("points-layer").checked;
+      var linesLayerSelected = dom.byId("lines-layer").checked;
+      var polysLayerSelected = dom.byId("polys-layer").checked;
+      var scenePointsLayerSelected = dom.byId("scene-points").checked;
+      var sceneMeshLayerSelected = dom.byId("scene-mesh").checked;
+      var placement = dom.byId("placement").value;
+
+      if (pointsLayerSelected)
+        setLabels(pointLayer, labelType, placement);
+      if (linesLayerSelected)
+        setLabels(linesLayer, labelType, placement);
+      if(polysLayerSelected)
+        setLabels(polysLayer, labelType, placement);
+      if(scenePointsLayerSelected)
+        setLabels(sceneLayerPoints, labelType, placement);
+      if(sceneMeshLayerSelected)
+        setLabels(sceneLayerMesh, labelType, placement);
+    }
+
+    on(dom.byId("redraw"), "click", updateLabels);
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+  <div id="info">
+    <button id="redraw">Redraw</button>
+    <strong>Layer types:</strong> <input type="checkbox" id="points-layer">Points
+    <input type="checkbox" id="lines-layer">Lines
+    <input type="checkbox" id="polys-layer">Polygons
+    <input type="checkbox" id="scene-points">Scene (points)
+    <input type="checkbox" id="scene-mesh">Scene (mesh)
+    <strong>Labels:</strong> <select id="labels">
+      <option value="none">None</option>
+      <option value="2d" >2D</option>
+      <option value="3d">3D</option>
+    </select>
+    <strong>Placement:</strong> <select id="placement">
+      <option value="none" selected>None</option>
+      <option value="above-center" >above-center</option>
+      <option value="above-left" >above-left</option>
+      <option value="above-right" >above-right</option>
+      <option value="below-center" >below-center</option>
+      <option value="below-right" >below-right</option>
+      <option value="below-left" >below-left</option>
+      <option value="center-center" >center-center</option>
+      <option value="center-left" >center-left</option>
+      <option value="center-right" >center-right</option>
+      <option value="above-after" >above-after</option>
+      <option value="above-along" >above-along</option>
+      <option value="above-before" >above-before</option>
+      <option value="above-start" >above-start</option>
+      <option value="above-end" >above-end</option>
+      <option value="below-after" >below-after</option>
+      <option value="below-along" >below-along</option>
+      <option value="below-before" >below-before</option>
+      <option value="below-start" >below-start</option>
+      <option value="below-end" >below-end</option>
+      <option value="center-after" >center-after</option>
+      <option value="center-along" >center-along</option>
+      <option value="center-before" >center-before</option>
+      <option value="center-start" >center-start</option>
+      <option value="center-end" >center-end</option>
+      <option value="always-horizontal" >always-horizontal</option>
+    </select>
+  </div>
+</body>
+</html>
