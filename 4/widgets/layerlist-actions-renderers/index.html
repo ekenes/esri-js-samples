@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Load visualizations via a webmap</title>
+<style>
+  html,
+  body,
+  #viewDiv {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    width: 100%;
+  }
+</style>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.2/esri/css/main.css">
+<script src="https://js.arcgis.com/4.2/"></script>
+
+<script>
+  require([
+    "esri/WebMap",
+    "esri/views/MapView",
+    "esri/widgets/Legend",
+    "esri/widgets/LayerList",
+    "dojo/domReady!"
+  ], function(WebMap, MapView, Legend, LayerList) {
+
+    var map = new WebMap({
+      portalItem: {
+        id: "8bcfd58b039a4477a0eb734fe6c8d4fe"
+      }
+    });
+
+    var view = new MapView({
+      container: "viewDiv"
+    });
+
+    var rendererInfos;
+
+    map.load().then(function(){
+      rendererInfos = map.layers.map(function(layer){
+        return {
+          renderer: layer.renderer.clone(),
+          title: layer.title
+        };
+      });
+      rendererInfos.reverse();
+      var visibleLayer = map.layers.find(function(layer){
+        layer.title = map.portalItem.title;
+        return layer.visible;
+      });
+      map.layers.removeAll();
+      map.layers.add(visibleLayer);
+      view.map = map;
+      return view;
+    }).then(addWidgets);
+
+    function addWidgets(view){
+      var layerList = new LayerList({
+        view: view,
+        createActionsFunction: createLayerListActions
+      });
+      var legend = new Legend({
+        view: view
+      });
+      view.ui.add(layerList, "top-right");
+      view.ui.add(legend, "bottom-left");
+
+      layerList.on("trigger-action", toggleRenderer);
+    }
+
+    function createLayerListActions(evt){
+      if(evt.item.title = map.portalItem.title){
+        return [ rendererInfos.map(function(rendererInfo){
+          return {
+            title: rendererInfo.title,
+            className: "esri-icon-maps",
+            id: "change-renderer"
+          };
+        }) ];
+      }
+    }
+
+    function toggleRenderer(evt){
+      if(evt.action.id === "change-renderer"){
+        var matchingInfo = rendererInfos.find(function(info){
+          return info.title === evt.action.title;
+        });
+        var renderer = matchingInfo.renderer.clone();
+        var layer = view.map.layers.getItemAt(0);
+        layer.renderer = renderer;
+      }
+    }
+
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+</html>
