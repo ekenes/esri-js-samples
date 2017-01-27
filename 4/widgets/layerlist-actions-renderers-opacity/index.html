@@ -80,7 +80,8 @@
           actions.push({
             title: rendererInfo.title,
             className: "esri-icon-maps",
-            id: "change-renderer"
+            id: "change-renderer",
+            rendererTitle: rendererInfo.title
           });
 
           var renderer = rendererInfo.renderer;
@@ -90,7 +91,7 @@
 
           if (hasOpacityVV){
             actions.push({
-              title: "Remove opacity",
+              title: "Toggle opacity",
               className: "esri-icon-environment-settings",
               id: "toggle-opacity",
               rendererTitle: rendererInfo.title
@@ -105,8 +106,7 @@
     function fireAction(evt){
       var actionId = evt.action.id;
       var actionTitle = evt.action.title;
-      layer.rendererTitle = evt.action.rendererTitle;
-      console.log("layer: ", layer);
+
       if (evt.action.id === "change-renderer"){
         toggleRenderer(actionTitle);
       } else if (evt.action.id === "toggle-opacity"){
@@ -121,9 +121,14 @@
 
       var layer = view.map.layers.getItemAt(0);
       var matchingRendererInfo = rendererInfos.find(function(info){
-        return info.title === title;
+        return info.title === layer.rendererTitle && info.title === title;
       });
-      var renderer = matchingRendererInfo.renderer.clone();
+
+      if(!matchingRendererInfo){
+        return;
+      }
+
+      var renderer = layer.renderer.clone();
 
       if (hasOpacityVV(renderer)){
         var opacityIndex;
@@ -134,6 +139,8 @@
           }
         });
         renderer.visualVariables.splice(opacityIndex,1);
+      } else {
+        renderer = matchingRendererInfo.renderer;
       }
 
       layer.renderer = renderer;
@@ -152,6 +159,7 @@
       var renderer = matchingInfo.renderer.clone();
       var layer = view.map.layers.getItemAt(0);
       layer.renderer = renderer;
+      layer.rendererTitle = matchingInfo.title;
     }
 
   });
