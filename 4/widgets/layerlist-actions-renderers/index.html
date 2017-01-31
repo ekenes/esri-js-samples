@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Load visualizations via a webmap</title>
+<title>Load multiple visualizations via a webmap</title>
 <style>
   html,
   body,
@@ -27,6 +27,9 @@
     "dojo/domReady!"
   ], function(WebMap, MapView, Legend, LayerList) {
 
+    // First, load the web map containing a single layer
+    // copied several times with a separate renderer
+
     var map = new WebMap({
       portalItem: {
         id: "8bcfd58b039a4477a0eb734fe6c8d4fe"
@@ -40,6 +43,12 @@
     var rendererInfos;
 
     map.load().then(function(){
+
+      // After the map loads, save each layer's renderer
+      // to the rendererInfos object. These renderers will
+      // be applied to the layer when the action with the
+      // given title is clicked.
+
       rendererInfos = map.layers.map(function(layer){
         return {
           renderer: layer.renderer.clone(),
@@ -47,19 +56,27 @@
         };
       });
       rendererInfos.reverse();
+
       var visibleLayer = map.layers.find(function(layer){
         layer.title = map.portalItem.title;
         return layer.visible;
       });
+      // Only keep one layer (the visible one) in the map before
+      // adding the map to the view
       map.layers.removeAll();
       map.layers.add(visibleLayer);
       view.map = map;
       return view;
     }).then(addWidgets);
 
+    // Add LayerList and Legend widgets to the view.
     function addWidgets(view){
       var layerList = new LayerList({
         view: view,
+        // Assign a function to the LayerList widget
+        // that fires each time the relevant layer views are
+        // updated. This function must return a two-dimensional
+        // array of action objects
         createActionsFunction: createLayerListActions
       });
       var legend = new Legend({
@@ -68,8 +85,21 @@
       view.ui.add(layerList, "top-right");
       view.ui.add(legend, "bottom-left");
 
+      // When any action in the LayerList is clicked,
+      // the trigger-action event fires and the toggleRenderer()
+      // callback executes
+
       layerList.on("trigger-action", toggleRenderer);
     }
+
+    // This function must return a two-dimensional array of
+    // action objects. This is done for the layer kept when the app
+    // originally loaded.
+    // One action is created for each rendererInfo object. The action title
+    // will match the title of the rendererInfo object (and the associated
+    // layer in the web map). The ID identifies the type of action executed
+    // and the className points to an icon font included in the API. This icon
+    // font is used to visually identify the action in the UI.
 
     function createLayerListActions(evt){
       if(evt.item.title = map.portalItem.title){
@@ -82,6 +112,12 @@
         }) ];
       }
     }
+
+    // Each time an action is clicked, this function executes.
+    // First, it checks the id of the action to ensure it is one we
+    // created. Then we find the relevant rendererInfo object associated
+    // with the given action title. Once a match is found, we clone the renderer
+    // and apply it to the layer.
 
     function toggleRenderer(evt){
       if(evt.action.id === "change-renderer"){
