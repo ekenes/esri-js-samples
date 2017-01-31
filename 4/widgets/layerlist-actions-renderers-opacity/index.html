@@ -121,7 +121,7 @@
 
       var layer = view.map.layers.getItemAt(0);
       var matchingRendererInfo = rendererInfos.find(function(info){
-        return info.title === layer.rendererTitle && info.title === title;
+        return info.title === layerRendererTitle && info.title === title;
       });
 
       if(!matchingRendererInfo){
@@ -152,6 +152,8 @@
       });
     }
 
+    var layerRendererTitle;
+
     function toggleRenderer(title){
       var matchingInfo = rendererInfos.find(function(info){
         return info.title === title;
@@ -159,7 +161,7 @@
       var renderer = matchingInfo.renderer.clone();
       var layer = view.map.layers.getItemAt(0);
       layer.renderer = renderer;
-      layer.rendererTitle = matchingInfo.title;
+      layerRendererTitle = matchingInfo.title;
     }
 
   });
