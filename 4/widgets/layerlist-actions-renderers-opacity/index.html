@@ -73,7 +73,7 @@
 
     function createLayerListActions(evt){
       if(evt.item.title = map.portalItem.title){
-
+        evt.item.actionsOpen = true;
         return rendererInfos.map(function(rendererInfo){
           var actions = [];
 
@@ -98,7 +98,7 @@
             });
           }
           return actions;
-        });
+        }).toArray();
 
       }
     }

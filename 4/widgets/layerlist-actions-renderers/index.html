@@ -102,14 +102,16 @@
     // font is used to visually identify the action in the UI.
 
     function createLayerListActions(evt){
-      if(evt.item.title = map.portalItem.title){
+      var listItem = evt.item;
+      if(listItem.title = map.portalItem.title){
+        listItem.actionsOpen = true;
         return [ rendererInfos.map(function(rendererInfo){
           return {
             title: rendererInfo.title,
             className: "esri-icon-maps",
             id: "change-renderer"
           };
-        }) ];
+        }).toArray() ];
       }
     }
 
