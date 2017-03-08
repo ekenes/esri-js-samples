@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Load visualizations via a webmap</title>
+<style>
+  html,
+  body,
+  #viewDiv {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    width: 100%;
+  }
+</style>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.3/esri/css/main.css">
+<script>
+  var dojoConfig = {
+    paths: {
+      app: window.location.href.replace(/\/[^/]+$/, "")
+    }
+  };
+</script>
+<script src="https://js.arcgis.com/4.3/"></script>
+
+<script>
+  require([
+    "esri/config",
+    "app/CompareNeighbors",
+    "esri/Map",
+    "esri/views/MapView",
+    "esri/widgets/Legend",
+    "esri/widgets/LayerList",
+    "esri/layers/FeatureLayer",
+    "esri/core/workers",
+    "dojo/domReady!"
+  ], function(esriConfig, CompareNeighbors, Map, MapView, Legend, LayerList, FeatureLayer, workers) {
+
+    esriConfig.workers.loaderConfig = {
+      paths: {
+        app: window.location.href.replace(/\/[^/]+$/, "")
+      }
+    }
+
+    var layer = new FeatureLayer({
+      portalItem: {
+        id: "b975d17543fb4ab2a106415dca478684"
+      },
+      url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Mexico_demographics/FeatureServer/0",
+      title: "Mexican municipalities",
+      outFields: ["*"]
+    });
+
+    var config = {
+      diffVariable: "diffAverage",  //diffMax, diffAverage
+      fieldName: "EDUC01_CY",
+      normalizationFieldName: "EDUCA_BASE",
+      valueExpression: null,
+      valueExpressionTitle: null
+    };
+
+    var map = new Map({
+      basemap: "gray",
+      layers: [ layer ]
+    });
+
+    var view = new MapView({
+      container: "viewDiv",
+      map: map,
+      zoom: 6,
+      center: [ -100, 22.5 ]
+    });
+
+    var legend,layerList,originalRenderer,
+        compareNeighborsRenderer,bivariateRenderer;
+
+
+    view.then(function(){
+      legend = new Legend({
+        view: view
+      });
+      layerList = new LayerList({
+        view: view
+      });
+
+      layerList.on("trigger-action", function(evt){
+        if(evt.action.id === "diff-renderer"){
+          evt.item.layer.renderer = compareNeighborsRenderer;
+        }
+        if(evt.action.id === "bivariate-renderer"){
+          evt.item.layer.renderer = bivariateRenderer;
+        }
+        if(evt.action.id === "original-renderer"){
+          evt.item.layer.renderer = originalRenderer;
+        }
+      });
+
+      view.ui.add(legend, "bottom-left");
+      view.ui.add(layerList, "top-right");
+
+      var compare = new CompareNeighbors();
+      compare.execute({
+        layer: layer,
+        config: config
+      })
+      .then(function(response) {
+        originalRenderer = layer.renderer.clone();
+        compareNeighborsRenderer = response.diffRenderer.clone();
+        bivariateRenderer = response.bivariateRenderer.clone();
+        layerList.createActionsFunction = createRendererAction;
+      });
+    });
+
+    function createRendererAction() {
+      layerList.createActionsFunction = function(event){
+        if (event.item.title === layer.title){
+          return [[{
+            title: "See dissimilar neighbors",
+            className: "esri-icon-maps",
+            id: "diff-renderer"
+          }, {
+            title: "Distant neighbors with variable",
+            className: "esri-icon-maps",
+            id: "bivariate-renderer"
+          }, {
+            title: "Original renderer",
+            className: "esri-icon-maps",
+            id: "original-renderer"
+          }]];
+        }
+      };
+    }
+
+
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+</html>
