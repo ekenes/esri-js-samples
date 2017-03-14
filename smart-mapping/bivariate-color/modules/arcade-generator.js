@@ -43,7 +43,7 @@ define([], function(){
         '  for (var i in breaks){\n',
         '    code = IIf (value >= breaks[i].minValue && IIf(classes == i+1, value <= breaks[i].maxValue, value < breaks[i].maxValue), i+1, code);\n',
         '  }\n',
-        '  code = IIf (letter, WHEN( code==1, "A", code==2, "B", code==3, "C", code==4, "D", "Other" ), code);\n',
+        '  code = IIf (letter, Decode( code, 1, "A", 2, "B", 3, "C", 4, "D", "Other" ), code);\n',
         '  return code;\n',
         '}\n\n',
 
