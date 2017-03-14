@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Load visualizations via a webmap</title>
+<style>
+  html,
+  body,
+  #viewDiv {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    width: 100%;
+  }
+</style>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.3/esri/css/main.css">
+<script src="https://js.arcgis.com/4.3/"></script>
+
+<script>
+  require([
+    "esri/WebMap",
+    "esri/views/MapView",
+    "esri/widgets/Legend",
+    "esri/widgets/LayerList",
+    "esri/layers/GroupLayer",
+    "dojo/domReady!"
+  ], function(WebMap, MapView, Legend, LayerList, GroupLayer) {
+
+    var map = new WebMap({
+      portalItem: {
+        id: "8bcfd58b039a4477a0eb734fe6c8d4fe"
+      }
+    });
+
+    var view = new MapView({
+      container: "viewDiv"
+    });
+
+    var rendererInfos;
+
+    map.load().then(function(){
+      rendererInfos = map.layers.map(function(layer){
+        return {
+          renderer: layer.renderer.clone(),
+          title: layer.title
+        };
+      });
+
+      return map.layers;
+    }).then(createGroupLayer)
+      .otherwise(function(error){
+        console.log("error: ", error);
+      });
+
+    function createGroupLayer(layers){
+      var gl = new GroupLayer({
+        visibilityMode: "exclusive",
+        layers: layers,
+        title: map.portalItem.title
+      });
+
+      map.removeAll();
+      map.add(gl);
+      view.map = map;
+
+      var layerList = new LayerList({
+        view: view,
+        createActionsFunction: createLayerListActions
+      });
+      var legend = new Legend({
+        view: view
+      });
+      view.ui.add(layerList, "top-right");
+      view.ui.add(legend, "bottom-left");
+
+      layerList.on("trigger-action", toggleOpacity);
+    }
+
+    function createLayerListActions(evt){
+      var renderer = evt.item.layer.renderer;
+      var hasOpacityVV = renderer && renderer.visualVariables.some(function(variable){
+        return variable.type === "opacity";
+      });
+
+      if(hasOpacityVV){
+        return [[{
+          title: "Toggle opacity",
+          className: "esri-icon-environment-settings",
+          id: "toggle-opacity"
+        }]];
+      }
+    }
+
+    function toggleOpacity(evt){
+      if(evt.action.id === "toggle-opacity"){
+        var layer = evt.item.layer;
+        var renderer = layer.renderer.clone();
+
+        if (hasOpacityVV(renderer)){
+          var opacityIndex;
+          // findIndex isn't IE compatable
+          renderer.visualVariables.forEach(function(variable, index){
+            if (variable.type === "opacity"){
+              opacityIndex = index;
+            }
+          });
+          renderer.visualVariables.splice(opacityIndex,1);
+        } else {
+          var matchingInfo = rendererInfos.find(function(info){
+            return info.title === layer.title;
+          });
+          renderer = matchingInfo.renderer.clone();
+        }
+        layer.renderer = renderer;
+      }
+    }
+
+    function hasOpacityVV (renderer){
+      return renderer && renderer.visualVariables.some(function(variable){
+        return variable.type === "opacity";
+      });
+    }
+
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+</html>
