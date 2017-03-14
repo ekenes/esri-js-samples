@@ -90,6 +90,7 @@ define([
       var max = getMax(borderingValues);
       var min = getMin(borderingValues);
       var stddev = getStandardDeviation(borderingValues);
+      var count = getCount(borderingValues);
 
       function getDifference (value, subtractBy){
         return value - subtractBy;
@@ -106,7 +107,8 @@ define([
           average: average,
           max: max,
           min: min,
-          stddev: stddev
+          stddev: stddev,
+          count: count
         }
       };
 
@@ -132,7 +134,8 @@ define([
       min: getMin(valuesCollection),
       max: getMax(valuesCollection),
       avg: getAverage(valuesCollection),
-      stddev: getStandardDeviation(valuesCollection)
+      stddev: getStandardDeviation(valuesCollection),
+      count: getCount(valuesCollection)
     };
 
     return stats;
@@ -154,7 +157,8 @@ define([
       min: getMin(valuesCollection),
       max: getMax(valuesCollection),
       avg: getAverage(valuesCollection),
-      stddev: getStandardDeviation(valuesCollection)
+      stddev: getStandardDeviation(valuesCollection),
+      count: getCount(valuesCollection)
     };
 
     return stats;
@@ -208,6 +212,10 @@ define([
 
     var stdDev = Math.sqrt(avgSquareDiff);
     return stdDev;
+  }
+  
+  function getCount(a){
+    return a.length;
   }
 
   return CompareNeighbors;

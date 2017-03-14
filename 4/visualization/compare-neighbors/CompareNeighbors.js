@@ -3,12 +3,14 @@ define([
   "esri/renderers/SimpleRenderer",
   "esri/symbols/SimpleMarkerSymbol",
   "esri/symbols/SimpleFillSymbol",
+  "esri/renderers/smartMapping/creators/color",
   "esri/geometry/SpatialReference",
 ], function(
   workers,
   SimpleRenderer, 
   SimpleMarkerSymbol, 
   SimpleFillSymbol, 
+  colorRendererCreator, 
   SpatialReference 
 ){
 
@@ -29,7 +31,7 @@ define([
           });
         })
         .then(executeWorker)
-        .then(createRenderer)
+        .then(createRenderers)
         .otherwise(function(error){
           console.log("error: ", error);
         });
@@ -46,6 +48,7 @@ define([
 
     if(!exceededTransferLimit){
       return {
+        layer: layer,
         features: allFeatures,
         config: config
       };
@@ -76,6 +79,9 @@ define([
   }
 
   function executeWorker(params) {
+    var layer = params.layer;
+    delete params.layer;
+    
     var connection;
     return workers.open(this, "app/CompareNeighborsWorker")
       .then(function(conn) {
@@ -84,14 +90,16 @@ define([
       })
       .then(function(results) {
         connection.close();
+        results.layer = layer;
         return results;
       });
   }
 
-  function createRenderer(params) {
+  function createRenderers(params) {
     var featureInfos = params.featureInfos;
     var diffStats = params.diffStats;
     var config = params.config;
+    var layer = params.layer;
 
     var diffStopsMax = (diffStats.stddev + diffStats.avg) < diffStats.max ? (diffStats.stddev + diffStats.avg) : diffStats.max;
     var diffStopsMin = (diffStats.avg - diffStats.stddev) > diffStats.min ? (diffStats.avg - diffStats.stddev) : diffStats.min;
@@ -179,12 +187,22 @@ define([
         ]
       }]
     });
-
-    return {
-      diffRenderer: diffRenderer,
-      bivariateRenderer: bivariateRenderer,
-      sizeVisualVariable: sizeVisualVariable
-    };
+    
+    return colorRendererCreator.createContinuousRenderer({
+      layer: layer,
+      field: config.fieldName,
+      normalizationField: config.normalizationFieldName,
+      basemap: "gray",
+      theme: "high-to-low",
+    }).then(function(response){
+      return {
+        originalRenderer: response.renderer,
+        diffRenderer: diffRenderer,
+        bivariateRenderer: bivariateRenderer,
+        sizeVisualVariable: sizeVisualVariable
+      };
+    });
+    
   }
 
   function find(items, callback, thisArg) {
