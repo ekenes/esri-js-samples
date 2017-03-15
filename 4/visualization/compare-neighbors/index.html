@@ -4,32 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Load visualizations via a webmap</title>
-<style>
-  html,
-  body,
-  #viewDiv {
-    padding: 0;
-    margin: 0;
-    height: 100%;
-    width: 100%;
-  }
-  #spinner{
-    visibility: hidden;
-  }
-  #check {
-    height: 15px;
-    width: 15px;
-  }
-</style>
 
+<link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="https://js.arcgis.com/4.3/esri/css/main.css">
+
 <script>
   var dojoConfig = {
     paths: {
-      app: window.location.href.replace(/\/[^/]+$/, "")// + "/js"
+      app: window.location.href.replace(/\/[^/]+$/, "")
     }
   };
 </script>
+
 <script src="https://js.arcgis.com/4.3/"></script>
 
 <script>
@@ -37,7 +23,7 @@
     "app/App",
     "dojo/domReady!"
   ], function(App) {
-    
+
     var app = new App();
     app.run();
 

@@ -17,15 +17,7 @@ define([
     paths: {
       app: window.location.href.replace(/\/[^/]+$/, "")
     }
-  }
-
-//  var config = {
-//    diffVariable: "diffAverage",  //diffMax, diffAverage
-//    fieldName: "EDUC01_CY",
-//    normalizationFieldName: "EDUCA_BASE",
-//    valueExpression: null,
-//    valueExpressionTitle: null
-//  };
+  };
 
   var map = new Map({
     basemap: "gray"
@@ -38,17 +30,15 @@ define([
 
   var legend,layerList,originalRenderer,
       compareNeighborsRenderer,bivariateRenderer;
-  
-  
+
   var App = function App() {};
-  
+
   App.prototype = {
     run: function() {
       view.then(start);
     }
   };
-  
-  
+
   function start (){
     legend = new Legend({
       view: view
@@ -74,73 +64,43 @@ define([
     view.ui.add("info", "bottom-right");
 
     createLayer()
-      .then(function(layer){
-      
-        on(dom.byId("generate-renderer-btn"), "click", function(){
-          dom.byId("spinner").style.visibility = "visible";
-          
-          var workerParams = {
-            layer: layer,
-            config: getConfigParams()
-          };
-          
-          var compare = new CompareNeighbors();
-          compare.execute(workerParams)
-            .then(function(response) {
-              dom.byId("spinner").style.visibility = "hidden";
-              originalRenderer = response.originalRenderer.clone();
-              compareNeighborsRenderer = response.diffRenderer.clone();
-              bivariateRenderer = response.bivariateRenderer.clone();
-              layerList.createActionsFunction = createRendererAction;
-            });
-        });  
-      
-//        var compare = new CompareNeighbors();
-//        return compare.execute(workerParams)
-//      })
-//      .then(function(response) {
-//        dom.byId("spinner").style.visibility = "hidden";
-//        originalRenderer = response.originalRenderer.clone();
-//        compareNeighborsRenderer = response.diffRenderer.clone();
-//        bivariateRenderer = response.bivariateRenderer.clone();
-//        layerList.createActionsFunction = createRendererAction;
-      });
+      .then(generateRenderers);
   }
 
   function createRendererAction() {
     layerList.createActionsFunction = function(event){
-//      if (event.item.title === layer.title){
-        return [[{
-          title: "See dissimilar neighbors",
-          className: "esri-icon-maps",
-          id: "diff-renderer"
-        }, {
-          title: "Distant neighbors with variable",
-          className: "esri-icon-maps",
-          id: "bivariate-renderer"
-        }, {
-          title: "Original renderer",
-          className: "esri-icon-maps",
-          id: "original-renderer"
-        }]];
-//      }
+      return [[{
+        title: "See dissimilar neighbors",
+        className: "esri-icon-maps",
+        id: "diff-renderer"
+      }, {
+        title: "Distant neighbors with variable",
+        className: "esri-icon-maps",
+        id: "bivariate-renderer"
+      }, {
+        title: "Original renderer",
+        className: "esri-icon-maps",
+        id: "original-renderer"
+      }]];
     };
   }
-  
+
   function createLayer() {
     var url = dom.byId("service-url").value;
     var layer = new FeatureLayer({
       url: url,
-      outFields: ["*"]
+      outFields: ["*"],
+      visible: false
     });
-    
+
     return layer.load()
       .then(function(){
-      
+
         if(!isValidGeometryType(layer.geometryType)){
+          alert("You may only use a layer containing polygon geometries.")
           return promiseUtils.reject(new Error("Not a valid geometry type. You must use a polygon layer."))
         }
-      
+
         setFieldSelect({
           select: dom.byId("field-name"),
           layer: layer
@@ -149,49 +109,42 @@ define([
           select: dom.byId("normalization-field-name"),
           layer: layer
         });
-      
+
         view.map.add(layer);
         return layer.queryExtent();
       }).then(function(response){
         view.goTo(response.extent);
         return layer;
       });
-    
-    
+
   }
-  
+
   function isValidGeometryType(geomType) {
     var validTypes = [ "polygon" ];
-    
+
     return validTypes.indexOf(geomType) !== -1;
   }
-  
+
   function getConfigParams() {
     var fieldName = dom.byId("field-name").value;
     var normFieldName = dom.byId("normalization-field-name").value;
-    
-    if(!fieldName){
-      alert("You must select a field name.");
-    }
-    
+
     return {
       diffVariable: "diffAverage",  //diffMax, diffAverage
       fieldName: fieldName,
       normalizationFieldName: normFieldName ? normFieldName : null
     };
   }
-  
+
   function setFieldSelect(params){
     var select = params.select;
     var layer = params.layer;
     var fields = layer.fields;
 
-    select.options.length = 0;
-
     var validTypes = [ "double", "integer", "small-integer", "long-integer", "single" ];
-
     var invalidNames = [ "BoroCode" , "Shape_Leng", "ENRICH_FID", "HasData", "OBJECTID" ];
 
+    select.options.length = 0;
     var opt = domConstruct.create("option");
     opt.text = "";
     opt.value = "";
@@ -209,46 +162,54 @@ define([
       select.add(opt);
     });
   }
-  
+
   on(dom.byId("service-url"), "change", function(evt){
 
-      if(view.map.layers.length){
-        view.map.removeAll();
+    if(view.map.layers.length){
+      view.map.removeAll();
+    }
+
+    createLayer()
+      .then(generateRenderers)
+      .otherwise(function(error){
+        dom.byId("check").src = "img/red-x.png";
+        console.error(error);
+      });
+  });
+
+
+  function generateRenderers (layer){
+    dom.byId("check").src = "img/checkmark.png";
+
+    on(dom.byId("generate-renderer-btn"), "click", function(){
+      dom.byId("spinner").style.visibility = "visible";
+
+      var workerParams = {
+        layer: layer,
+        config: getConfigParams()
+      };
+
+      if(!workerParams.config.fieldName){
+        alert("You must select a field name.");
+        return;
       }
 
-      
-      createLayer()
-        .then(function(layer){
-          dom.byId("check").src = "../img/checkmark.png";
-        
-          on(dom.byId("generate-renderer-btn"), "click", function(){
-            dom.byId("spinner").style.visibility = "visible";
-            
-            
-            var workerParams = {
-              layer: layer,
-              config: getConfigParams()
-            };
-            
-            var compare = new CompareNeighbors();
-            compare.execute(workerParams)
-              .then(function(response) {
-                dom.byId("spinner").style.visibility = "hidden";
-                originalRenderer = response.originalRenderer.clone();
-                compareNeighborsRenderer = response.diffRenderer.clone();
-                bivariateRenderer = response.bivariateRenderer.clone();
-      //          layerList.createActionsFunction = createRendererAction;
-              });
-          });
-        })
-        .otherwise(function(error){
-          dom.byId("check").src = "../img/red-x.png";
-          console.error(error);
+      var compare = new CompareNeighbors();
+      compare.execute(workerParams)
+        .then(function(response) {
+          dom.byId("spinner").style.visibility = "hidden";
+
+          originalRenderer = response.originalRenderer.clone();
+          compareNeighborsRenderer = response.diffRenderer.clone();
+          bivariateRenderer = response.bivariateRenderer.clone();
+
+          response.layer.renderer = originalRenderer;
+          response.layer.visible = true;
+          layerList.createActionsFunction = createRendererAction;
         });
     });
-  
-  
-  
+  }
+
   return App;
 
 });

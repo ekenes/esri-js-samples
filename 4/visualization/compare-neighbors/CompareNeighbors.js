@@ -7,11 +7,11 @@ define([
   "esri/geometry/SpatialReference",
 ], function(
   workers,
-  SimpleRenderer, 
-  SimpleMarkerSymbol, 
-  SimpleFillSymbol, 
-  colorRendererCreator, 
-  SpatialReference 
+  SimpleRenderer,
+  SimpleMarkerSymbol,
+  SimpleFillSymbol,
+  colorRendererCreator,
+  SpatialReference
 ){
 
   var CompareNeighbors = function CompareNeighbors() {};
@@ -61,27 +61,26 @@ define([
 
     return layer.queryFeatures(query)
       .then(function(response){
-      console.log("query results: ", response);
-      var json = response.toJSON();
-      json.features.forEach(function(feature) {
-        delete feature.popupTemplate;
+        var json = response.toJSON();
+        json.features.forEach(function(feature) {
+          delete feature.popupTemplate;
+        });
+        allFeatures.push.apply(allFeatures, json.features);
+        return queryFeatures({
+          config: config,
+          layer: layer,
+          allFeatures: allFeatures,
+          num: num,
+          start: start+2000,
+          exceededTransferLimit: response.exceededTransferLimit
+        });
       });
-      allFeatures.push.apply(allFeatures, json.features);
-      return queryFeatures({
-        config: config,
-        layer: layer,
-        allFeatures: allFeatures,
-        num: num,
-        start: start+2000,
-        exceededTransferLimit: response.exceededTransferLimit
-      });
-    });
   }
 
   function executeWorker(params) {
     var layer = params.layer;
     delete params.layer;
-    
+
     var connection;
     return workers.open(this, "app/CompareNeighborsWorker")
       .then(function(conn) {
@@ -110,7 +109,7 @@ define([
     var min = Math.round(diffStopsMin*100) / 100;
     var diffStatsMin = Math.round(diffStats.min*100) / 100;
     var diffStatsMax = Math.round(diffStats.max*100) / 100;
-    
+
     var diffRenderer = new SimpleRenderer({
       symbol: new SimpleFillSymbol({
         outline: {
@@ -128,8 +127,15 @@ define([
           return match[config.diffVariable];
         },
         legendOptions: {
-          title: "Geographies where the % of the population that doesn't have formal education differs from the same demographic in neighboring municipalities"
+          title: "Based on the selected value, features shaded with a color other than white differ Beyond the normal variance that exists between a typical feature and its neighbors."
         },
+//        stops: [
+//          { value: min*2, color: "#ab4026", label: (min*2) + "% (min)" },  //-16
+//          { value: min, color:[255,255,255,0.6], label: (min) + "% (-1σ)" },  // d7a497
+//          { value: avg, color: [255,255,255,0.6], label: avg + " (similar)" },
+//          { value: max, color: [255,255,255,0.6], label: (max) + "% (+1σ)" },  // 4f6789
+//          { value: max*2, color: "#3c567b", label: (max*2) + "% (max)" }  // 27
+//        ]
         stops: [
           { value: diffStatsMin, color: "#ab4026", label: (diffStatsMin) + "% (min)" },  //-16
           { value: min, color:[255,255,255,0.6], label: (min) + "% (-1σ)" },  // d7a497
@@ -138,10 +144,10 @@ define([
           { value: diffStatsMax, color: "#3c567b", label: (diffStatsMax) + "% (max)" }  // 27
         ]
       }]
-    });   
-    
+    });
+
     var valueStats = params.valueStats;
-    
+
     var sizeVisualVariable = {
       type: "size",
       field: function(graphic){
@@ -150,7 +156,7 @@ define([
         var value = normalizationField ? (field/normalizationField)*100 : field;
         return value;
       },
-      legendOptions: { title: "% population without formal education" },
+      legendOptions: { title: "The variable on which the differences between features are determined." },
       stops: [
         { value: Math.round(valueStats.avg*100)/100, size: 4 },  //+1σ
         { value: Math.round(valueStats.max*100)/100, size: 50 }  // 27
@@ -176,7 +182,7 @@ define([
           return match[config.diffVariable];
         },
         legendOptions: {
-          title: "Geographies where the % of the population that doesn't have formal education differs from the same demographic in neighboring municipalities"
+          title: "Based on the selected value, features shaded with a color other than white differ Beyond the normal variance that exists between a typical feature and its neighbors."
         },
         stops: [
           { value: diffStatsMin, color: "#ab4026", label: (diffStatsMin) + "% (min)" },  //-16
@@ -187,7 +193,7 @@ define([
         ]
       }]
     });
-    
+
     return colorRendererCreator.createContinuousRenderer({
       layer: layer,
       field: config.fieldName,
@@ -196,13 +202,14 @@ define([
       theme: "high-to-low",
     }).then(function(response){
       return {
+        layer: layer,
         originalRenderer: response.renderer,
         diffRenderer: diffRenderer,
         bivariateRenderer: bivariateRenderer,
         sizeVisualVariable: sizeVisualVariable
       };
     });
-    
+
   }
 
   function find(items, callback, thisArg) {

@@ -24,7 +24,7 @@ define([
         featureInfos: featureInfos,
         config: params.config
       });
-      
+
       var valueStats = getValueStats({
         featureInfos: featureInfos,
         config: params.config
@@ -57,14 +57,9 @@ define([
     function visualizeDissimilarFeatures(graphic){
 
       var idField = graphic.attributes.OBJECTID;
-      var field = (fieldName) ? graphic.attributes[fieldName] : null;
-      var normalizationField = (normalizationFieldName) ? graphic.attributes[normalizationFieldName] : 1;
+      var field = (fieldName) && graphic.attributes[fieldName] ? graphic.attributes[fieldName] : 0;
+      var normalizationField = (normalizationFieldName) && graphic.attributes[normalizationFieldName] ? graphic.attributes[normalizationFieldName] : 1;
       var geometry = graphic.geometry;
-
-      if(!field && !valueExpression){
-        console.error("You must specify a field value or an arcade expression.");
-        return;
-      }
 
       var value = (valueExpression) ? valueExpression : Math.round((field / normalizationField)*10000) / 100;
 
@@ -74,8 +69,8 @@ define([
       }).map(function(feature){
 
         var idField = feature.attributes.OBJECTID;
-        var field = feature.attributes[fieldName];
-        var normalizationField = feature.attributes[normalizationFieldName];
+        var field = feature.attributes[fieldName] ? feature.attributes[fieldName] : 0;
+        var normalizationField = feature.attributes[normalizationFieldName] ? feature.attributes[normalizationFieldName] : 1;
         var value = Math.round((field / normalizationField)*10000) / 100;
 
         return {
@@ -140,7 +135,7 @@ define([
 
     return stats;
   }
-  
+
   function getValueStats(params) {
     var featureInfos = params.featureInfos;
     var field = params.config.fieldName;
@@ -213,7 +208,7 @@ define([
     var stdDev = Math.sqrt(avgSquareDiff);
     return stdDev;
   }
-  
+
   function getCount(a){
     return a.length;
   }
