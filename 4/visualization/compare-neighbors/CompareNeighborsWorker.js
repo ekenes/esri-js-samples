@@ -57,8 +57,8 @@ define([
     function visualizeDissimilarFeatures(graphic){
 
       var idField = graphic.attributes.OBJECTID;
-      var field = (fieldName) && graphic.attributes[fieldName] ? graphic.attributes[fieldName] : 0;
-      var normalizationField = (normalizationFieldName) && graphic.attributes[normalizationFieldName] ? graphic.attributes[normalizationFieldName] : 1;
+      var field = (fieldName) && graphic.attributes[fieldName] != null ? graphic.attributes[fieldName] : null;
+      var normalizationField = (normalizationFieldName) && graphic.attributes[normalizationFieldName] != null ? graphic.attributes[normalizationFieldName] : 1;
       var geometry = graphic.geometry;
 
       var value = (valueExpression) ? valueExpression : Math.round((field / normalizationField)*10000) / 100;
@@ -69,8 +69,8 @@ define([
       }).map(function(feature){
 
         var idField = feature.attributes.OBJECTID;
-        var field = feature.attributes[fieldName] ? feature.attributes[fieldName] : 0;
-        var normalizationField = feature.attributes[normalizationFieldName] ? feature.attributes[normalizationFieldName] : 1;
+        var field = feature.attributes[fieldName] != null ? feature.attributes[fieldName] : null;
+        var normalizationField = feature.attributes[normalizationFieldName] != null ? feature.attributes[normalizationFieldName] : 1;
         var value = Math.round((field / normalizationField)*10000) / 100;
 
         return {
@@ -94,9 +94,10 @@ define([
       var featureInfo = {
         feature: graphic,
         value: value,
-        diffAverage: getDifference(value, average),
-        diffMax: getDifference(value, max),
-        aboveNeighbors: getDifference(value, average) > 0,
+        diffAverage: count > 0 ? getDifference(value, average) : 0,
+        diffMax: count > 0 ? getDifference(value, max) : 0,
+        aboveNeighbors: count > 0 && getDifference(value, average) > 0,
+        hasNeighbors: count > 0,
         touches: borderingFeatureInfos,
         touchesStats: {
           average: average,
