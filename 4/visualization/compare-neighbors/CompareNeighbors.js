@@ -106,11 +106,29 @@ define([
     var diffStopsMin = (diffStats.avg - diffStats.stddev) > diffStats.min ? (diffStats.avg - diffStats.stddev) : diffStats.min;
     var stopsAvg = diffStats.avg;
 
-    var avg = utils.round(stopsAvg,2);
-    var max = utils.round(diffStopsMax,2);
-    var min = utils.round(diffStopsMin,2);
-    var diffStatsMin = utils.round(diffStats.min,2);
-    var diffStatsMax = utils.round(diffStats.max,2);
+    var diffStatsMin = diffStats.min;
+    var diffStatsMax = diffStats.max;
+
+    var colorVisualVariable = {
+      type: "color",
+      field: function (graphic) {
+        var attributes = graphic.attributes;
+        var match = utils.find(featureInfos, function(info){
+          return attributes.OBJECTID === info.feature.attributes.OBJECTID;
+        });
+        return match[config.diffVariable];
+      },
+      legendOptions: {
+        title: "Based on the selected value, features shaded with a color other than white differ beyond the normal variance that exists between a typical feature and its neighbors."
+      },
+      stops: [
+        { value: diffStopsMin*2, color: "#ab4026", label: utils.round(diffStopsMin*2,2) + utils.showPercentageUnits(true) + " (-2σ)" },
+        { value: diffStopsMin, color:[255,255,255,0.6], label: utils.round(diffStopsMin,2) + utils.showPercentageUnits(true) + " (-σ)" },
+        { value: stopsAvg, color: [255,255,255,0.6], label: utils.round(stopsAvg,2) + utils.showPercentageUnits(true) + " (similar)" },
+        { value: diffStopsMax, color: [255,255,255,0.6], label: utils.round(diffStopsMax,2) + utils.showPercentageUnits(true) + " (+σ)" },
+        { value: diffStopsMax*2, color: "#3c567b", label: utils.round(diffStopsMax*2,2) + utils.showPercentageUnits(true) + " (+2σ)" }
+      ]
+    };
 
     var diffRenderer = new SimpleRenderer({
       symbol: new SimpleFillSymbol({
@@ -119,49 +137,18 @@ define([
           color: [ 0,77,168,0.3 ]
         }
       }),
-      visualVariables: [{
-        type: "color",
-        field: function (graphic) {
-          var attributes = graphic.attributes;
-          var match = utils.find(featureInfos, function(info){
-            return attributes.OBJECTID === info.feature.attributes.OBJECTID;
-          });
-          return match[config.diffVariable];
-        },
-        legendOptions: {
-          title: "Based on the selected value, features shaded with a color other than white differ Beyond the normal variance that exists between a typical feature and its neighbors."
-        },
-        stops: [
-          { value: min*2, color: "#ab4026", label: (min*2) + " pp (-2σ)" },  //-16
-          { value: min, color:[255,255,255,0.6], label: (min) + " pp (-σ)" },  // d7a497
-          { value: avg, color: [255,255,255,0.6], label: avg + " (similar)" },
-          { value: max, color: [255,255,255,0.6], label: (max) + " pp (+σ)" },  // 4f6789
-          { value: max*2, color: "#3c567b", label: (max*2) + " pp (+2σ)" }  // 27
-        ]
-//        stops: [
-//          { value: diffStatsMin, color: "#ab4026", label: (diffStatsMin) + "% (min)" },  //-16
-//          { value: min, color:[255,255,255,0.6], label: (min) + "% (-1σ)" },  // d7a497
-//          { value: avg, color: [255,255,255,0.6], label: avg + " (similar)" },
-//          { value: max, color: [255,255,255,0.6], label: (max) + "% (+1σ)" },  // 4f6789
-//          { value: diffStatsMax, color: "#3c567b", label: (diffStatsMax) + "% (max)" }  // 27
-//        ]
-      }]
+      visualVariables: [ colorVisualVariable ]
     });
 
     var valueStats = params.valueStats;
 
     var sizeVisualVariable = {
       type: "size",
-      field: function(graphic){
-        var field = graphic.attributes[config.fieldName];
-        var normalizationField = graphic.attributes[config.normalizationFieldName];
-        var value = normalizationField ? (field/normalizationField)*100 : field;
-        return value;
-      },
-      legendOptions: { title: "The variable on which the differences between features are determined." },
+      field: config.fieldName,
+      normalizationField: config.normalizationFieldName,
       stops: [
-        { value: utils.round(valueStats.avg,2), size: 4 },  //+1σ
-        { value: utils.round(valueStats.max,2), size: 50 }  // 27
+        { value: valueStats.avg, size: 4, label: utils.round(valueStats.avg,2) + utils.showPercentageUnits() },  //+1σ
+        { value: valueStats.max, size: 50, label: utils.round(valueStats.max,2) + utils.showPercentageUnits() }  // 27
       ]
     };
 
@@ -174,26 +161,7 @@ define([
           color: [ 0,77,168,0.3 ]
         }
       }),
-      visualVariables: [sizeVisualVariable, {
-        type: "color",
-        field: function (graphic) {
-          var attributes = graphic.attributes;
-          var match = utils.find(featureInfos, function(info){
-            return attributes.OBJECTID === info.feature.attributes.OBJECTID;
-          });
-          return match[config.diffVariable];
-        },
-        legendOptions: {
-          title: "Based on the selected value, features shaded with a color other than white differ Beyond the normal variance that exists between a typical feature and its neighbors."
-        },
-        stops: [
-          { value: diffStatsMin, color: "#ab4026", label: (diffStatsMin) + " pp (min)" },  //-16
-          { value: min, color: [255,255,255,0.6], label: (min) + " pp (-1σ)" },  // d7a497
-          { value: avg, color: [255,255,255,0.6], label: avg + " (similar)" },
-          { value: max, color: [255,255,255,0.6], label: (max) + " pp (+1σ)" },  // 4f6789
-          { value: diffStatsMax, color: "#3c567b", label: (diffStatsMax) + " pp (max)" }  // 27
-        ]
-      }]
+      visualVariables: [sizeVisualVariable, colorVisualVariable]
     });
 
     return colorRendererCreator.createContinuousRenderer({

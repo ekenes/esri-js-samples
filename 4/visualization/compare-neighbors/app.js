@@ -29,8 +29,9 @@ define([
     map: map
   });
 
-  var legend,layerList,originalRenderer,
-      compareNeighborsRenderer,bivariateRenderer;
+  var layerList,originalRenderer,
+      compareNeighborsRenderer,bivariateRenderer,
+      featureInfos;
 
   var App = function App() {};
 
@@ -41,7 +42,7 @@ define([
   };
 
   function start (){
-    legend = new Legend({
+    var legend = new Legend({
       view: view
     });
     layerList = new LayerList({
@@ -192,6 +193,7 @@ define([
           originalRenderer = response.originalRenderer.clone();
           compareNeighborsRenderer = response.diffRenderer.clone();
           bivariateRenderer = response.bivariateRenderer.clone();
+          featureInfos = response.featureInfos;
 
           var layer = response.layer;
 
@@ -200,8 +202,6 @@ define([
 
           layer.popupTemplate = {
             content: function(event) {
-              console.log(event.graphic);
-              var featureInfos = response.featureInfos;
               var attributes = event.graphic.attributes;
               var matchingInfo = utils.find(featureInfos, function(featureInfo){
                 return featureInfo.feature.attributes.OBJECTID === attributes.OBJECTID;
@@ -209,9 +209,9 @@ define([
 
               return [ "This feature shares a border with ",
                       matchingInfo.touchesStats.count, " features. It has a value of ",
-                      utils.round(matchingInfo.value,2,true), utils.showPercentageUnits(false), ". The average value of its neighbors differ by ",
-                      utils.round(matchingInfo.diffAverage,2,true), utils.showPercentageUnits(true), ", including one neighbor whose value differs by ",
-                      utils.round(matchingInfo.diffMax,2,true), utils.showPercentageUnits(true), "."
+                      utils.round(matchingInfo.value,2), utils.showPercentageUnits(), ". The average value of its neighbors differ by ",
+                      utils.round(matchingInfo.diffAverage,2), utils.showPercentageUnits(true), ", including one neighbor whose value differs by ",
+                      utils.round(matchingInfo.diffMax,2), utils.showPercentageUnits(true), "."
               ].join("");
             }
           };

@@ -28,8 +28,10 @@ define([
       };
     },
 
-    round: function round(num, places, convertPercentage) {
-      var p = convertPercentage ? 2 : 0;
+    round: function round(num, places) {
+      var configParams = this.getConfigParams();
+
+      var p = configParams.normalizationFieldName ? 2 : 0;
       return Math.round(num*Math.pow(10,places+p))/Math.pow(10,places);
     },
 
