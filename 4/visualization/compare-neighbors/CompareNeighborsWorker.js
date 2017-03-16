@@ -61,7 +61,7 @@ define([
       var normalizationField = (normalizationFieldName) && graphic.attributes[normalizationFieldName] != null ? graphic.attributes[normalizationFieldName] : 1;
       var geometry = graphic.geometry;
 
-      var value = (valueExpression) ? valueExpression : Math.round((field / normalizationField)*10000) / 100;
+      var value = (valueExpression) ? valueExpression : (field / normalizationField);
 
       var borderingFeatureInfos = features.filter(function(feature){
         return geometryEngine.intersects(geometry, feature.geometry)
@@ -71,7 +71,7 @@ define([
         var idField = feature.attributes.OBJECTID;
         var field = feature.attributes[fieldName] != null ? feature.attributes[fieldName] : null;
         var normalizationField = feature.attributes[normalizationFieldName] != null ? feature.attributes[normalizationFieldName] : 1;
-        var value = Math.round((field / normalizationField)*10000) / 100;
+        var value = (field / normalizationField);
 
         return {
           id: idField,
@@ -145,7 +145,7 @@ define([
     var valuesCollection = featureInfos.map(function(info){
       var fieldValue = info.feature.attributes[field];
       var normalizationFieldValue = info.feature.attributes[normalizationField];
-      var value = (normalizationFieldValue) ? (fieldValue/normalizationFieldValue)*100 : fieldValue;
+      var value = (normalizationFieldValue) ? (fieldValue/normalizationFieldValue) : fieldValue;
       return value;
     });
 

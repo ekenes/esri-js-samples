@@ -10,8 +10,9 @@ define([
   "dojo/on",
   "dojo/dom-construct",
   "esri/core/workers",
-  "esri/core/promiseUtils"
-], function(esriConfig, CompareNeighbors, Map, MapView, Legend, LayerList, FeatureLayer, dom, on, domConstruct, workers, promiseUtils) {
+  "esri/core/promiseUtils",
+  "app/utils",
+], function(esriConfig, CompareNeighbors, Map, MapView, Legend, LayerList, FeatureLayer, dom, on, domConstruct, workers, promiseUtils, utils) {
 
   esriConfig.workers.loaderConfig = {
     paths: {
@@ -125,17 +126,6 @@ define([
     return validTypes.indexOf(geomType) !== -1;
   }
 
-  function getConfigParams() {
-    var fieldName = dom.byId("field-name").value;
-    var normFieldName = dom.byId("normalization-field-name").value;
-
-    return {
-      diffVariable: "diffAverage",  //diffMax, diffAverage
-      fieldName: fieldName,
-      normalizationFieldName: normFieldName ? normFieldName : null
-    };
-  }
-
   function setFieldSelect(params){
     var select = params.select;
     var layer = params.layer;
@@ -186,7 +176,7 @@ define([
 
       var workerParams = {
         layer: layer,
-        config: getConfigParams()
+        config: utils.getConfigParams()
       };
 
       if(!workerParams.config.fieldName){
@@ -213,15 +203,15 @@ define([
               console.log(event.graphic);
               var featureInfos = response.featureInfos;
               var attributes = event.graphic.attributes;
-              var matchingInfo = find(featureInfos, function(featureInfo){
+              var matchingInfo = utils.find(featureInfos, function(featureInfo){
                 return featureInfo.feature.attributes.OBJECTID === attributes.OBJECTID;
               });
 
               return [ "This feature shares a border with ",
                       matchingInfo.touchesStats.count, " features. It has a value of ",
-                      matchingInfo.value, showPercentageUnits(false), ". The average value of its neighbors differ by ",
-                      round(matchingInfo.diffAverage,2), showPercentageUnits(true), ", including one neighbor whose value differs by ",
-                      round(matchingInfo.diffMax,2), showPercentageUnits(true), "."
+                      utils.round(matchingInfo.value,2,true), utils.showPercentageUnits(false), ". The average value of its neighbors differ by ",
+                      utils.round(matchingInfo.diffAverage,2,true), utils.showPercentageUnits(true), ", including one neighbor whose value differs by ",
+                      utils.round(matchingInfo.diffMax,2,true), utils.showPercentageUnits(true), "."
               ].join("");
             }
           };
@@ -229,33 +219,6 @@ define([
           layerList.createActionsFunction = createRendererAction;
         });
     });
-  }
-
-  function find(items, callback, thisArg) {
-    var n = items.length;
-    for (var i = 0; i < n; i++) {
-      var value = items[i];
-
-      if (callback.call(thisArg, value, i, items)) {
-        return value;
-      }
-    }
-
-    return undefined;
-  }
-
-  function round(num, places) {
-    return Math.round(num*Math.pow(10,places))/Math.pow(10,places);
-  }
-
-  function showPercentageUnits(points) {
-    var units = "";
-    var configParams = getConfigParams();
-
-    if(configParams.normalizationFieldName){
-      units = points ? " pp" : "%";
-    }
-    return units;
   }
 
   return App;

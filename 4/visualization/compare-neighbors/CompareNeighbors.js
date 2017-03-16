@@ -5,13 +5,15 @@ define([
   "esri/symbols/SimpleFillSymbol",
   "esri/renderers/smartMapping/creators/color",
   "esri/geometry/SpatialReference",
+  "app/utils"
 ], function(
   workers,
   SimpleRenderer,
   SimpleMarkerSymbol,
   SimpleFillSymbol,
   colorRendererCreator,
-  SpatialReference
+  SpatialReference,
+  utils
 ){
 
   var CompareNeighbors = function CompareNeighbors() {};
@@ -104,11 +106,11 @@ define([
     var diffStopsMin = (diffStats.avg - diffStats.stddev) > diffStats.min ? (diffStats.avg - diffStats.stddev) : diffStats.min;
     var stopsAvg = diffStats.avg;
 
-    var avg = round(stopsAvg,2);
-    var max = round(diffStopsMax,2);
-    var min = round(diffStopsMin,2);
-    var diffStatsMin = round(diffStats.min,2);
-    var diffStatsMax = round(diffStats.max,2);
+    var avg = utils.round(stopsAvg,2);
+    var max = utils.round(diffStopsMax,2);
+    var min = utils.round(diffStopsMin,2);
+    var diffStatsMin = utils.round(diffStats.min,2);
+    var diffStatsMax = utils.round(diffStats.max,2);
 
     var diffRenderer = new SimpleRenderer({
       symbol: new SimpleFillSymbol({
@@ -121,7 +123,7 @@ define([
         type: "color",
         field: function (graphic) {
           var attributes = graphic.attributes;
-          var match = find(featureInfos, function(info){
+          var match = utils.find(featureInfos, function(info){
             return attributes.OBJECTID === info.feature.attributes.OBJECTID;
           });
           return match[config.diffVariable];
@@ -158,8 +160,8 @@ define([
       },
       legendOptions: { title: "The variable on which the differences between features are determined." },
       stops: [
-        { value: round(valueStats.avg,2), size: 4 },  //+1σ
-        { value: round(valueStats.max,2), size: 50 }  // 27
+        { value: utils.round(valueStats.avg,2), size: 4 },  //+1σ
+        { value: utils.round(valueStats.max,2), size: 50 }  // 27
       ]
     };
 
@@ -176,7 +178,7 @@ define([
         type: "color",
         field: function (graphic) {
           var attributes = graphic.attributes;
-          var match = find(featureInfos, function(info){
+          var match = utils.find(featureInfos, function(info){
             return attributes.OBJECTID === info.feature.attributes.OBJECTID;
           });
           return match[config.diffVariable];
@@ -212,23 +214,6 @@ define([
       };
     });
 
-  }
-
-  function find(items, callback, thisArg) {
-    var n = items.length;
-    for (var i = 0; i < n; i++) {
-      var value = items[i];
-
-      if (callback.call(thisArg, value, i, items)) {
-        return value;
-      }
-    }
-
-    return undefined;
-  }
-
-  function round(num, places) {
-    return Math.round(num*Math.pow(10,places))/Math.pow(10,places);
   }
 
 
