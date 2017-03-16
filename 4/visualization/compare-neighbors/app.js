@@ -160,6 +160,8 @@ define([
       view.map.removeAll();
     }
 
+    layerList.createActionsFunction = null;
+
     createLayer()
       .then(generateRenderers)
       .otherwise(function(error){
