@@ -95,7 +95,7 @@ define([
         feature: graphic,
         value: value,
         diffAverage: count > 0 ? getDifference(value, average) : 0,
-        diffMax: count > 0 ? getDifference(value, max) : 0,
+        diffMax: count > 0 ? getDiffMax(value, borderingValues) : 0,
         aboveNeighbors: count > 0 && getDifference(value, average) > 0,
         hasNeighbors: count > 0,
         touches: borderingFeatureInfos,
@@ -158,6 +158,21 @@ define([
     };
 
     return stats;
+  }
+
+  function getDiffMax(value, a){
+    var max = -Infinity;
+    var aboveValue;
+
+    a.forEach(function(item){
+      var diff = value - item;
+      if (Math.abs(diff) > max){
+        max = Math.abs(diff);
+        aboveValue = item >= value;
+      }
+    });
+
+    return aboveValue ? max : max * -1;
   }
 
   function getMax(a){

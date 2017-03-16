@@ -203,11 +203,59 @@ define([
           compareNeighborsRenderer = response.diffRenderer.clone();
           bivariateRenderer = response.bivariateRenderer.clone();
 
-          response.layer.renderer = originalRenderer;
-          response.layer.visible = true;
+          var layer = response.layer;
+
+          layer.renderer = originalRenderer;
+          layer.visible = true;
+
+          layer.popupTemplate = {
+            content: function(event) {
+              console.log(event.graphic);
+              var featureInfos = response.featureInfos;
+              var attributes = event.graphic.attributes;
+              var matchingInfo = find(featureInfos, function(featureInfo){
+                return featureInfo.feature.attributes.OBJECTID === attributes.OBJECTID;
+              });
+
+              return [ "This feature shares a border with ",
+                      matchingInfo.touchesStats.count, " features. It has a value of ",
+                      matchingInfo.value, showPercentageUnits(false), ". The average value of its neighbors differ by ",
+                      round(matchingInfo.diffAverage,2), showPercentageUnits(true), ", including one neighbor whose value differs by ",
+                      round(matchingInfo.diffMax,2), showPercentageUnits(true), "."
+              ].join("");
+            }
+          };
+
           layerList.createActionsFunction = createRendererAction;
         });
     });
+  }
+
+  function find(items, callback, thisArg) {
+    var n = items.length;
+    for (var i = 0; i < n; i++) {
+      var value = items[i];
+
+      if (callback.call(thisArg, value, i, items)) {
+        return value;
+      }
+    }
+
+    return undefined;
+  }
+
+  function round(num, places) {
+    return Math.round(num*Math.pow(10,places))/Math.pow(10,places);
+  }
+
+  function showPercentageUnits(points) {
+    var units = "";
+    var configParams = getConfigParams();
+
+    if(configParams.normalizationFieldName){
+      units = points ? " pp" : "%";
+    }
+    return units;
   }
 
   return App;

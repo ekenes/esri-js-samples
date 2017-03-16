@@ -104,11 +104,11 @@ define([
     var diffStopsMin = (diffStats.avg - diffStats.stddev) > diffStats.min ? (diffStats.avg - diffStats.stddev) : diffStats.min;
     var stopsAvg = diffStats.avg;
 
-    var avg = Math.round(stopsAvg*100) / 100;
-    var max = Math.round(diffStopsMax*100) / 100;
-    var min = Math.round(diffStopsMin*100) / 100;
-    var diffStatsMin = Math.round(diffStats.min*100) / 100;
-    var diffStatsMax = Math.round(diffStats.max*100) / 100;
+    var avg = round(stopsAvg,2);
+    var max = round(diffStopsMax,2);
+    var min = round(diffStopsMin,2);
+    var diffStatsMin = round(diffStats.min,2);
+    var diffStatsMax = round(diffStats.max,2);
 
     var diffRenderer = new SimpleRenderer({
       symbol: new SimpleFillSymbol({
@@ -129,20 +129,20 @@ define([
         legendOptions: {
           title: "Based on the selected value, features shaded with a color other than white differ Beyond the normal variance that exists between a typical feature and its neighbors."
         },
+        stops: [
+          { value: min*2, color: "#ab4026", label: (min*2) + " pp (-2σ)" },  //-16
+          { value: min, color:[255,255,255,0.6], label: (min) + " pp (-σ)" },  // d7a497
+          { value: avg, color: [255,255,255,0.6], label: avg + " (similar)" },
+          { value: max, color: [255,255,255,0.6], label: (max) + " pp (+σ)" },  // 4f6789
+          { value: max*2, color: "#3c567b", label: (max*2) + " pp (+2σ)" }  // 27
+        ]
 //        stops: [
-//          { value: min*2, color: "#ab4026", label: (min*2) + "% (min)" },  //-16
+//          { value: diffStatsMin, color: "#ab4026", label: (diffStatsMin) + "% (min)" },  //-16
 //          { value: min, color:[255,255,255,0.6], label: (min) + "% (-1σ)" },  // d7a497
 //          { value: avg, color: [255,255,255,0.6], label: avg + " (similar)" },
 //          { value: max, color: [255,255,255,0.6], label: (max) + "% (+1σ)" },  // 4f6789
-//          { value: max*2, color: "#3c567b", label: (max*2) + "% (max)" }  // 27
+//          { value: diffStatsMax, color: "#3c567b", label: (diffStatsMax) + "% (max)" }  // 27
 //        ]
-        stops: [
-          { value: diffStatsMin, color: "#ab4026", label: (diffStatsMin) + "% (min)" },  //-16
-          { value: min, color:[255,255,255,0.6], label: (min) + "% (-1σ)" },  // d7a497
-          { value: avg, color: [255,255,255,0.6], label: avg + " (similar)" },
-          { value: max, color: [255,255,255,0.6], label: (max) + "% (+1σ)" },  // 4f6789
-          { value: diffStatsMax, color: "#3c567b", label: (diffStatsMax) + "% (max)" }  // 27
-        ]
       }]
     });
 
@@ -158,8 +158,8 @@ define([
       },
       legendOptions: { title: "The variable on which the differences between features are determined." },
       stops: [
-        { value: Math.round(valueStats.avg*100)/100, size: 4 },  //+1σ
-        { value: Math.round(valueStats.max*100)/100, size: 50 }  // 27
+        { value: round(valueStats.avg,2), size: 4 },  //+1σ
+        { value: round(valueStats.max,2), size: 50 }  // 27
       ]
     };
 
@@ -185,11 +185,11 @@ define([
           title: "Based on the selected value, features shaded with a color other than white differ Beyond the normal variance that exists between a typical feature and its neighbors."
         },
         stops: [
-          { value: diffStatsMin, color: "#ab4026", label: (diffStatsMin) + "% (min)" },  //-16
-          { value: min, color: [255,255,255,0.6], label: (min) + "% (-1σ)" },  // d7a497
+          { value: diffStatsMin, color: "#ab4026", label: (diffStatsMin) + " pp (min)" },  //-16
+          { value: min, color: [255,255,255,0.6], label: (min) + " pp (-1σ)" },  // d7a497
           { value: avg, color: [255,255,255,0.6], label: avg + " (similar)" },
-          { value: max, color: [255,255,255,0.6], label: (max) + "% (+1σ)" },  // 4f6789
-          { value: diffStatsMax, color: "#3c567b", label: (diffStatsMax) + "% (max)" }  // 27
+          { value: max, color: [255,255,255,0.6], label: (max) + " pp (+1σ)" },  // 4f6789
+          { value: diffStatsMax, color: "#3c567b", label: (diffStatsMax) + " pp (max)" }  // 27
         ]
       }]
     });
@@ -201,8 +201,10 @@ define([
       basemap: "gray",
       theme: "high-to-low",
     }).then(function(response){
+
       return {
         layer: layer,
+        featureInfos: featureInfos,
         originalRenderer: response.renderer,
         diffRenderer: diffRenderer,
         bivariateRenderer: bivariateRenderer,
@@ -223,6 +225,10 @@ define([
     }
 
     return undefined;
+  }
+
+  function round(num, places) {
+    return Math.round(num*Math.pow(10,places))/Math.pow(10,places);
   }
 
 
