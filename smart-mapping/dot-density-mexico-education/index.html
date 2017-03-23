@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+<title>Dot density renderer</title>
+
+<link rel="stylesheet" href="https://js.arcgis.com/3.20/esri/css/esri.css">
+
+<style>
+  html, body, #map {
+    height: 100%;
+    margin: 0;
+  }
+  #info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    padding: 1em 1em 0 1em;
+    background: #fff;
+    font: 14px sans-serif;
+    width: 200px;
+    text-align: center;
+    border-radius: 0 10px 0 0;
+  }
+</style>
+
+<script src="https://js.arcgis.com/3.20/"></script>
+
+<script>
+  require([
+    "esri/map", "esri/geometry/Extent",
+    "esri/layers/ArcGISTiledMapServiceLayer", "esri/layers/FeatureLayer",
+    "esri/InfoTemplate", "esri/renderers/DotDensityRenderer",
+    "esri/renderers/ScaleDependentRenderer", "esri/dijit/Legend",
+    "esri/Color", "dojo/_base/array", "dojo/dom", "dojo/domReady!"
+  ], function(
+    Map, Extent,
+    ArcGISTiledMapServiceLayer, FeatureLayer,
+    InfoTemplate, DotDensityRenderer,
+    ScaleDependentRenderer, Legend,
+    Color, array, dom
+  ) {
+
+     map = new Map("map", {
+      extent: new Extent({
+        xmin: -1078073,
+        ymin: -2257566,
+        xmax: 146141,
+        ymax: -1368451,
+        spatialReference:{ wkid: 102003 }
+      }),
+      maxScale: 4000000,
+      minScale: 20000000
+    });
+
+    var basemap = new ArcGISTiledMapServiceLayer("https://tiles.arcgis.com/tiles/nGt4QxSblgDfeJn9/arcgis/rest/services/Dark_Gray_Albers_North_America_Base/MapServer");
+    map.addLayer(basemap);
+
+    var url = "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Mexico_demographics/FeatureServer/0";
+
+    var layer = new FeatureLayer(url, {
+      outFields: [ "NAME", "EDUC01_CY", "EDUC02_CY", "EDUC03_CY", "EDUC04_CY", "EDUC05_CY", "EDUC06_CY", "EDUC09_CY", "EDUC10_CY", "EDUC12_CY", "EDUC13_CY", "EDUC14_CY", "EDUC15_CY", "POP_MALES_14UP", "POP_FEMALES_14UP" ],
+      infoTemplate: new InfoTemplate("${NAME}", "No school: ${EDUC01_CY:NumberFormat} people")
+    });
+
+    function createDotDensityRenderer(fields, dotValue, dotSize){
+      if(!fields || !dotValue){
+        console.error("You must specify fields and a dotValue.");
+        return;
+      }
+
+      return new DotDensityRenderer({
+        fields: fields,
+        dotValue: dotValue,
+        dotSize: dotSize ? dotSize : 1
+      });
+    }
+
+    var fieldsAndColors = [{
+      name: "EDUC01_CY",
+      color: new Color("#ed5151")
+    }, {
+      name: "EDUC02_CY",
+      color: new Color("#ed5151")
+    }, {
+      name: "EDUC03_CY",
+      color: new Color("#ed5151") //a7c636
+    }, {
+      name: "EDUC04_CY",
+      color: new Color("#a7c636")
+    }, {
+      name: "EDUC05_CY",
+      color: new Color("#a7c636")  // fc921f
+    }, {
+      name: "EDUC06_CY",
+      color: new Color("#a7c636")
+    }, {
+      name: "EDUC09_CY",
+      color: new Color("#a7c636")
+    }, {
+      name: "EDUC10_CY",
+      color: new Color("#fc921f")
+    }, {
+      name: "EDUC12_CY",
+      color: new Color("#fc921f")
+    }, {
+      name: "EDUC13_CY",
+      color: new Color("#fc921f")
+    }, {
+      name: "EDUC14_CY",
+      color: new Color("#fc921f")
+    }, {
+      name: "EDUC15_CY",
+      color: new Color("#fc921f")
+    }];
+
+//    var fieldsAndColors = [{
+//      name: "POP_MALES_14UP",
+//      color: new Color("#1CC4FF")
+//    }, {
+//      name: "POP_FEMALES_14UP",
+//      color: new Color("#FF0000")
+//    }];
+
+
+    var renderer = new ScaleDependentRenderer({
+      rendererInfos: [{
+        renderer: createDotDensityRenderer(fieldsAndColors, 15000, 2),
+        maxScale: 4500000,
+        minScale: 8500001
+      }, {
+        renderer: createDotDensityRenderer(fieldsAndColors, 10000, 2),
+        maxScale: 8500000,
+        minScale: 17000000
+      }]
+    });
+
+    layer.setRenderer(renderer);
+    map.addLayers([layer]);
+
+    var refLayer = new ArcGISTiledMapServiceLayer("https://tiles.arcgis.com/tiles/nGt4QxSblgDfeJn9/arcgis/rest/services/Dark_Gray_Albers_North_America_Reference/MapServer");
+    map.addLayer(refLayer);
+
+    map.on("layers-add-result", function(e) {
+      var education = e.layers[0].layer;
+      var legend = new Legend({
+        map: map,
+        layerInfos: [{
+          layer: education,
+          title: "Mexico population by males vs. females"
+        }]
+      }, "legend");
+      legend.startup();
+    });
+  });
+</script>
+</head>
+
+<body>
+  <div id="map"></div>
+  <div id="info">
+    <div id="legend"></div>
+  </div>
+</body>
+
+</html>
