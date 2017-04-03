@@ -1,0 +1,19 @@
+html,
+body,
+#viewDiv {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  width: 100%;
+}
+#spinner{
+  visibility: hidden;
+}
+#check {
+  height: 15px;
+  width: 15px;
+}
+#info{
+  background-color: white;
+  padding: 8px;
+}

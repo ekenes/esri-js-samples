@@ -21,8 +21,8 @@
   }
 </style>
 
-<link rel="stylesheet" href="https://js.arcgis.com/4.2/esri/css/main.css">
-<script src="https://js.arcgis.com/4.2"></script>
+<link rel="stylesheet" href="https://js.arcgis.com/4.3/esri/css/main.css">
+<script src="https://js.arcgis.com/4.3"></script>
 
 <script>
   require([
@@ -107,6 +107,9 @@
       purgeOptions: {
         displayCount: 10000,
         age: 10
+      },
+      filter: {
+        where: "route_id > '100'"
       }
     });
 
@@ -469,9 +472,13 @@
         }));
         // not set on layer; set on controller
         // See SDK sample
-        controller.geometryDefinition = downtownExtent;
+        layer.updateFilter({
+          geometry: downtownExtent
+        });
       } else {
-        controller.geometryDefinition = null;
+        layer.updateFilter({
+          geometry: null
+        });
       }
     }
 
@@ -551,13 +558,15 @@
           var defExp;
           if (graphic){
             var route = graphic.attributes.route_id;
-            defExp = "route_id = " + route;
+            defExp = "heading > 180";
           } else {
             defExp = null;
           }
-          console.log(defExp);
-//         controller.definitionExpression ???
-          layer.definitionExpression = defExp;
+          console.log(graphic.attributes.heading);
+//          controller.graphics.removeAll();
+          layer.updateFilter({
+            where: defExp
+          });
       });
     });
 

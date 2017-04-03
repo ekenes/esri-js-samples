@@ -24,7 +24,7 @@ define([
         featureInfos: featureInfos,
         config: params.config
       });
-      
+
       var valueStats = getValueStats({
         featureInfos: featureInfos,
         config: params.config
@@ -57,16 +57,11 @@ define([
     function visualizeDissimilarFeatures(graphic){
 
       var idField = graphic.attributes.OBJECTID;
-      var field = (fieldName) ? graphic.attributes[fieldName] : null;
-      var normalizationField = (normalizationFieldName) ? graphic.attributes[normalizationFieldName] : 1;
+      var field = (fieldName) && graphic.attributes[fieldName] != null ? graphic.attributes[fieldName] : null;
+      var normalizationField = (normalizationFieldName) && graphic.attributes[normalizationFieldName] != null ? graphic.attributes[normalizationFieldName] : 1;
       var geometry = graphic.geometry;
 
-      if(!field && !valueExpression){
-        console.error("You must specify a field value or an arcade expression.");
-        return;
-      }
-
-      var value = (valueExpression) ? valueExpression : Math.round((field / normalizationField)*10000) / 100;
+      var value = (valueExpression) ? valueExpression : (field / normalizationField);
 
       var borderingFeatureInfos = features.filter(function(feature){
         return geometryEngine.intersects(geometry, feature.geometry)
@@ -74,9 +69,9 @@ define([
       }).map(function(feature){
 
         var idField = feature.attributes.OBJECTID;
-        var field = feature.attributes[fieldName];
-        var normalizationField = feature.attributes[normalizationFieldName];
-        var value = Math.round((field / normalizationField)*10000) / 100;
+        var field = feature.attributes[fieldName] != null ? feature.attributes[fieldName] : null;
+        var normalizationField = feature.attributes[normalizationFieldName] != null ? feature.attributes[normalizationFieldName] : 1;
+        var value = (field / normalizationField);
 
         return {
           id: idField,
@@ -90,6 +85,7 @@ define([
       var max = getMax(borderingValues);
       var min = getMin(borderingValues);
       var stddev = getStandardDeviation(borderingValues);
+      var count = getCount(borderingValues);
 
       function getDifference (value, subtractBy){
         return value - subtractBy;
@@ -98,15 +94,17 @@ define([
       var featureInfo = {
         feature: graphic,
         value: value,
-        diffAverage: getDifference(value, average),
-        diffMax: getDifference(value, max),
-        aboveNeighbors: getDifference(value, average) > 0,
+        diffAverage: count > 0 ? getDifference(value, average) : 0,
+        diffMax: count > 0 ? getDiffMax(value, borderingValues) : 0,
+        aboveNeighbors: count > 0 && getDifference(value, average) > 0,
+        hasNeighbors: count > 0,
         touches: borderingFeatureInfos,
         touchesStats: {
           average: average,
           max: max,
           min: min,
-          stddev: stddev
+          stddev: stddev,
+          count: count
         }
       };
 
@@ -132,12 +130,13 @@ define([
       min: getMin(valuesCollection),
       max: getMax(valuesCollection),
       avg: getAverage(valuesCollection),
-      stddev: getStandardDeviation(valuesCollection)
+      stddev: getStandardDeviation(valuesCollection),
+      count: getCount(valuesCollection)
     };
 
     return stats;
   }
-  
+
   function getValueStats(params) {
     var featureInfos = params.featureInfos;
     var field = params.config.fieldName;
@@ -146,7 +145,7 @@ define([
     var valuesCollection = featureInfos.map(function(info){
       var fieldValue = info.feature.attributes[field];
       var normalizationFieldValue = info.feature.attributes[normalizationField];
-      var value = (normalizationFieldValue) ? (fieldValue/normalizationFieldValue)*100 : fieldValue;
+      var value = (normalizationFieldValue) ? (fieldValue/normalizationFieldValue) : fieldValue;
       return value;
     });
 
@@ -154,10 +153,26 @@ define([
       min: getMin(valuesCollection),
       max: getMax(valuesCollection),
       avg: getAverage(valuesCollection),
-      stddev: getStandardDeviation(valuesCollection)
+      stddev: getStandardDeviation(valuesCollection),
+      count: getCount(valuesCollection)
     };
 
     return stats;
+  }
+
+  function getDiffMax(value, a){
+    var max = -Infinity;
+    var aboveValue;
+
+    a.forEach(function(item){
+      var diff = value - item;
+      if (Math.abs(diff) > max){
+        max = Math.abs(diff);
+        aboveValue = item >= value;
+      }
+    });
+
+    return aboveValue ? max : max * -1;
   }
 
   function getMax(a){
@@ -208,6 +223,10 @@ define([
 
     var stdDev = Math.sqrt(avgSquareDiff);
     return stdDev;
+  }
+
+  function getCount(a){
+    return a.length;
   }
 
   return CompareNeighbors;

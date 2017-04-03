@@ -3,13 +3,17 @@ define([
   "esri/renderers/SimpleRenderer",
   "esri/symbols/SimpleMarkerSymbol",
   "esri/symbols/SimpleFillSymbol",
+  "esri/renderers/smartMapping/creators/color",
   "esri/geometry/SpatialReference",
+  "app/utils"
 ], function(
   workers,
-  SimpleRenderer, 
-  SimpleMarkerSymbol, 
-  SimpleFillSymbol, 
-  SpatialReference 
+  SimpleRenderer,
+  SimpleMarkerSymbol,
+  SimpleFillSymbol,
+  colorRendererCreator,
+  SpatialReference,
+  utils
 ){
 
   var CompareNeighbors = function CompareNeighbors() {};
@@ -29,7 +33,7 @@ define([
           });
         })
         .then(executeWorker)
-        .then(createRenderer)
+        .then(createRenderers)
         .otherwise(function(error){
           console.log("error: ", error);
         });
@@ -46,6 +50,7 @@ define([
 
     if(!exceededTransferLimit){
       return {
+        layer: layer,
         features: allFeatures,
         config: config
       };
@@ -58,24 +63,26 @@ define([
 
     return layer.queryFeatures(query)
       .then(function(response){
-      console.log("query results: ", response);
-      var json = response.toJSON();
-      json.features.forEach(function(feature) {
-        delete feature.popupTemplate;
+        var json = response.toJSON();
+        json.features.forEach(function(feature) {
+          delete feature.popupTemplate;
+        });
+        allFeatures.push.apply(allFeatures, json.features);
+        return queryFeatures({
+          config: config,
+          layer: layer,
+          allFeatures: allFeatures,
+          num: num,
+          start: start+2000,
+          exceededTransferLimit: response.exceededTransferLimit
+        });
       });
-      allFeatures.push.apply(allFeatures, json.features);
-      return queryFeatures({
-        config: config,
-        layer: layer,
-        allFeatures: allFeatures,
-        num: num,
-        start: start+2000,
-        exceededTransferLimit: response.exceededTransferLimit
-      });
-    });
   }
 
   function executeWorker(params) {
+    var layer = params.layer;
+    delete params.layer;
+
     var connection;
     return workers.open(this, "app/CompareNeighborsWorker")
       .then(function(conn) {
@@ -84,25 +91,45 @@ define([
       })
       .then(function(results) {
         connection.close();
+        results.layer = layer;
         return results;
       });
   }
 
-  function createRenderer(params) {
+  function createRenderers(params) {
     var featureInfos = params.featureInfos;
     var diffStats = params.diffStats;
     var config = params.config;
+    var layer = params.layer;
 
     var diffStopsMax = (diffStats.stddev + diffStats.avg) < diffStats.max ? (diffStats.stddev + diffStats.avg) : diffStats.max;
     var diffStopsMin = (diffStats.avg - diffStats.stddev) > diffStats.min ? (diffStats.avg - diffStats.stddev) : diffStats.min;
     var stopsAvg = diffStats.avg;
 
-    var avg = Math.round(stopsAvg*100) / 100;
-    var max = Math.round(diffStopsMax*100) / 100;
-    var min = Math.round(diffStopsMin*100) / 100;
-    var diffStatsMin = Math.round(diffStats.min*100) / 100;
-    var diffStatsMax = Math.round(diffStats.max*100) / 100;
-    
+    var diffStatsMin = diffStats.min;
+    var diffStatsMax = diffStats.max;
+
+    var colorVisualVariable = {
+      type: "color",
+      field: function (graphic) {
+        var attributes = graphic.attributes;
+        var match = utils.find(featureInfos, function(info){
+          return attributes.OBJECTID === info.feature.attributes.OBJECTID;
+        });
+        return match[config.diffVariable];
+      },
+      legendOptions: {
+        title: "Based on the selected value, features shaded with a color other than white differ beyond the normal variance that exists between a typical feature and its neighbors."
+      },
+      stops: [
+        { value: diffStopsMin*2, color: "#ab4026", label: utils.round(diffStopsMin*2,2) + utils.showPercentageUnits(true) + " (-2σ)" },
+        { value: diffStopsMin, color:[255,255,255,0.6], label: utils.round(diffStopsMin,2) + utils.showPercentageUnits(true) + " (-σ)" },
+        { value: stopsAvg, color: [255,255,255,0.6], label: utils.round(stopsAvg,2) + utils.showPercentageUnits(true) + " (similar)" },
+        { value: diffStopsMax, color: [255,255,255,0.6], label: utils.round(diffStopsMax,2) + utils.showPercentageUnits(true) + " (+σ)" },
+        { value: diffStopsMax*2, color: "#3c567b", label: utils.round(diffStopsMax*2,2) + utils.showPercentageUnits(true) + " (+2σ)" }
+      ]
+    };
+
     var diffRenderer = new SimpleRenderer({
       symbol: new SimpleFillSymbol({
         outline: {
@@ -110,42 +137,18 @@ define([
           color: [ 0,77,168,0.3 ]
         }
       }),
-      visualVariables: [{
-        type: "color",
-        field: function (graphic) {
-          var attributes = graphic.attributes;
-          var match = find(featureInfos, function(info){
-            return attributes.OBJECTID === info.feature.attributes.OBJECTID;
-          });
-          return match[config.diffVariable];
-        },
-        legendOptions: {
-          title: "Geographies where the % of the population that doesn't have formal education differs from the same demographic in neighboring municipalities"
-        },
-        stops: [
-          { value: diffStatsMin, color: "#ab4026", label: (diffStatsMin) + "% (min)" },  //-16
-          { value: min, color:[255,255,255,0.6], label: (min) + "% (-1σ)" },  // d7a497
-          { value: avg, color: [255,255,255,0.6], label: avg + " (similar)" },
-          { value: max, color: [255,255,255,0.6], label: (max) + "% (+1σ)" },  // 4f6789
-          { value: diffStatsMax, color: "#3c567b", label: (diffStatsMax) + "% (max)" }  // 27
-        ]
-      }]
-    });   
-    
+      visualVariables: [ colorVisualVariable ]
+    });
+
     var valueStats = params.valueStats;
-    
+
     var sizeVisualVariable = {
       type: "size",
-      field: function(graphic){
-        var field = graphic.attributes[config.fieldName];
-        var normalizationField = graphic.attributes[config.normalizationFieldName];
-        var value = normalizationField ? (field/normalizationField)*100 : field;
-        return value;
-      },
-      legendOptions: { title: "% population without formal education" },
+      field: config.fieldName,
+      normalizationField: config.normalizationFieldName,
       stops: [
-        { value: Math.round(valueStats.avg*100)/100, size: 4 },  //+1σ
-        { value: Math.round(valueStats.max*100)/100, size: 50 }  // 27
+        { value: valueStats.avg, size: 4, label: utils.round(valueStats.avg,2) + utils.showPercentageUnits() },  //+1σ
+        { value: valueStats.max, size: 50, label: utils.round(valueStats.max,2) + utils.showPercentageUnits() }  // 27
       ]
     };
 
@@ -158,46 +161,27 @@ define([
           color: [ 0,77,168,0.3 ]
         }
       }),
-      visualVariables: [sizeVisualVariable, {
-        type: "color",
-        field: function (graphic) {
-          var attributes = graphic.attributes;
-          var match = find(featureInfos, function(info){
-            return attributes.OBJECTID === info.feature.attributes.OBJECTID;
-          });
-          return match[config.diffVariable];
-        },
-        legendOptions: {
-          title: "Geographies where the % of the population that doesn't have formal education differs from the same demographic in neighboring municipalities"
-        },
-        stops: [
-          { value: diffStatsMin, color: "#ab4026", label: (diffStatsMin) + "% (min)" },  //-16
-          { value: min, color: [255,255,255,0.6], label: (min) + "% (-1σ)" },  // d7a497
-          { value: avg, color: [255,255,255,0.6], label: avg + " (similar)" },
-          { value: max, color: [255,255,255,0.6], label: (max) + "% (+1σ)" },  // 4f6789
-          { value: diffStatsMax, color: "#3c567b", label: (diffStatsMax) + "% (max)" }  // 27
-        ]
-      }]
+      visualVariables: [sizeVisualVariable, colorVisualVariable]
     });
 
-    return {
-      diffRenderer: diffRenderer,
-      bivariateRenderer: bivariateRenderer,
-      sizeVisualVariable: sizeVisualVariable
-    };
-  }
+    return colorRendererCreator.createContinuousRenderer({
+      layer: layer,
+      field: config.fieldName,
+      normalizationField: config.normalizationFieldName,
+      basemap: "gray",
+      theme: "high-to-low",
+    }).then(function(response){
 
-  function find(items, callback, thisArg) {
-    var n = items.length;
-    for (var i = 0; i < n; i++) {
-      var value = items[i];
+      return {
+        layer: layer,
+        featureInfos: featureInfos,
+        originalRenderer: response.renderer,
+        diffRenderer: diffRenderer,
+        bivariateRenderer: bivariateRenderer,
+        sizeVisualVariable: sizeVisualVariable
+      };
+    });
 
-      if (callback.call(thisArg, value, i, items)) {
-        return value;
-      }
-    }
-
-    return undefined;
   }
 
 
