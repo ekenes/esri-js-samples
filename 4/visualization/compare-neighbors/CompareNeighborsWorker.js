@@ -58,7 +58,7 @@ define([
 
       var idField = graphic.attributes.OBJECTID;
       var field = (fieldName) && graphic.attributes[fieldName] != null ? graphic.attributes[fieldName] : null;
-      var normalizationField = (normalizationFieldName) && graphic.attributes[normalizationFieldName] != null ? graphic.attributes[normalizationFieldName] : 1;
+      var normalizationField = (normalizationFieldName) && !graphic.attributes[normalizationFieldName] ? 1 : graphic.attributes[normalizationFieldName];
       var geometry = graphic.geometry;
 
       var value = (valueExpression) ? valueExpression : (field / normalizationField);
@@ -72,6 +72,7 @@ define([
         var field = feature.attributes[fieldName] != null ? feature.attributes[fieldName] : null;
         var normalizationField = !feature.attributes[normalizationFieldName] ? 1 : feature.attributes[normalizationFieldName];
         var value = (field / normalizationField);
+
         return {
           id: idField,
           value: value
