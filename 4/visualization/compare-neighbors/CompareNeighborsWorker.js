@@ -70,9 +70,8 @@ define([
 
         var idField = feature.attributes.OBJECTID;
         var field = feature.attributes[fieldName] != null ? feature.attributes[fieldName] : null;
-        var normalizationField = feature.attributes[normalizationFieldName] != null ? feature.attributes[normalizationFieldName] : 1;
+        var normalizationField = !feature.attributes[normalizationFieldName] ? 1 : feature.attributes[normalizationFieldName];
         var value = (field / normalizationField);
-
         return {
           id: idField,
           value: value
@@ -138,13 +137,14 @@ define([
   }
 
   function getValueStats(params) {
+
     var featureInfos = params.featureInfos;
     var field = params.config.fieldName;
     var normalizationField = params.config.normalizationFieldName;
 
     var valuesCollection = featureInfos.map(function(info){
-      var fieldValue = info.feature.attributes[field];
-      var normalizationFieldValue = info.feature.attributes[normalizationField];
+      var fieldValue = info.feature.attributes[field] != null ? info.feature.attributes[field] : null;
+      var normalizationFieldValue = !info.feature.attributes[normalizationField] ? 1 : info.feature.attributes[normalizationField];
       var value = (normalizationFieldValue) ? (fieldValue/normalizationFieldValue) : fieldValue;
       return value;
     });
