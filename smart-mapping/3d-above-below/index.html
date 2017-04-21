@@ -48,20 +48,19 @@
       "esri/widgets/BasemapGallery",
       "esri/renderers/smartMapping/creators/color",
       "esri/renderers/smartMapping/creators/size",
-      "esri/renderers/smartMapping/symbology/color",
+      "esri/renderers/smartMapping/creators/location",
       "esri/renderers/smartMapping/statistics/histogram",
       "esri/widgets/ColorSlider",
       "esri/widgets/SizeSlider",
       "esri/core/lang",
-      "esri/core/Collection",
       "dojo/on",
       "dojo/dom",
       "dojo/dom-construct",
       "dojo/domReady!"
     ], function(
-      Map, SceneView, FeatureLayer, Expand, BasemapGallery, colorRendererCreator, sizeRendererCreator,
-      colorSchemes, histogram,
-      ColorSlider, SizeSlider, lang, Collection, on, dom, domConstruct
+      Map, SceneView, FeatureLayer, Expand, BasemapGallery, colorRendererCreator, sizeRendererCreator, locationRendererCreator,
+      histogram,
+      ColorSlider, SizeSlider, lang, on, dom, domConstruct
     ) {
 
       var colorFieldSelect = dom.byId("color-field-select");
@@ -70,7 +69,7 @@
       var sizeNormCheck = dom.byId("normalize-size-check");
       var themeOptions = dom.byId("theme-options");
       var colorSlider = null;
-      var sizeSlider = null;
+       sizeSlider = null;
 
       var map = new Map({
         basemap: "streets"
@@ -83,6 +82,7 @@
         container: "viewDiv",
         map: map
       });
+
 
       // Create a BasemapGallery widget instance and set
       // its container to a div element
@@ -125,8 +125,6 @@
       view.ui.add(sizeSliderExpand, "top-left");
 
 
-
-
       // Create an Expand instance and set the content
       // property to the DOM node of the basemap gallery widget
       // Use an Esri icon font to represent the content inside
@@ -142,13 +140,27 @@
 
       view.ui.add(colorSliderExpand, "top-left");
 
+
+
+      sizeSliderExpand.watch("expanded", function(expanded){
+        if(expanded && colorSliderExpand.expanded){
+          colorSliderExpand.collapse();
+        }
+      });
+
+
+
+      colorSliderExpand.watch("expanded", function(expanded){
+        if(expanded && sizeSliderExpand.expanded){
+          sizeSliderExpand.collapse();
+        }
+      });
+
       // Create FeatureLayer instance with popupTemplate
 
-      var layer = new FeatureLayer({
-        portalItem: {
-          id: "6ae2459463184669a7826eb772c5ec29"
-        },
-        visible: false
+      layer = new FeatureLayer({
+        url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/ArcGIS/rest/services/city_marriage_points/FeatureServer/0",
+        outFields: ["*"]
       });
 
       map.add(layer);
@@ -157,169 +169,279 @@
         view.goTo(layer.fullExtent);
       });
 
-      view.then(generateRenderer);
+      view.then(function(){
+        return generateRenderer({
+          view: view,
+          layer: layer,
+          basemap: map.basemap
+        });
+      });
 
       on(themeOptions, "change", function(evt){
-        generateRenderer({ theme: evt.target.value });
+
+        var options = {
+          layer: layer,
+          basemap: map.basemap,
+          field: colorFieldSelect.value,
+          view: view,
+          theme: evt.target.value
+        };
+
+        getColorVisualVariable(options);
       });
 
       basemapGallery.watch("activeBasemap", function(newVal){
-        generateRenderer({ basemap: newVal });
+        var options = {
+          layer: layer,
+          basemap: newVal,
+          field: colorFieldSelect.value,
+          view: view,
+          theme: themeOptions.value
+        };
+
+        getColorVisualVariable(options);
       });
 
       on(colorFieldSelect, "change", function(evt){
-        generateRenderer({ colorField: evt.target.value });
+        var options = {
+          layer: map.layers.getItemAt(0),
+          basemap: map.basemap,
+          field: evt.target.value,
+          view: view,
+          theme: themeOptions.value
+        };
+
+        getColorVisualVariable(options);
       });
 
       on(sizeFieldSelect, "change", function(evt){
-        generateRenderer({ sizeField: evt.target.value });
+        var options = {
+          layer: layer,
+          field: evt.target.value,
+          basemap: map.basemap,
+          view: view
+        };
+
+        getSizeVisualVariables(options);
       });
 
-      on(colorNormCheck, "change", function(evt){
-        generateRenderer();
+      on(colorNormCheck, "click", function(evt){
+        var options = {
+          layer: layer,
+          basemap: map.basemap,
+          field: colorFieldSelect.value,
+          view: view,
+          theme: themeOptions.value
+        };
+
+        getColorVisualVariable(options);
       });
 
-      function generateRenderer(params) {
-        var colorSliderParams = {};
-        var sizeSliderParams = {};
+
+      on(sizeNormCheck, "click", function(evt){
+        var options = {
+          layer: layer,
+          field: sizeFieldSelect.value,
+          basemap: map.basemap,
+          view: view
+        };
+
+        getSizeVisualVariables(options);
+      });
+
+      function getSizeVisualVariables(params){
+
+        var sizeParams = {
+          layer: params.layer ? params.layer : layer,
+          field: params.sizeField ? params.sizeField : sizeFieldSelect.value,
+          normalizationField: sizeNormCheck.checked ? "EDUCBASECY" : null,
+          basemap: params.basemap ? params.basemap : null,
+          view: view,
+          worldScale: true,
+          axis: "height"
+        };
+
+        var sizeVVs;
+        var sizeResponse;
+
+        return sizeRendererCreator.createVisualVariables(sizeParams)
+          .then(function(response){
+            sizeResponse = response;
+            var renderer = sizeParams.layer.renderer.clone();
+            var unchangedVV;
+
+            if (renderer.visualVariables){
+              unchangedVV = renderer.visualVariables.filter(function(vv){
+                return vv.type === "color";
+              });
+            } else {
+              unchangedVV = [];
+            }
+
+            sizeVVs = lang.clone(response.visualVariables);
+            renderer.visualVariables = sizeVVs.concat(unchangedVV);
+            sizeParams.layer.renderer = renderer;
+
+            return histogram({
+               layer: sizeParams.layer,
+               field: sizeParams.field,
+               normalizationField: sizeParams.normalizationField
+            });
+          }).then(function(sizeHistogram){
+
+            var sizeSliderParams = {};
+
+            sizeSliderParams.statistics = sizeResponse.statistics;
+            sizeSliderParams.maxValue = sizeResponse.statistics.max;
+            sizeSliderParams.minValue = sizeResponse.statistics.min;
+            sizeSliderParams.histogram = sizeHistogram;
+
+            var heightVV = sizeVVs.filter(function(vv){
+              return vv.axis === "height";
+            })[0];
+            sizeSliderParams.visualVariable = heightVV;
+
+
+            if(!sizeSlider){
+              sizeSliderParams.container = "size-slider";
+              sizeSlider = new SizeSlider(sizeSliderParams);
+
+              // when the user slides the handle(s), update the renderer
+              // with the updated size visual variable objects
+
+              on(sizeSlider, "handle-value-change", function() {
+                console.log("handle-value-change");
+                var renderer = layer.renderer.clone();
+                var visualVariables = lang.clone(renderer.visualVariables);
+                var unchangedVVs = [];
+                if(visualVariables){
+                  unchangedVVs = visualVariables.filter(function(vv){
+                    return vv.axis !== "height";
+                  });
+                }
+                renderer.visualVariables = unchangedVVs.concat(lang.clone(sizeSlider.visualVariable));
+
+                layer.renderer = renderer;
+              });
+
+            } else {
+              sizeSlider.set(sizeSliderParams);
+            }
+
+          }).otherwise(function(error){
+          console.error("There was an error with generating the size vv: ", error);
+        });
+
+      }
+
+      function getColorVisualVariable(params) {
 
         var colorParams = {
           layer: params.layer ? params.layer : layer,
           basemap: params.basemap ? params.basemap : map.basemap,
           field: params.colorField ? params.colorField : colorFieldSelect.value,
           normalizationField: colorNormCheck.checked ? "ACSMARBASE" : null,
-          view: view,
-          symbolType: "3d-volumetric",
+          view: params.view,
+          worldScale: true,
           theme: params.theme ? params.theme : themeOptions.value
         };
+        var colorVV;
+        var colorResponse;
 
-        var colorResponse = null;
-        var sizeResponse = null;
-        return colorRendererCreator.createContinuousRenderer(colorParams)
+        return colorRendererCreator.createVisualVariable(colorParams)
           .then(function(response) {
-
             colorResponse = response;
+
+            colorVV = lang.clone(response.visualVariable);
+            var renderer = colorParams.layer.renderer.clone();
+
+            if(renderer.visualVariables){
+              var unchangedVVs = renderer.visualVariables.filter(function(vv){
+                return vv.type !== "color";
+              });
+              renderer.visualVariables = unchangedVVs.concat([colorVV]);
+            } else {
+              renderer.visualVariables = [colorVV];
+            }
+
+            layer.renderer = renderer;
 
             return histogram({
               layer: colorParams.layer,
-              field: colorParams.field
+              field: colorParams.field,
+              normalizationField: colorParams.normalizationField
             });
-          })
-          .then(function(colorHistogram) {
+          }).then(function(colorHistogram) {
+            var colorSliderParams = {};
 
-            var sizeParams = {
-              layer: params.layer ? params.layer : layer,
-              field: params.sizeField ? params.sizeField : sizeFieldSelect.value,
-              normalizationField: sizeNormCheck.checked ? "EDUCBASECY" : null,
-              basemap: params.basemap ? params.basemap : map.basemap,
-              view: view,
-              worldScale: true,
-              axis: "height"
-            };
+            colorSliderParams.statistics = colorResponse.statistics;
+            colorSliderParams.maxValue = colorResponse.statistics.max;
+            colorSliderParams.minValue = colorResponse.statistics.min;
+            colorSliderParams.histogram = colorHistogram;
+            colorSliderParams.visualVariable = colorVV;
+            colorSliderParams.numHandles = getNumHandles(colorParams.theme);
+            colorSliderParams.syncedHandles = getNumHandles(colorParams.theme) > 2;
 
-            return sizeRendererCreator.createVisualVariables(sizeParams)
-              .then(function(response){
+            // input the slider parameters in the slider's constructor
+            // and add it to the view's UI
 
-                sizeResponse = response;
+            if (!colorSlider) {
 
-                return histogram({
-                  layer: sizeParams.layer,
-                  field: sizeParams.field
-                });
-            }).then(function(sizeHistogram){
+              colorSliderParams.container = "color-slider";
+              colorSlider = new ColorSlider(colorSliderParams);
 
+              // when the user slides the handle(s), update the renderer
+              // with the updated color visual variable object
 
+              on(colorSlider, "handle-value-change", function() {
+                var renderer = layer.renderer.clone();
 
-                if(!layer.visible){
-                  layer.visible = true;
+                var visualVariables = lang.clone(renderer.visualVariables);
+                layer.renderer.visualVariables = [];
+
+                if(visualVariables){
+                  var unchangedVVs = visualVariables.filter(function(vv){
+                    return vv.type !== "color";
+                  });
+                  renderer.visualVariables = unchangedVVs.concat([lang.clone(colorSlider.visualVariable)]);
+                } else {
+                  renderer.visualVariables = [lang.clone(colorSlider.visualVariable)];
                 }
 
-                var renderer = colorResponse.renderer.clone();
-                renderer.visualVariables = [];
-                var colorVV = lang.clone(colorResponse.visualVariable);
-                var sizeVVs = lang.clone(sizeResponse.visualVariables);
-                renderer.visualVariables = sizeVVs;
-                renderer.visualVariables.push(colorVV);
                 layer.renderer = renderer;
-
-
-                colorSliderParams.statistics = colorResponse.statistics;
-                colorSliderParams.histogram = colorHistogram;
-                colorSliderParams.visualVariable = colorVV;
-
-                sizeSliderParams.statistics = sizeResponse.statistics;
-                sizeSliderParams.histogram = histogram;
-
-                var heightVV = sizeVVs.filter(function(vv){
-                  return vv.axis === "height";
-                })[0];
-                sizeSliderParams.visualVariable = heightVV;
-
-                // input the slider parameters in the slider's constructor
-                // and add it to the view's UI
-
-                if (!colorSlider) {
-
-                  colorSliderParams.container = "color-slider";
-                  colorSliderParams.numHandles = 3;
-                  colorSliderParams.syncedHandles = true;
-                  colorSlider = new ColorSlider(colorSliderParams);
-
-                  // when the user slides the handle(s), update the renderer
-                  // with the updated color visual variable object
-
-                  on(colorSlider, "data-change", function() {
-                    var renderer = layer.renderer.clone();
-
-                    var visualVariables = lang.clone(renderer.visualVariables);
-                    renderer.visualVariables = [];
-
-                    var unchangedVV = visualVariables.filter(function(vv){
-                      return vv.type !== "color";
-                    });
-
-                    renderer.visualVariables = visualVariables;
-                    renderer.visualVariables.push(lang.clone(colorSlider.visualVariable));
-                    layer.renderer = renderer;
-                  });
-
-                } else {
-                  colorSlider.set(colorSliderParams);
-                }
-
-                if(!sizeSlider){
-                  sizeSliderParams.container = "size-slider";
-                  sizeSlider = new SizeSlider(sizeSliderParams);
-
-                  // when the user slides the handle(s), update the renderer
-                  // with the updated size visual variable objects
-
-                  on(sizeSlider, "data-change", function() {
-                    var renderer = layer.renderer.clone();
-
-                    var visualVariables = lang.clone(renderer.visualVariables);
-                    renderer.visualVariables = [];
-
-                    var unchangedVV = visualVariables.filter(function(vv){
-                      return vv.axis !== "height";
-                    });
-
-                    renderer.visualVariables = visualVariables;
-
-                    renderer.visualVariables.push(lang.clone(sizeSlider.visualVariable));
-                    layer.renderer = renderer;
-                  });
-
-                } else {
-                  sizeSlider.set(sizeSliderParams);
-                }
-
               });
 
-          })
-          .otherwise(function(err) {
-            console.log("there was an error: ", err);
-          });
+            } else {
+              colorSlider.set(colorSliderParams);
+            }
+
+          }).otherwise(function(error){
+          console.error("There was an error with color vv generator: ", error);
+        });
+
+      }
+
+      function generateRenderer(params) {
+
+        var locationParams = {
+          layer: params.layer,
+          basemap: params.basemap,
+          view: params.view,
+          symbolType: "3d-volumetric"
+        };
+
+        return locationRendererCreator.createRenderer(locationParams)
+          .then(function(response){
+
+          locationParams.layer.renderer = response.renderer;
+
+        }).otherwise(function(err) {
+          console.log("there was an error: ", err);
+        });
+      }
+
+      function getNumHandles(theme){
+        return theme === "high-to-low" ? 2 : 3;
       }
 
     });
@@ -330,8 +452,9 @@
   <div id="viewDiv"></div>
   <div id="color-container" class="widget-background">
     Field: <select id="color-field-select">
+      <option value="" selected></option>
       <option value="ACSNEVMARR">Never Married</option>
-      <option value="ACSMARRIED" selected>Married</option>
+      <option value="ACSMARRIED">Married</option>
       <option value="ACSWIDOWED">Widowed</option>
       <option value="ACSDIVORCD">Divorced</option>
       <option value="ACSMARBASE">Population 15+</option>
@@ -347,7 +470,8 @@
   </div>
   <div id="size-container" class="widget-background">
     Field: <select id="size-field-select">
-      <option value="nocollegedegree" selected>No college degree</option>
+      <option value="" selected></option>
+      <option value="nocollegedegree">No college degree</option>
       <option value="SMCOLL_CY">Some college</option>
       <option value="ASSCDEG_CY">Associate degree</option>
       <option value="BACHDEG_CY">Bachelor degree</option>
