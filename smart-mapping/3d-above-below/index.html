@@ -69,7 +69,9 @@
       var sizeNormCheck = dom.byId("normalize-size-check");
       var themeOptions = dom.byId("theme-options");
       var colorSlider = null;
-       sizeSlider = null;
+      var sizeSlider = null;
+      var defaultSymbol = null;
+      var sizeSlideEvent, colorSlideEvent;
 
       var map = new Map({
         basemap: "streets"
@@ -80,9 +82,18 @@
 
       var view = new SceneView({
         container: "viewDiv",
-        map: map
+        map: map,
+        camera: {
+          position: {
+            x: -10669492,
+            y: 4511468,
+            z: 5786863,
+            spatialReference: { wkid: 3857 }
+          },
+          heading: 0,
+          tilt: 0
+        }
       });
-
 
       // Create a BasemapGallery widget instance and set
       // its container to a div element
@@ -103,62 +114,52 @@
         expandIconClass: "esri-icon-basemap"
       });
 
-      // Add the expand instance to the ui
-
-      view.ui.add(bgExpand, "top-right");
-
-
+      view.ui.add(bgExpand, "top-left");
 
       // Create an Expand instance and set the content
-      // property to the DOM node of the basemap gallery widget
-      // Use an Esri icon font to represent the content inside
-      // of the Expand widget
+      // property to the DOM node of the size slider widget
 
       var sizeSliderExpand = new Expand({
         view: view,
         content: dom.byId("size-container"),
         expandIconClass: "esri-icon-pie-chart"
       });
-
-      // Add the expand instance to the ui
-
       view.ui.add(sizeSliderExpand, "top-left");
 
-
       // Create an Expand instance and set the content
-      // property to the DOM node of the basemap gallery widget
-      // Use an Esri icon font to represent the content inside
-      // of the Expand widget
+      // property to the DOM node of the color slider widget
 
       var colorSliderExpand = new Expand({
         view: view,
         content: dom.byId("color-container"),
         expandIconClass: "esri-icon-environment-settings"
       });
-
-      // Add the expand instance to the ui
-
       view.ui.add(colorSliderExpand, "top-left");
 
-
-
       sizeSliderExpand.watch("expanded", function(expanded){
-        if(expanded && colorSliderExpand.expanded){
+        if(expanded && (colorSliderExpand.expanded || bgExpand.expanded)){
           colorSliderExpand.collapse();
+          bgExpand.collapse();
         }
       });
 
-
-
       colorSliderExpand.watch("expanded", function(expanded){
-        if(expanded && sizeSliderExpand.expanded){
+        if(expanded && (sizeSliderExpand.expanded || bgExpand.expanded)){
           sizeSliderExpand.collapse();
+          bgExpand.collapse();
+        }
+      });
+
+      bgExpand.watch("expanded", function(expanded){
+        if(expanded && (sizeSliderExpand.expanded || colorSliderExpand.expanded)){
+          sizeSliderExpand.collapse();
+          colorSliderExpand.collapse();
         }
       });
 
       // Create FeatureLayer instance with popupTemplate
 
-      layer = new FeatureLayer({
+      var layer = new FeatureLayer({
         url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/ArcGIS/rest/services/city_marriage_points/FeatureServer/0",
         outFields: ["*"]
       });
@@ -203,6 +204,7 @@
       });
 
       on(colorFieldSelect, "change", function(evt){
+
         var options = {
           layer: map.layers.getItemAt(0),
           basemap: map.basemap,
@@ -237,7 +239,6 @@
         getColorVisualVariable(options);
       });
 
-
       on(sizeNormCheck, "click", function(evt){
         var options = {
           layer: layer,
@@ -260,6 +261,23 @@
           worldScale: true,
           axis: "height"
         };
+
+        if(!sizeParams.field &&
+           sizeParams.layer.renderer.visualVariables &&
+           SizeSlider
+          ){
+          var renderer = sizeParams.layer.renderer.clone();
+          renderer.visualVariables = renderer.visualVariables.filter(function(vv){
+            return vv.type !== "size";
+          });
+          sizeParams.layer.renderer = renderer;
+          // destroy size slider widget
+          sizeSlider.destroy();
+          sizeSlideEvent.remove();
+          sizeSlider = null;
+          return;
+        }
+
 
         var sizeVVs;
         var sizeResponse;
@@ -309,7 +327,7 @@
               // when the user slides the handle(s), update the renderer
               // with the updated size visual variable objects
 
-              on(sizeSlider, "handle-value-change", function() {
+              sizeSlideEvent = on(sizeSlider, "handle-value-change", function() {
                 console.log("handle-value-change");
                 var renderer = layer.renderer.clone();
                 var visualVariables = lang.clone(renderer.visualVariables);
@@ -345,6 +363,23 @@
           worldScale: true,
           theme: params.theme ? params.theme : themeOptions.value
         };
+
+        if(!colorParams.field &&
+           colorParams.layer.renderer.visualVariables &&
+           colorSlider
+          ){
+          var renderer = colorParams.layer.renderer.clone();
+          renderer.visualVariables = renderer.visualVariables.filter(function(vv){
+            return vv.type !== "color";
+          });
+          colorParams.layer.renderer = renderer;
+          // destroy color slider widget
+          colorSlider.destroy();
+          colorSlideEvent.remove();
+          colorSlider = null;
+          return;
+        }
+
         var colorVV;
         var colorResponse;
 
@@ -393,7 +428,7 @@
               // when the user slides the handle(s), update the renderer
               // with the updated color visual variable object
 
-              on(colorSlider, "handle-value-change", function() {
+              colorSlideEvent = on(colorSlider, "handle-value-change", function() {
                 var renderer = layer.renderer.clone();
 
                 var visualVariables = lang.clone(renderer.visualVariables);
@@ -434,6 +469,7 @@
           .then(function(response){
 
           locationParams.layer.renderer = response.renderer;
+          defaultSymbol = response.renderer.symbol.clone();
 
         }).otherwise(function(err) {
           console.log("there was an error: ", err);
@@ -457,7 +493,6 @@
       <option value="ACSMARRIED">Married</option>
       <option value="ACSWIDOWED">Widowed</option>
       <option value="ACSDIVORCD">Divorced</option>
-      <option value="ACSMARBASE">Population 15+</option>
     </select>
     Normalize? <input type="checkbox" id="normalize-color-check"><br>
     Theme: <select id="theme-options">
