@@ -447,7 +447,15 @@
               });
 
             } else {
-              colorSlider.set(colorSliderParams);
+
+//              if (colorSliderParams.numHandles === 3){
+//                colorSlider.destroy();
+//                colorSlider = null;
+//                colorSliderParams.container = "color-slider";
+//                colorSlider = new ColorSlider(colorSliderParams);
+//              } else {
+                colorSlider.set(colorSliderParams);
+//              }
             }
 
           }).otherwise(function(error){
@@ -487,6 +495,7 @@
 <body class="claro">
   <div id="viewDiv"></div>
   <div id="color-container" class="widget-background">
+    <h3>Color</h3>
     Field: <select id="color-field-select">
       <option value="" selected></option>
       <option value="ACSNEVMARR">Never Married</option>
@@ -494,16 +503,19 @@
       <option value="ACSWIDOWED">Widowed</option>
       <option value="ACSDIVORCD">Divorced</option>
     </select>
-    Normalize? <input type="checkbox" id="normalize-color-check"><br>
+    Normalize? <input type="checkbox" id="normalize-color-check" checked><br>
     Theme: <select id="theme-options">
+<!--
       <option value="high-to-low" selected>High to low</option>
       <option value="centered-on">Centered on</option>
       <option value="extremes">Extremes</option>
+-->
       <option value="above-and-below">Above and below</option>
     </select><br>
     <div id="color-slider"></div>
   </div>
   <div id="size-container" class="widget-background">
+    <h3>Size</h3>
     Field: <select id="size-field-select">
       <option value="" selected></option>
       <option value="nocollegedegree">No college degree</option>
@@ -512,7 +524,7 @@
       <option value="BACHDEG_CY">Bachelor degree</option>
       <option value="GRADDEG_CY">Graduate degree</option>
     </select>
-    Normalize? <input type="checkbox" id="normalize-size-check"><br>
+    Normalize? <input type="checkbox" id="normalize-size-check" checked><br>
     <div id="size-slider"></div>
   </div>
 </body>
