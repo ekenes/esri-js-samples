@@ -164,21 +164,29 @@
           var previousFeature = getPreviousFeature(currentFeature);
 
           if(previousFeature){
-            var animatedGraphic = lineAnimation.animateLine({
+            lineAnimation.animateLine({
               startPoint: previousFeature,
               endPoint: currentFeature,
               view: view,
-              unAnimate: true
+              unAnimate: true,
+              animateEndPoint: true
+            }).then(function(){
+
+              timelineManager.happened.source.remove(previousFeature);
+              var previousFeatureClone = previousFeature.clone();
+              previousFeatureClone.attributes.HAPPENED = 1;
+              timelineManager.happened.source.add(previousFeatureClone);
+
+              timelineManager.happened.source.add(currentFeature);
+              addToSortedPersons(currentFeature);
             });
 
-            timelineManager.happened.source.remove(previousFeature);
-            var previousFeatureClone = previousFeature.clone();
-            previousFeatureClone.attributes.HAPPENED = 1;
-            timelineManager.happened.source.add(previousFeatureClone);
-          }
+          } else {
 
-          timelineManager.happened.source.add(currentFeature);
-          addToSortedPersons(currentFeature);
+            timelineManager.happened.source.add(currentFeature);
+            addToSortedPersons(currentFeature);
+
+          }
 
         }, 2000);
       }

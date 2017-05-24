@@ -39,7 +39,7 @@ define([
     var duration = params.duration ? params.duration : 1000;
     var view = params.view;
     var color = getGraphicColor(endPoint);
-//    var unAnimate = params.unAnimate;
+    var animateEndPoint = params.animateEndPoint;
 
     var lineGraphic = createLine(startPoint, endPoint, color);
     var lineGeometry = lineGraphic.geometry.clone();
@@ -53,24 +53,32 @@ define([
     var vertexCounter = 0;
     var updatedLineGeom;
     var previousSegment;
+    var previousPointGraphic;
     var dfd = new Deferred();
 
     var drawSegmentsInterval = setInterval(function(){
       vertexCounter++;
 
       if(vertexCounter > numVertices){
+
         if(params.unAnimate){
           var numVerticesRemove = updatedLineGeom.paths[0].length;
+          if(numVerticesRemove === numVertices){
+            dfd.resolve(lineGraphic);
+          }
 
           if(numVerticesRemove === 1){
             stopAnimation(drawSegmentsInterval);
-            dfd.resolve(lineGraphic);
+//            dfd.resolve(lineGraphic);
             return;
           }
 
           // using numVertices - 1 unanimates the line in the opposite direction
           updatedLineGeom = removeLineSegment(updatedLineGeom, 0);
           previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color);
+          if (view.graphics.includes(previousPointGraphic)){
+            view.graphics.remove(previousPointGraphic);
+          }
         } else {
           stopAnimation(drawSegmentsInterval);
           dfd.resolve(lineGraphic);
@@ -78,9 +86,16 @@ define([
         }
 
       } else {
+
         var currentPointCoords = lineDensified.paths[0][vertexCounter-1];
         updatedLineGeom = addLineSegment(updatedLineGeom, currentPointCoords);
         previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color);
+
+        if (animateEndPoint){
+          var pointSymbol = getGraphicSymbol(endPoint);
+          var updatedPoint = createPoint(currentPointCoords[0], currentPointCoords[1], pointSymbol);
+          previousPointGraphic = drawPoint(updatedPoint, previousPointGraphic, view);
+        }
       }
 
 
@@ -94,9 +109,14 @@ define([
   }
 
   function getGraphicColor (graphic){
+    var symbol = getGraphicSymbol(graphic);
+    return symbol.color.clone();
+  }
+
+  function getGraphicSymbol (graphic){
     var renderer = graphic.layer.renderer;
     var uv = renderer.getUniqueValueInfo(graphic);
-    return uv.symbol.color.clone();
+    return uv.symbol.clone();
   }
 
   // This function assumes a densified line
@@ -144,6 +164,19 @@ define([
       previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color);
 
     }, interval);
+  }
+
+  function createPoint(x,y, symbol){
+    var point = new Point({
+      x: x,
+      y: y,
+      spatialReference: { wkid: 3857 }
+    });
+
+    return new Graphic({
+      geometry: point,
+      symbol: symbol
+    })
   }
 
   /**
@@ -225,6 +258,14 @@ define([
 
     view.graphics.add(segment);
     return segment;
+  }
+
+  function drawPoint(pointGraphic, previousPointGraphic, view){
+    if(previousPointGraphic){
+      view.graphics.remove(previousPointGraphic);
+    }
+    view.graphics.add(pointGraphic);
+    return pointGraphic;
   }
 
   return {
