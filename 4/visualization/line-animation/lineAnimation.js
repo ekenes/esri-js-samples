@@ -5,6 +5,7 @@ define([
   "esri/symbols/SimpleLineSymbol",
   "esri/Graphic",
   "esri/core/promiseUtils",
+  "dojo/Deferred",
   "esri/core/lang"
 ], function(
   Point,
@@ -13,6 +14,7 @@ define([
   SimpleLineSymbol,
   Graphic,
   promiseUtils,
+  Deferred,
   lang
 ){
 
@@ -36,8 +38,10 @@ define([
     var endPoint = params.endPoint;
     var duration = params.duration ? params.duration : 1000;
     var view = params.view;
+    var color = getGraphicColor(endPoint);
+//    var unAnimate = params.unAnimate;
 
-    var lineGraphic = createLine(startPoint, endPoint);
+    var lineGraphic = createLine(startPoint, endPoint, color);
     var lineGeometry = lineGraphic.geometry.clone();
     var lineLength = geometryEngine.geodesicLength(lineGeometry, "meters");
     var TOLERANCE = lineLength / 150;
@@ -49,26 +53,50 @@ define([
     var vertexCounter = 0;
     var updatedLineGeom;
     var previousSegment;
+    var dfd = new Deferred();
 
     var drawSegmentsInterval = setInterval(function(){
       vertexCounter++;
 
       if(vertexCounter > numVertices){
-        stopAnimation(drawSegmentsInterval);
-        return;
+        if(params.unAnimate){
+          var numVerticesRemove = updatedLineGeom.paths[0].length;
+
+          if(numVerticesRemove === 1){
+            stopAnimation(drawSegmentsInterval);
+            dfd.resolve(lineGraphic);
+            return;
+          }
+
+          // using numVertices - 1 unanimates the line in the opposite direction
+          updatedLineGeom = removeLineSegment(updatedLineGeom, 0);
+          previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color);
+        } else {
+          stopAnimation(drawSegmentsInterval);
+          dfd.resolve(lineGraphic);
+          return;
+        }
+
+      } else {
+        var currentPointCoords = lineDensified.paths[0][vertexCounter-1];
+        updatedLineGeom = addLineSegment(updatedLineGeom, currentPointCoords);
+        previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color);
       }
 
-      var currentPointCoords = lineDensified.paths[0][vertexCounter-1];
-      updatedLineGeom = addLineSegment(updatedLineGeom, currentPointCoords);
-      previousSegment = drawSegment(updatedLineGeom, previousSegment, view);
+
 
     }, interval);
-    return lineGraphic;
-//    return promiseUtils.resolve(lineGraphic);
+    return dfd.promise;
   }
 
   function stopAnimation(interval){
     clearInterval(interval);
+  }
+
+  function getGraphicColor (graphic){
+    var renderer = graphic.layer.renderer;
+    var uv = renderer.getUniqueValueInfo(graphic);
+    return uv.symbol.color.clone();
   }
 
   // This function assumes a densified line
@@ -113,7 +141,7 @@ define([
 
       // using numVertices - 1 unanimates the line in the opposite direction
       updatedLineGeom = removeLineSegment(updatedLineGeom, 0);//numVertices-1);
-      previousSegment = drawSegment(updatedLineGeom, previousSegment, view);
+      previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color);
 
     }, interval);
   }
@@ -129,7 +157,7 @@ define([
    * a polyline geometry. This graphic contains the same attributes as
    * the start and end point.
    */
-  function createLine(start, end) {
+  function createLine(start, end, color) {
     var line = new Polyline({
       spatialReference: {wkid: 3857}
     });
@@ -143,7 +171,7 @@ define([
         endPoint: lang.clone(end.attributes)
       },
       symbol: new SimpleLineSymbol({
-        color: [255,0,0,0.5],
+        color: color ? color : [255,0,0,0.5],
         width: 3
       })
     });
@@ -182,7 +210,7 @@ define([
     return line;
   }
 
-  function drawSegment(lineGeom, previousSegmentGraphic, view){
+  function drawSegment(lineGeom, previousSegmentGraphic, view, color){
     if(previousSegmentGraphic){
       view.graphics.remove(previousSegmentGraphic);
     }
@@ -190,7 +218,7 @@ define([
     var segment = new Graphic({
       geometry: lineGeom,
       symbol: new SimpleLineSymbol({
-        color: "blue",
+        color: color ? color : "blue",
         width: 3
       })
     });
