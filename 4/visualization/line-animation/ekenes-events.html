@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Ekenes Events</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+    #display-year {
+      font-size: 72pt;
+      color: rgba(255,255,255,0.7);
+      font-weight: bolder;
+    }
+    #start-button {
+      font-size: 18pt;
+      color: white;
+      background-color: black;
+      padding: 8px;
+      border: 1px solid darkgray;
+      cursor: pointer;
+    }
+  </style>
+
+  <script>
+    var dojoConfig = {
+      paths: {
+        modules: location.pathname.replace(/\/[^/]+$/, "")
+      }
+    };
+  </script>
+
+  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.4/esri/css/main.css">
+  <script src="https://jsdev.arcgis.com/4.4/"></script>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/core/Collection",
+      "esri/layers/FeatureLayer",
+      "esri/layers/GraphicsLayer",
+      "esri/geometry/Point",
+      "esri/geometry/Polyline",
+      "esri/geometry/geometryEngine",
+      "esri/renderers/SimpleRenderer",
+      "esri/symbols/SimpleLineSymbol",
+      "esri/symbols/SimpleMarkerSymbol",
+      "esri/Graphic",
+      "modules/lineAnimation",
+      "modules/GraphicsFeatureLayer",
+      "dojo/dom", "dojo/on",
+      "dojo/domReady!"
+    ], function(Map, MapView, Collection,FeatureLayer, GraphicsLayer, Point, Polyline, ge,
+                SimpleRenderer, SimpleLineSymbol, SimpleMarkerSymbol,
+                Graphic, lineAnimation, GraphicsFeatureLayer, dom, on) {
+
+      var portalItemId = "ee76f1b63753426891255cc406684dc4";
+
+      var timelineManager = {
+        year: 1945,
+        sortedFeatures: null,
+        happened: null,
+        sortedByPerson: {}
+      };
+
+      var displayedYear = dom.byId("display-year");
+      displayedYear.innerHTML = timelineManager.year;
+
+      var layer = new FeatureLayer({
+        portalItem: {
+          id: "ee76f1b63753426891255cc406684dc4"
+        },
+        visible: false,
+        definitionExpression: "GENERATION <= 1",
+        outFields: ["*"]
+      });
+
+      var lineAnimationGraphics;
+
+      var map = new Map({
+//        basemap: {
+//          portalItem: {
+//            id: "4f2e99ba65e34bb8af49733d9778fb8e"
+//          }
+//        },
+        basemap: "dark-gray",
+        layers: [ ]
+      });
+
+      view = new MapView({
+        container: "viewDiv",
+        map: map,
+        zoom: 3,
+        center: [-45, 55]
+      });
+
+      view.ui.add("display-year", "top-right");
+      view.ui.add("start-button", "bottom-left");
+
+      view.then(function(){
+        return GraphicsFeatureLayer.getLayer(portalItemId);
+      }).then(function(response){
+//        console.log("features: ", r);
+
+//        var featuresSymbolAdded = features.map(function(feature){
+//          return addSymbolToPointGraphic(feature);
+//        });
+        var features = response.features;
+
+        timelineManager.sortedFeatures = sortFeaturesByYear(features);
+        timelineManager.happened = response.layer;
+
+        map.add(timelineManager.happened);
+
+        on(dom.byId("start-button"), "click", playTimeline);
+
+      });
+
+      function sortFeaturesByYear(features){
+
+        function compare(a,b) {
+          if (a.attributes.DATE < b.attributes.DATE)
+            return -1;
+          if (a.attributes.DATE > b.attributes.DATE)
+            return 1;
+          return 0;
+        }
+
+        return features.sort(compare);
+      }
+
+      function addSymbolToPointGraphic(graphic){
+        var newGraphic = graphic.clone();
+        newGraphic.symbol = new SimpleMarkerSymbol({
+          color: "blue",
+          size: 6,
+          outline: {
+            color: "white",
+            width: 1
+          }
+        });
+        return newGraphic;
+      }
+
+      function playTimeline(params){
+
+        var yearInterval = setInterval(function(){
+          if(!timelineManager.sortedFeatures.length){
+            console.log("no more features in queue");
+            clearInterval(yearInterval);
+            return;
+          }
+
+          var currentFeature = timelineManager.sortedFeatures.shift();
+          updateDateDisplay(currentFeature);
+
+          var previousFeature = getPreviousFeature(currentFeature);
+
+          if(previousFeature){
+            lineAnimation.animateLine({
+              startPoint: previousFeature,
+              endPoint: currentFeature,
+              view: view,
+              unAnimate: true,
+              animateEndPoint: true
+            }).then(function(){
+
+              timelineManager.happened.source.remove(previousFeature);
+              var previousFeatureClone = previousFeature.clone();
+              previousFeatureClone.attributes.HAPPENED = 1;
+              timelineManager.happened.source.add(previousFeatureClone);
+
+              timelineManager.happened.source.add(currentFeature);
+              addToSortedPersons(currentFeature);
+            });
+
+          } else {
+
+            timelineManager.happened.source.add(currentFeature);
+            addToSortedPersons(currentFeature);
+
+          }
+
+        }, 2000);
+      }
+
+      function addToSortedPersons(graphic){
+        var id = graphic.attributes.ID;
+        if(timelineManager.sortedByPerson[id]){
+          timelineManager.sortedByPerson[id].push(graphic);
+        } else {
+          timelineManager.sortedByPerson[id] = new Collection([ graphic ]);
+        }
+      }
+
+      function getPreviousFeature(graphic){
+        var id = graphic.attributes.ID;
+
+        if(timelineManager.sortedByPerson[id]){
+          var lastIndex = timelineManager.sortedByPerson[id].length - 1;
+          return timelineManager.sortedByPerson[id].getItemAt(lastIndex);
+        } else {
+          return null;
+        }
+      }
+
+      function updateDateDisplay(feature){
+        var currentDate = new Date(feature.attributes.DATE);
+        timelineManager.year = currentDate.getFullYear();
+        displayedYear.innerHTML = timelineManager.year;
+      }
+
+
+
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+  <div id="display-year"></div>
+  <div id="start-button">Play timeline animation</div>
+</body>
+</html>
