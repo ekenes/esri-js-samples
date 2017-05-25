@@ -64,7 +64,7 @@
       var portalItemId = "ee76f1b63753426891255cc406684dc4";
 
       var timelineManager = {
-        year: 1945,
+        year: 1950,
         sortedFeatures: null,
         happened: null,
         sortedByPerson: {}
@@ -72,15 +72,6 @@
 
       var displayedYear = dom.byId("display-year");
       displayedYear.innerHTML = timelineManager.year;
-
-      var layer = new FeatureLayer({
-        portalItem: {
-          id: "ee76f1b63753426891255cc406684dc4"
-        },
-        visible: false,
-        definitionExpression: "GENERATION <= 1",
-        outFields: ["*"]
-      });
 
       var lineAnimationGraphics;
 
@@ -113,7 +104,6 @@
 //          return addSymbolToPointGraphic(feature);
 //        });
         var features = response.features;
-
         timelineManager.sortedFeatures = sortFeaturesByYear(features);
         timelineManager.happened = response.layer;
 
