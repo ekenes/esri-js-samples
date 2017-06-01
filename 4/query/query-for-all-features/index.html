@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Query for all features</title>
+<style>
+html,
+body,
+#viewDiv {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  width: 100%;
+}
+</style>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.3/esri/css/main.css">
+<script src="https://js.arcgis.com/4.3/"></script>
+
+<script>
+require([
+  "esri/Map",
+  "esri/views/MapView",
+  "esri/layers/FeatureLayer",
+  "esri/geometry/SpatialReference",
+  "dojo/domReady!"
+], function(Map, MapView, FeatureLayer, SpatialReference) {
+
+  var layer = new FeatureLayer({
+    url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Mexico_demographics/FeatureServer/0",
+    outFields: ["*"]
+  });
+
+  var map = new Map({
+    basemap: "streets",
+    layers: [ layer ]
+  });
+
+  var view = new MapView({
+    container: "viewDiv",
+    map: map,
+    zoom: 4,
+    center: [15, 65]
+  });
+
+  view.then(function(){
+    executeQuery({
+      layer: layer
+    });
+  });
+
+  function executeQuery(params) {
+    var layer = params.layer;
+    var allFeatures = [];
+
+    return layer.load()
+      .then(function() {
+        return queryFeatures({
+          layer: layer,
+          allFeatures: allFeatures
+        });
+      })
+      .then(displayResult)
+      .otherwise(function(error){
+        console.log("error: ", error);
+      });
+  }
+
+  function queryFeatures(params){
+    var layer = params.layer;
+    var allFeatures = params.allFeatures ? params.allFeatures : [];
+    var num = params.num ? params.num : 2000;
+    var exceededTransferLimit = typeof params.exceededTransferLimit === "undefined" ? true : params.exceededTransferLimit;
+    var start = params.start ? params.start : 0;
+
+    if(!exceededTransferLimit){
+      return {
+        layer: layer,
+        features: allFeatures
+      };
+    }
+
+    var query = layer.createQuery();
+    query.start = start;
+    query.num = num;
+    query.outSpatialReference = new SpatialReference({ wkid: 3857 });
+
+    return layer.queryFeatures(query)
+      .then(function(response){
+        allFeatures = allFeatures.concat(response.features);
+        return queryFeatures({
+          layer: layer,
+          allFeatures: allFeatures,
+          num: num,
+          start: start+2000,
+          exceededTransferLimit: response.exceededTransferLimit
+        });
+      });
+  }
+
+  function displayResult (response){
+    console.log("queried features: ", response.features);
+  }
+
+});
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+</html>
