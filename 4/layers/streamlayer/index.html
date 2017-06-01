@@ -387,8 +387,12 @@
         sym = new LabelSymbol3D({
           symbolLayers: [
             new TextSymbol3DLayer({
-              material: { color: "black" },
-              size: 10
+              material: { color: "white" },
+              size: 10,
+              halo: {
+                color: "black",
+                size: 1.5
+              }
             })
           ],
           callout: new LineCallout3D({
