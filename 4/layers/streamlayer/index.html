@@ -21,8 +21,8 @@
   }
 </style>
 
-<link rel="stylesheet" href="https://js.arcgis.com/4.3/esri/css/main.css">
-<script src="https://js.arcgis.com/4.3"></script>
+<link rel="stylesheet" href="https://jsdev.arcgis.com/4.4/esri/css/main.css">
+<script src="https://jsdev.arcgis.com/4.4"></script>
 
 <script>
   require([
@@ -40,6 +40,7 @@
     "esri/symbols/ObjectSymbol3DLayer",
     "esri/symbols/LineSymbol3D",
     "esri/symbols/LineSymbol3DLayer",
+    "esri/symbols/callouts/LineCallout3D",
     "esri/symbols/PathSymbol3DLayer",
     "esri/symbols/WebStyleSymbol",
     "esri/symbols/TextSymbol",
@@ -63,7 +64,7 @@
   ], function(Map, SceneView, Camera, StreamLayer, Legend, Graphic,
     SimpleMarkerSymbol, SimpleLineSymbol, PointSymbol3D,
     IconSymbol3DLayer, ObjectSymbol3DLayer, LineSymbol3D,
-    LineSymbol3DLayer, PathSymbol3DLayer, WebStyleSymbol,
+    LineSymbol3DLayer, LineCallout3D, PathSymbol3DLayer, WebStyleSymbol,
     TextSymbol, TextSymbol3DLayer, LabelSymbol3D, LabelClass,
     Extent, Polygon, PolygonSymbol3D, ExtrudeSymbol3DLayer, FillSymbol3DLayer,
     SimpleRenderer, UniqueValueRenderer, ClassBreaksRenderer,
@@ -389,7 +390,15 @@
               material: { color: "black" },
               size: 10
             })
-          ]
+          ],
+          callout: new LineCallout3D({
+            size: 1.5,
+            color: "black"
+          }),
+          verticalOffset: {
+            screenLength: "50px",
+            minWorldLength: 30
+          }
         });
       } else if (type === "2d"){
         sym = new TextSymbol({
