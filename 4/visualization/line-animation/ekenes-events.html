@@ -154,18 +154,18 @@
           var previousFeature = getPreviousFeature(currentFeature);
 
           if(previousFeature){
+            timelineManager.happened.source.remove(previousFeature);
+            var previousFeatureClone = previousFeature.clone();
+            previousFeatureClone.attributes.HAPPENED = 1;
+            timelineManager.happened.source.add(previousFeatureClone);
+
             lineAnimation.animateLine({
               startPoint: previousFeature,
               endPoint: currentFeature,
               view: view,
-              unAnimate: true,
+              lineEffect: "retain",  // trail, retain, none
               animateEndPoint: true
             }).then(function(){
-
-              timelineManager.happened.source.remove(previousFeature);
-              var previousFeatureClone = previousFeature.clone();
-              previousFeatureClone.attributes.HAPPENED = 1;
-              timelineManager.happened.source.add(previousFeatureClone);
 
               timelineManager.happened.source.add(currentFeature);
               addToSortedPersons(currentFeature);
