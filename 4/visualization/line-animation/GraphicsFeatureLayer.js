@@ -29,11 +29,11 @@ define([
     r.addUniqueValueInfo({
       value: "0-past",
       symbol: new SimpleMarkerSymbol({
-        color: [85, 255, 0, 0.25],
+        color: [85, 255, 0, 0.15],
         size: "8px",
         outline: {
-          color: [85, 255, 0, 0.5],
-          width: 1
+          color: [85, 255, 0, 0.25],
+          width: 0.5
         }
       })
     });
@@ -41,11 +41,11 @@ define([
     r.addUniqueValueInfo({
       value: "m-past",
       symbol: new SimpleMarkerSymbol({
-        color: [255, 0, 0, 0.25],
+        color: [255, 0, 0, 0.15],
         size: "8px",
         outline: {
-          color: [255, 0, 0, 0.5],
-          width: 1
+          color: [255, 0, 0, 0.25],
+          width: 0.5
         }
       })
     });
@@ -53,11 +53,11 @@ define([
     r.addUniqueValueInfo({
       value: "p-past",
       symbol: new SimpleMarkerSymbol({
-        color: [0, 197, 255, 0.25],
+        color: [0, 197, 255, 0.15],
         size: "8px",
         outline: {
-          color: [0, 197, 255, 0.5],
-          width: 1
+          color: [0, 197, 255, 0.25],
+          width: 0.5
         }
       })
     });
