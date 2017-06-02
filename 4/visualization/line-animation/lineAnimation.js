@@ -40,6 +40,7 @@ define([
     var view = params.view;
     var color = getGraphicColor(endPoint);
     var animateEndPoint = params.animateEndPoint;
+    var lineEffect = params.lineEffect;
 
     var lineGraphic = createLine(startPoint, endPoint, color);
     var lineGeometry = lineGraphic.geometry.clone();
@@ -61,7 +62,16 @@ define([
 
       if(vertexCounter > numVertices){
 
-        if(params.unAnimate){
+        if (view.graphics.includes(previousPointGraphic)){
+          view.graphics.remove(previousPointGraphic);
+        }
+
+        if (lineEffect === "none" && animateEndPoint){
+          dfd.resolve(lineGraphic);
+          return;
+        }
+
+        if(lineEffect === "trail"){
           var numVerticesRemove = updatedLineGeom.paths[0].length;
           if(numVerticesRemove === numVertices){
             dfd.resolve(lineGraphic);
@@ -69,17 +79,13 @@ define([
 
           if(numVerticesRemove === 1){
             stopAnimation(drawSegmentsInterval);
-//            dfd.resolve(lineGraphic);
             return;
           }
 
           // using numVertices - 1 unanimates the line in the opposite direction
           updatedLineGeom = removeLineSegment(updatedLineGeom, 0);
           previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color);
-          if (view.graphics.includes(previousPointGraphic)){
-            view.graphics.remove(previousPointGraphic);
-          }
-        } else {
+        } else if (lineEffect === "retain"){
           stopAnimation(drawSegmentsInterval);
           dfd.resolve(lineGraphic);
           return;
@@ -89,7 +95,14 @@ define([
 
         var currentPointCoords = lineDensified.paths[0][vertexCounter-1];
         updatedLineGeom = addLineSegment(updatedLineGeom, currentPointCoords);
-        previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color);
+
+        if (lineEffect === "none"){
+          previousSegment = new Graphic({
+            geometry: updatedLineGeom
+          });
+        } else {
+          previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color);
+        }
 
         if (animateEndPoint){
           var pointSymbol = getGraphicSymbol(endPoint);
@@ -110,7 +123,9 @@ define([
 
   function getGraphicColor (graphic){
     var symbol = getGraphicSymbol(graphic);
-    return symbol.color.clone();
+    var color = symbol.color.clone();
+    color.a = 0.15;
+    return color; //symbol.color.clone();
   }
 
   function getGraphicSymbol (graphic){
