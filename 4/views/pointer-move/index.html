@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Load a basic WebMap - 4.3</title>
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.3/esri/css/main.css">
+
+  <script src="https://js.arcgis.com/4.3/"></script>
+
+  <script>
+    require([
+      "esri/views/MapView",
+      "esri/WebMap",
+      "esri/layers/FeatureLayer",
+      "esri/widgets/Legend",
+      "esri/symbols/SimpleFillSymbol",
+      "dojo/domReady!"
+    ], function(
+      MapView, WebMap, FeatureLayer, Legend, SimpleFillSymbol
+    ) {
+
+      var cropsLayer = new FeatureLayer({
+        portalItem: {
+          id: "bc67f0849e844218a5346c25931ff8a4"
+        },
+        outFields: ["*"]
+      });
+
+      /************************************************************
+       * Creates a new WebMap instance. A WebMap must reference
+       * a PortalItem ID that represents a WebMap saved to
+       * arcgis.com or an on-premise portal.
+       *
+       * To load a WebMap from an on-premise portal, set the portal
+       * url in esriConfig.portalUrl.
+       ************************************************************/
+      var webmap = new WebMap({
+        layers: [ cropsLayer ]
+      });
+
+      /************************************************************
+       * Set the WebMap instance to the map property in a MapView.
+       ************************************************************/
+       mainView = new MapView({
+        map: webmap,
+        container: "viewDiv",
+        extent: {
+          xmin: -2983477.961511417,
+          ymin: -2086364.8438130165,
+          xmax: 2758864.0447032913,
+          ymax: 1800497.0872710496,
+          spatialReference: { wkid: 102003 }
+        }
+      });
+
+      var legend = new Legend({
+        view: mainView
+      });
+      mainView.ui.add(legend, "bottom-left");
+
+      mainView
+        .then(disableZooming)
+        .then(openPopupOnPointerMove);
+
+      /**
+       * Disables all zoom gestures on the given view instance.
+       *
+       * @param {esri/views/MapView} view - The MapView instance on which to
+       *                                  disable zooming gestures.
+       */
+      function disableZooming(view) {
+        view.popup.dockEnabled = true;
+
+        // Removes the zoom action on the popup
+        view.popup.actions = [];
+
+        // stops propogation of default behavior when an event fires
+        function stopEvtPropogation(evt) {
+          evt.stopPropagation();
+        }
+
+        // exlude the zoom widget from the default UI
+        view.ui.components = ["attribution"];
+
+        // disable mouse wheel scroll zooming on the view
+        view.on("mouse-wheel", stopEvtPropogation);
+
+        // disable zooming via double-click on the view
+        view.on("double-click", stopEvtPropogation);
+
+        // disable zooming out via double-click + Control on the view
+        view.on("double-click", ["Control"], stopEvtPropogation);
+
+        // disables pinch-zoom and panning on the view
+        view.on("drag", stopEvtPropogation);
+
+        // disable the view's zoom box to prevent the Shift + drag
+        // and Shift + Control + drag zoom gestures.
+        view.on("drag", ["Shift"], stopEvtPropogation);
+        view.on("drag", ["Shift", "Control"], stopEvtPropogation);
+
+        // prevents zooming with the + and - keys
+        view.on("key-down", function(evt) {
+          var prohibitedKeys = ["+", "-", "Shift", "_", "="];
+          var keyPressed = evt.key;
+          if (prohibitedKeys.indexOf(keyPressed) !== -1) {
+            evt.stopPropagation();
+          }
+        });
+
+        return view;
+      }
+
+
+      function openPopupOnPointerMove(view){
+
+        view.on("pointer-move", function(evt){
+          view.hitTest(evt)
+            .then(function(response){
+              var feature;
+
+              if(response.results.length > 0){
+                feature = response.results[0].graphic;
+
+                if(!view.popup.selectedFeature ||
+                  view.popup.selectedFeature != feature){
+
+                  view.popup.open({
+                    features: [ feature ]
+                  });
+
+                  addSelectionToView(view, feature);
+                }
+              }
+
+            });
+        });
+
+      }
+
+      function addSelectionToView(view, graphic){
+        view.graphics.removeAll();
+
+        var feature = graphic.clone();
+        feature.symbol = new SimpleFillSymbol({
+          style: "none",
+          outline: {
+            color: "black",
+            width: 1.5
+          }
+        });
+        view.graphics.add(feature);
+
+        return feature;
+      }
+
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
