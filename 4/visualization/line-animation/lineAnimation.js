@@ -52,7 +52,7 @@ define([
     var numVertices = lineDensified.paths[0].length;
     var interval = duration / numVertices;
     var vertexCounter = 0;
-    var updatedLineGeom;
+    var updatedLineGeom, updatedLineGraphic;
     var previousSegment;
     var previousPointGraphic;
     var dfd = new Deferred();
@@ -84,7 +84,8 @@ define([
 
           // using numVertices - 1 unanimates the line in the opposite direction
           updatedLineGeom = removeLineSegment(updatedLineGeom, 0);
-          previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color);
+
+          previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color, lineGraphic.attributes.isMarriage);
         } else if (lineEffect === "retain"){
           stopAnimation(drawSegmentsInterval);
           dfd.resolve(lineGraphic);
@@ -101,7 +102,7 @@ define([
             geometry: updatedLineGeom
           });
         } else {
-          previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color);
+          previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color, lineGraphic.attributes.isMarriage);
         }
 
         if (animateEndPoint){
@@ -124,7 +125,7 @@ define([
   function getGraphicColor (graphic){
     var symbol = getGraphicSymbol(graphic);
     var color = symbol.color.clone();
-    color.a = 0.15;
+    color.a = 0.25;
     return color; //symbol.color.clone();
   }
 
@@ -206,6 +207,10 @@ define([
    * the start and end point.
    */
   function createLine(start, end, color) {
+    var startEvent = start.attributes.EVENT;
+    var endEvent = end.attributes.EVENT;
+    var isMarriage = startEvent === "marriage" || endEvent === "marriage";
+
     var line = new Polyline({
       spatialReference: {wkid: 3857}
     });
@@ -216,11 +221,13 @@ define([
       geometry: line,
       attributes: {
         startPoint: lang.clone(start.attributes),
-        endPoint: lang.clone(end.attributes)
+        endPoint: lang.clone(end.attributes),
+        isMarriage: isMarriage
       },
       symbol: new SimpleLineSymbol({
         color: color ? color : [255,0,0,0.5],
-        width: 3
+        width: 3,
+        style: isMarriage ? "short-dot" : "solid"
       })
     });
   }
@@ -258,7 +265,7 @@ define([
     return line;
   }
 
-  function drawSegment(lineGeom, previousSegmentGraphic, view, color){
+  function drawSegment(lineGeom, previousSegmentGraphic, view, color, isMarriage){
     if(previousSegmentGraphic){
       view.graphics.remove(previousSegmentGraphic);
     }
@@ -267,8 +274,10 @@ define([
       geometry: lineGeom,
       symbol: new SimpleLineSymbol({
         color: color ? color : "blue",
-        width: 3
-      })
+        width: 3,
+        style: isMarriage ? "short-dot" : "solid"
+      }),
+
     });
 
     view.graphics.add(segment);
