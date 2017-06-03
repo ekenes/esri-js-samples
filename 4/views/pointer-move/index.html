@@ -34,8 +34,9 @@
 
       var cropsLayer = new FeatureLayer({
         portalItem: {
-          id: "bc67f0849e844218a5346c25931ff8a4"
+          id: "0d62a20b42cc4b5a888daf1662594f5d"
         },
+//        url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/USA_Counties_20M/FeatureServer/0",
         outFields: ["*"]
       });
 
@@ -57,6 +58,7 @@
        mainView = new MapView({
         map: webmap,
         container: "viewDiv",
+        spatialReference: { wkid: 102003 },
         extent: {
           xmin: -2983477.961511417,
           ymin: -2086364.8438130165,
@@ -126,27 +128,55 @@
 
 
       function openPopupOnPointerMove(view){
-
+        popupActive = true;
         view.on("pointer-move", function(evt){
-          view.hitTest(evt)
-            .then(function(response){
-              var feature;
+          var lastHitTest;
+          if(lastHitTest){
+            clearTimeout(lastHitTest);
+          }
 
-              if(response.results.length > 0){
-                feature = response.results[0].graphic;
+          lastHitTest = setTimeout(function(){
 
-                if(!view.popup.selectedFeature ||
-                  view.popup.selectedFeature != feature){
 
-                  view.popup.open({
-                    features: [ feature ]
-                  });
 
-                  addSelectionToView(view, feature);
+          if (popupActive){
+            popupActive = false;
+
+
+            setTimeout(function(){
+              popupActive = true;
+            }, 300);
+
+
+
+
+            view.hitTest(evt)
+              .then(function(response){
+                var feature;
+
+                if(response.results.length > 0){
+                  feature = response.results[0].graphic;
+
+                  if(!view.popup.selectedFeature ||
+                    view.popup.selectedFeature !== feature){
+
+                    view.popup.open({
+                      features: [ feature ]
+                    });
+
+                    addSelectionToView(view, feature);
+                  }
                 }
-              }
 
-            });
+              });
+
+          }
+
+          }, 200);
+
+//        }
+
+
         });
 
       }
