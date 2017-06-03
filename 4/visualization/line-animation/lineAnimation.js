@@ -46,7 +46,7 @@ define([
     var lineGeometry = lineGraphic.geometry.clone();
     var lineLength = geometryEngine.geodesicLength(lineGeometry, "meters");
     var TOLERANCE = lineLength / 150;
-    var lineDensified = geometryEngine.geodesicDensify(lineGeometry, TOLERANCE, "meters");
+    var lineDensified = densifyLine(lineGeometry, TOLERANCE, params.offset, view.scale);
     lineGraphic.geometry = lineDensified;
 
     var numVertices = lineDensified.paths[0].length;
@@ -116,6 +116,12 @@ define([
 
     }, interval);
     return dfd.promise;
+  }
+
+  function densifyLine(geometry, tolerance, offset, scale){
+    var line = geometryEngine.geodesicDensify(geometry, tolerance, "meters");
+    var sf = scale / 14791438.1897888;
+    return offset ? geometryEngine.offset(line, tolerance*sf, "meters") : line;
   }
 
   function stopAnimation(interval){

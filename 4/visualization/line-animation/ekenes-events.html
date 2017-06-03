@@ -141,35 +141,61 @@
 
           var currentFeature = timelineManager.sortedFeatures.shift();
           updateDateDisplay(currentFeature);
-
           var previousFeature = getPreviousFeature(currentFeature);
 
-          if(previousFeature){
-            timelineManager.happened.source.remove(previousFeature);
-            var previousFeatureClone = previousFeature.clone();
-            previousFeatureClone.attributes.HAPPENED = 1;
-            timelineManager.happened.source.add(previousFeatureClone);
+          animateAndLog(currentFeature, previousFeature);
 
-            lineAnimation.animateLine({
-              startPoint: previousFeature,
-              endPoint: currentFeature,
-              view: view,
-              lineEffect: "trail",  // trail, retain, none
-              animateEndPoint: true
-            }).then(function(){
 
-              timelineManager.happened.source.add(currentFeature);
-              addToSortedPersons(currentFeature);
-            });
+          // Account for simultaneous migrations
 
-          } else {
+          var nextFeature = timelineManager.sortedFeatures.length > 0 ? timelineManager.sortedFeatures[0] : null;
+
+          if(areDatesEqual(currentFeature, nextFeature)){
+            var nextCurrentFeature = timelineManager.sortedFeatures.shift();
+            var nextPreviousFeature = getPreviousFeature(nextCurrentFeature);
+
+            animateAndLog(nextCurrentFeature, nextPreviousFeature, true);
+          }
+
+          // Account for simultaneous migrations
+        }, 2500);
+      }
+
+
+      function animateAndLog(currentFeature, previousFeature, offset){
+
+        if(previousFeature){
+          timelineManager.happened.source.remove(previousFeature);
+          var previousFeatureClone = previousFeature.clone();
+          previousFeatureClone.attributes.HAPPENED = 1;
+          timelineManager.happened.source.add(previousFeatureClone);
+
+          lineAnimation.animateLine({
+            startPoint: previousFeature,
+            endPoint: currentFeature,
+            view: view,
+            lineEffect: "trail",  // trail, retain, none
+            animateEndPoint: true,
+            offset: offset
+          }).then(function(){
 
             timelineManager.happened.source.add(currentFeature);
             addToSortedPersons(currentFeature);
+          });
 
-          }
+        } else {
 
-        }, 2000);
+          timelineManager.happened.source.add(currentFeature);
+          addToSortedPersons(currentFeature);
+
+        }
+
+      }
+
+
+
+      function areDatesEqual(featureA, featureB){
+        return ( featureA && featureA.attributes && featureB && featureB.attributes) && ( featureA.attributes.DATE === featureB.attributes.DATE );
       }
 
       function addToSortedPersons(graphic){
