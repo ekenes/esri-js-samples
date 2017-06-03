@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Thematic visualization with realistic 3D symbols - 4.4</title>
+
+  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.4/esri/css/main.css">
+  <script src="https://jsdev.arcgis.com/4.4/"></script>
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+
+  <script>
+    require([
+        "esri/Map",
+        "esri/views/SceneView",
+        "esri/layers/FeatureLayer",
+        "esri/renderers/SimpleRenderer",
+        "esri/symbols/WebStyleSymbol",
+        "esri/symbols/PointSymbol3D",
+        "esri/symbols/IconSymbol3DLayer",
+        "esri/symbols/callouts/LineCallout3D",
+        "esri/widgets/Legend",
+        "dojo/domReady!"
+      ],
+      function(
+        Map, SceneView, FeatureLayer, SimpleRenderer, WebStyleSymbol,
+        PointSymbol3D, IconSymbol3DLayer, LineCallout3D, Legend
+      ) {
+
+        /*****************************************************************
+         * Set the Renderer and Layer for the trees. The symbol references
+         * a hosted 3D symbol resource that resembles a tree.
+         * Four visual variables are used to modify this symbol on the
+         * client. One for the crown height (height axis),
+         * another for crown diameter from north to south (depth axis), and
+         * another for crown diameter from east to west (width axis).
+         *
+         * The color visual variable shades each tree based on its
+         * carbon storage.
+         *****************************************************************/
+
+        var renderer = new SimpleRenderer({
+          symbol: new WebStyleSymbol({
+            styleName: "esriRealisticTreesStyle",
+            name: "Juglans"
+          }),
+          label: "tree",
+          visualVariables: [
+          {
+            type: "size",
+            axis: "height",
+            field: "Height", // tree height
+            valueUnit: "feet"
+          }, {
+            type: "size",
+            axis: "width",
+            field: "Width_EW", // crown diameter from east to west
+            valueUnit: "feet"
+          }, {
+            type: "size",
+            axis: "depth",
+            field: "Width_NS", // crown diameter from north to south
+            valueUnit: "feet"
+          }]
+        });
+
+        // Construct the layer and set the renderer and popupTemplate on it
+        var treesLayer = new FeatureLayer({
+          url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Landscape_Trees/FeatureServer/0",
+          renderer: renderer,
+          outFields: ["*"],
+          popupTemplate: { // autocasts as new PopupTemplate()
+            title: "{Cmn_Name}",
+            content: "<i>{Sci_Name}</i><br>" +
+              "This tree is in {Condition} condition and is {Height} feet in height."
+          }
+        });
+
+
+
+
+
+
+      var calloutLayer = new FeatureLayer({
+        url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Landscape_Trees/FeatureServer/0",
+        outFields: ["*"],
+        elevationInfo: {
+          mode: "relative-to-scene",
+          offset: 10
+        },
+        renderer: new SimpleRenderer({
+          symbol: new PointSymbol3D({
+            symbolLayers: [
+              new IconSymbol3DLayer({
+                size: "10px",
+                outline: {
+                  color: "white",
+                  width: 1
+                },
+                resource: {
+                  primitive: "kite"
+                }
+              })
+            ],
+//            callout: new LineCallout3D({
+//              size: 1.5,
+//              color: "white"
+//            }),
+            verticalOffset: {
+              screenLength: 10,
+              maxWorldLength: 100,
+              minWorldLength: 1
+            }
+          }),
+          visualVariables: [{
+            type: "color",
+            field: "C_Storage", // Carbon storage
+            stops: [
+              {
+                value: 0,
+                color: "#f7fcb9"
+              }, // features with zero carbon
+              {
+                value: 10000,
+                color: "#31a354"
+              } // features with 800 carbon
+            ],
+            legendOptions: {
+              title: "Carbon Storage"
+            }
+          }]
+        })
+      })
+
+        var map = new Map({
+          basemap: "osm",
+          ground: "world-elevation",
+          layers: [treesLayer, calloutLayer]
+        });
+
+        var view = new SceneView({
+          container: "viewDiv",
+          map: map,
+          camera: {
+            position: {
+              x: -9177356,
+              y: 4246783,
+              z: 723,
+              spatialReference: {
+                wkid: 3857
+              }
+            },
+            heading: 0,
+            tilt: 83
+          },
+          // Set dock options on the view's popup
+          popup: {
+            dockEnabled: true,
+            dockOptions: {
+              breakpoint: false
+            }
+          },
+          // enable shadows to be cast from the features
+          environment: {
+            lighting: {
+              directShadowsEnabled: true
+            }
+          }
+        });
+
+        view.then(function() {
+          var legend = new Legend({
+            view: view
+          });
+          view.ui.add(legend, "top-right");
+        });
+
+      });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>

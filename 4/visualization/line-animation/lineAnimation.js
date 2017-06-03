@@ -40,6 +40,7 @@ define([
     var view = params.view;
     var color = getGraphicColor(endPoint);
     var animateEndPoint = params.animateEndPoint;
+    var lineEffect = params.lineEffect;
 
     var lineGraphic = createLine(startPoint, endPoint, color);
     var lineGeometry = lineGraphic.geometry.clone();
@@ -51,7 +52,7 @@ define([
     var numVertices = lineDensified.paths[0].length;
     var interval = duration / numVertices;
     var vertexCounter = 0;
-    var updatedLineGeom;
+    var updatedLineGeom, updatedLineGraphic;
     var previousSegment;
     var previousPointGraphic;
     var dfd = new Deferred();
@@ -61,7 +62,16 @@ define([
 
       if(vertexCounter > numVertices){
 
-        if(params.unAnimate){
+        if (view.graphics.includes(previousPointGraphic)){
+          view.graphics.remove(previousPointGraphic);
+        }
+
+        if (lineEffect === "none" && animateEndPoint){
+          dfd.resolve(lineGraphic);
+          return;
+        }
+
+        if(lineEffect === "trail"){
           var numVerticesRemove = updatedLineGeom.paths[0].length;
           if(numVerticesRemove === numVertices){
             dfd.resolve(lineGraphic);
@@ -69,17 +79,14 @@ define([
 
           if(numVerticesRemove === 1){
             stopAnimation(drawSegmentsInterval);
-//            dfd.resolve(lineGraphic);
             return;
           }
 
           // using numVertices - 1 unanimates the line in the opposite direction
           updatedLineGeom = removeLineSegment(updatedLineGeom, 0);
-          previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color);
-          if (view.graphics.includes(previousPointGraphic)){
-            view.graphics.remove(previousPointGraphic);
-          }
-        } else {
+
+          previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color, lineGraphic.attributes.isMarriage);
+        } else if (lineEffect === "retain"){
           stopAnimation(drawSegmentsInterval);
           dfd.resolve(lineGraphic);
           return;
@@ -89,7 +96,14 @@ define([
 
         var currentPointCoords = lineDensified.paths[0][vertexCounter-1];
         updatedLineGeom = addLineSegment(updatedLineGeom, currentPointCoords);
-        previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color);
+
+        if (lineEffect === "none"){
+          previousSegment = new Graphic({
+            geometry: updatedLineGeom
+          });
+        } else {
+          previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color, lineGraphic.attributes.isMarriage);
+        }
 
         if (animateEndPoint){
           var pointSymbol = getGraphicSymbol(endPoint);
@@ -110,7 +124,9 @@ define([
 
   function getGraphicColor (graphic){
     var symbol = getGraphicSymbol(graphic);
-    return symbol.color.clone();
+    var color = symbol.color.clone();
+    color.a = 0.25;
+    return color; //symbol.color.clone();
   }
 
   function getGraphicSymbol (graphic){
@@ -191,6 +207,10 @@ define([
    * the start and end point.
    */
   function createLine(start, end, color) {
+    var startEvent = start.attributes.EVENT;
+    var endEvent = end.attributes.EVENT;
+    var isMarriage = startEvent === "marriage" || endEvent === "marriage";
+
     var line = new Polyline({
       spatialReference: {wkid: 3857}
     });
@@ -201,11 +221,13 @@ define([
       geometry: line,
       attributes: {
         startPoint: lang.clone(start.attributes),
-        endPoint: lang.clone(end.attributes)
+        endPoint: lang.clone(end.attributes),
+        isMarriage: isMarriage
       },
       symbol: new SimpleLineSymbol({
         color: color ? color : [255,0,0,0.5],
-        width: 3
+        width: 3,
+        style: isMarriage ? "short-dot" : "solid"
       })
     });
   }
@@ -243,7 +265,7 @@ define([
     return line;
   }
 
-  function drawSegment(lineGeom, previousSegmentGraphic, view, color){
+  function drawSegment(lineGeom, previousSegmentGraphic, view, color, isMarriage){
     if(previousSegmentGraphic){
       view.graphics.remove(previousSegmentGraphic);
     }
@@ -252,8 +274,10 @@ define([
       geometry: lineGeom,
       symbol: new SimpleLineSymbol({
         color: color ? color : "blue",
-        width: 3
-      })
+        width: 3,
+        style: isMarriage ? "short-dot" : "solid"
+      }),
+
     });
 
     view.graphics.add(segment);

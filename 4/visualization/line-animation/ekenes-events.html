@@ -76,11 +76,6 @@
       var lineAnimationGraphics;
 
       var map = new Map({
-//        basemap: {
-//          portalItem: {
-//            id: "4f2e99ba65e34bb8af49733d9778fb8e"
-//          }
-//        },
         basemap: "dark-gray",
         layers: [ ]
       });
@@ -98,11 +93,7 @@
       view.then(function(){
         return GraphicsFeatureLayer.getLayer(portalItemId);
       }).then(function(response){
-//        console.log("features: ", r);
 
-//        var featuresSymbolAdded = features.map(function(feature){
-//          return addSymbolToPointGraphic(feature);
-//        });
         var features = response.features;
         timelineManager.sortedFeatures = sortFeaturesByYear(features);
         timelineManager.happened = response.layer;
@@ -154,18 +145,18 @@
           var previousFeature = getPreviousFeature(currentFeature);
 
           if(previousFeature){
+            timelineManager.happened.source.remove(previousFeature);
+            var previousFeatureClone = previousFeature.clone();
+            previousFeatureClone.attributes.HAPPENED = 1;
+            timelineManager.happened.source.add(previousFeatureClone);
+
             lineAnimation.animateLine({
               startPoint: previousFeature,
               endPoint: currentFeature,
               view: view,
-              unAnimate: true,
+              lineEffect: "trail",  // trail, retain, none
               animateEndPoint: true
             }).then(function(){
-
-              timelineManager.happened.source.remove(previousFeature);
-              var previousFeatureClone = previousFeature.clone();
-              previousFeatureClone.attributes.HAPPENED = 1;
-              timelineManager.happened.source.add(previousFeatureClone);
 
               timelineManager.happened.source.add(currentFeature);
               addToSortedPersons(currentFeature);
