@@ -16,6 +16,14 @@
     }
   </style>
 
+  <script>
+      var dojoConfig = {
+        paths: {
+          modules: location.pathname.replace(/\/[^/]+$/, "")
+        }
+      };
+    </script>
+
   <link rel="stylesheet" href="https://js.arcgis.com/4.3/esri/css/main.css">
 
   <script src="https://js.arcgis.com/4.3/"></script>
@@ -27,16 +35,18 @@
       "esri/layers/FeatureLayer",
       "esri/widgets/Legend",
       "esri/symbols/SimpleFillSymbol",
+      "modules/MouseIdleDetector",
+      "dojo/on",
+      "dojo/dom",
       "dojo/domReady!"
     ], function(
-      MapView, WebMap, FeatureLayer, Legend, SimpleFillSymbol
+      MapView, WebMap, FeatureLayer, Legend, SimpleFillSymbol, MouseIdleDetector, on, dom
     ) {
 
       var cropsLayer = new FeatureLayer({
         portalItem: {
           id: "0d62a20b42cc4b5a888daf1662594f5d"
         },
-//        url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/USA_Counties_20M/FeatureServer/0",
         outFields: ["*"]
       });
 
@@ -55,7 +65,7 @@
       /************************************************************
        * Set the WebMap instance to the map property in a MapView.
        ************************************************************/
-       mainView = new MapView({
+      var mainView = new MapView({
         map: webmap,
         container: "viewDiv",
         spatialReference: { wkid: 102003 },
@@ -74,8 +84,39 @@
       mainView.ui.add(legend, "bottom-left");
 
       mainView
-        .then(disableZooming)
-        .then(openPopupOnPointerMove);
+        .then(function(){
+          detector = new MouseIdleDetector(mainView, { interval: 50 });
+          detector.start();
+
+          detector.on("idle", function(event) {
+
+            mainView.hitTest(event)
+              .then(function(response){
+                var feature;
+
+                if(response.results.length > 0){
+                  feature = response.results[0].graphic;
+
+                  if(!mainView.popup.selectedFeature ||
+                    mainView.popup.selectedFeature !== feature){
+
+                    mainView.popup.open({
+                      features: [ feature ]
+                    });
+
+                    addSelectionToView(mainView, feature);
+                  }
+                }
+
+              })
+              .otherwise(function(error) {
+                console.log("hitTest error: ", error);
+              });
+          });
+
+          return mainView;
+        })
+        .then(disableZooming);
 
       /**
        * Disables all zoom gestures on the given view instance.
@@ -124,61 +165,6 @@
         });
 
         return view;
-      }
-
-
-      function openPopupOnPointerMove(view){
-        popupActive = true;
-        view.on("pointer-move", function(evt){
-          var lastHitTest;
-          if(lastHitTest){
-            clearTimeout(lastHitTest);
-          }
-
-          lastHitTest = setTimeout(function(){
-
-
-
-          if (popupActive){
-            popupActive = false;
-
-
-            setTimeout(function(){
-              popupActive = true;
-            }, 300);
-
-
-
-
-            view.hitTest(evt)
-              .then(function(response){
-                var feature;
-
-                if(response.results.length > 0){
-                  feature = response.results[0].graphic;
-
-                  if(!view.popup.selectedFeature ||
-                    view.popup.selectedFeature !== feature){
-
-                    view.popup.open({
-                      features: [ feature ]
-                    });
-
-                    addSelectionToView(view, feature);
-                  }
-                }
-
-              });
-
-          }
-
-          }, 200);
-
-//        }
-
-
-        });
-
       }
 
       function addSelectionToView(view, graphic){
