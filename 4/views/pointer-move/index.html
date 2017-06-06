@@ -45,7 +45,7 @@
 
       var cropsLayer = new FeatureLayer({
         portalItem: {
-          id: "0d62a20b42cc4b5a888daf1662594f5d"
+          id: "9a182e4cd2994772b7b1491c3cc30f04"
         },
         outFields: ["*"]
       });
@@ -116,7 +116,10 @@
 
           return mainView;
         })
-        .then(disableZooming);
+        .then(disableZooming)
+        .otherwise(function(error){
+          console.log("Error on load: ", error);
+        });
 
       /**
        * Disables all zoom gestures on the given view instance.
