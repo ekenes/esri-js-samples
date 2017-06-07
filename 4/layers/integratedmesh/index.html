@@ -1,0 +1,264 @@
+
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
+<title>IntegratedMeshLayer with callout</title>
+
+<style>
+  html,
+  body, #viewDiv {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+</style>
+
+<link rel="stylesheet" href="https://jsdev.arcgis.com/4.4/esri/css/main.css">
+<script src="https://jsdev.arcgis.com/4.4"></script>
+
+<script>
+  require([
+    "esri/Map",
+    "esri/views/SceneView",
+    "esri/layers/IntegratedMeshLayer",
+    "esri/layers/SceneLayer",
+    "esri/layers/FeatureLayer",
+    "esri/widgets/Search",
+    "esri/layers/support/LabelClass",
+    "esri/symbols/PointSymbol3D",
+    "esri/symbols/TextSymbol3DLayer",
+    "esri/symbols/LabelSymbol3D",
+    "esri/symbols/callouts/LineCallout3D",
+    "esri/widgets/LayerList",
+    "esri/layers/GroupLayer",
+    "esri/core/lang",
+    "dojo/domReady!"
+  ], function(Map, SceneView, IntegratedMeshLayer, SceneLayer, FeatureLayer, Search, LabelClass,
+    PointSymbol3D, TextSymbol3DLayer, LabelSymbol3D, LineCallout3D, LayerList, GroupLayer, lang) {
+
+    // San Diego
+    var layer = new SceneLayer({
+      portalItem: {
+        id: "fad90a1b2f5243f99c2d49aa6719bfd7"
+      },
+      popupEnabled: false
+    });
+
+    var poiLayer = new FeatureLayer({
+      portalItem: {
+        id: "50b55183c08f445c9d9ba17970cace2a"
+      },
+      elevationInfo: {
+        mode: "relative-to-scene"
+      },
+      labelsVisible: true,
+      labelingInfo: [
+        createLabelClass("green")
+      ],
+      visible: true
+    });
+
+    var foodLayer = new FeatureLayer({
+      portalItem: {
+        id: "1c9ef6c2eea64b949f2d36cb30a9161a"
+      },
+      elevationInfo: {
+        mode: "relative-to-scene"
+      },
+      labelsVisible: true,
+      labelingInfo: [
+        createLabelClass("red")
+      ],
+      visible: false
+    });
+
+    var designLayer = new FeatureLayer({
+      portalItem: {
+        id: "36b250124988492d9459662553c2a43f"
+      },
+      elevationInfo: {
+        mode: "relative-to-scene"
+      },
+      labelsVisible: true,
+      labelingInfo: [
+        createLabelClass("orange")
+      ],
+      visible: false
+    });
+
+    var groupLayer = new GroupLayer({
+      title: "San Diego places",
+      layers: [poiLayer, designLayer, foodLayer],
+      visibilityMode: "exclusive"
+    });
+
+    var trolleyLineLayer = new FeatureLayer({
+      portalItem: {
+        id: "738bc67a41644dd1b4f8698f1ddf6032"
+      },
+      elevationInfo: {
+        mode: "on-the-ground"
+      }
+    });
+
+    var trolleyStationLayer = new FeatureLayer({
+      portalItem: {
+        id: "602e1672e0fc4fa0b7f0310419b82dbc"
+      },
+      elevationInfo: {
+        mode: "on-the-ground"
+      }
+    });
+
+    var map = new Map({
+      basemap: "hybrid",
+      layers: [ layer, groupLayer ],
+      ground: "world-elevation"
+    });
+
+    var view = new SceneView({
+      map: map,
+      container: "viewDiv",
+      popup: {
+        dockEnabled: true,
+        dockOptions: {
+          breakpoint: false
+        }
+      }
+    });
+
+    var search = new Search({
+      view: view
+    });
+    view.ui.add(search, "top-right");
+
+    var layerList = new LayerList({
+      view: view,
+      listItemCreatedFunction: function(event){
+        var item = event.item;
+
+        if(item.layer.title === groupLayer.title){
+          item.open = true;
+        }
+      }
+    });
+    view.ui.add(layerList, "top-right");
+
+    setSearchSourceOptions(search);
+
+    function setSearchSourceOptions(searchInstance){
+      var source = lang.clone(searchInstance.sources.getItemAt(0));
+      source.autoNavigate = false;
+      source.resultGraphicEnabled = false;
+      source.popupEnabled = false;
+      source.popupOpenOnSelect = false;
+      searchInstance.sources = [ source ];
+      constrainSearchByFullExtent(search, layer);
+    }
+
+    function createLabelClass(color){
+      return new LabelClass({
+        labelExpressionInfo: {
+          value: "{TITLE}"
+        },
+        symbol: new LabelSymbol3D({
+          symbolLayers: [
+            new TextSymbol3DLayer({
+              material: { color: "white" },
+              size: 14,
+              halo: {
+                color: color,
+                size: 1.5
+              }
+            })
+          ],
+          callout: new LineCallout3D({
+            size: 1.5,
+            color: color,
+            border: {
+              color: "white"
+            }
+          }),
+          verticalOffset: {
+            screenLength: "100px",
+            minWorldLength: 50,
+            maxWorldLength: 2000
+          }
+        })
+      });
+    }
+
+    function constrainSearchByFullExtent(searchInstance, lyr){
+      var source = lang.clone(searchInstance.sources.getItemAt(0));
+
+      if(lyr.loaded){
+        source.searchExtent = lyr.fullExtent;
+        searchInstance.sources = [ source ];
+      } else {
+        lyr.load().then(function(){
+          source.searchExtent = lyr.fullExtent;
+          searchInstance.sources = [ source ];
+        });
+      }
+    }
+
+    function displaySearchResult(searchResult){
+      var resultName = searchResult.name;
+      var resultGraphic = searchResult.feature;
+      resultGraphic.symbol = new PointSymbol3D({
+        symbolLayers: [ new TextSymbol3DLayer({
+          material: { color: "white" },
+          size: 16,
+          halo: {
+            color: "purple",
+            size: 1.5
+          },
+          text: resultName
+        }) ],
+        callout: new LineCallout3D({
+          size: 1.5,
+          color: "purple",
+          border: {
+            color: "white"
+          }
+        }),
+        verticalOffset: {
+          screenLength: "180px",
+          minWorldLength: 50,
+          maxWorldLength: 4000
+        }
+      });
+
+      view.graphics.add(resultGraphic);
+    }
+
+    search.on("search-complete", function(evt){
+       view.graphics.removeAll();
+      var result = evt.results[0].results[0];
+      displaySearchResult(result);
+    });
+
+    search.on("search-clear", function(){
+      view.graphics.removeAll();
+    });
+
+    view.then(function(){
+      layer.then(function(){
+        view.goTo({
+          target: layer.fullExtent,
+          tilt: 65
+        });
+      });
+    });
+  });
+</script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+</html>
