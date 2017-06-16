@@ -35,12 +35,11 @@
       "esri/layers/FeatureLayer",
       "esri/widgets/Legend",
       "esri/symbols/SimpleFillSymbol",
-      "modules/MouseIdleDetector",
       "dojo/on",
       "dojo/dom",
       "dojo/domReady!"
     ], function(
-      MapView, WebMap, FeatureLayer, Legend, SimpleFillSymbol, MouseIdleDetector, on, dom
+      MapView, WebMap, FeatureLayer, Legend, SimpleFillSymbol, on, dom
     ) {
 
       var cropsLayer = new FeatureLayer({
@@ -85,10 +84,8 @@
 
       mainView
         .then(function(){
-          detector = new MouseIdleDetector(mainView, { interval: 50 });
-          detector.start();
 
-          detector.on("idle", function(event) {
+          mainView.on("pointer-move", function(event){
 
             mainView.hitTest(event)
               .then(function(response){
@@ -101,13 +98,14 @@
                   if(!mainView.popup.selectedFeature ||
                     mainView.popup.selectedFeature !== feature){
 
-                    mainView.popup.open({
-                      features: [ feature ]
-                    });
-                    addSelectionToView(mainView, feature);
+                    setTooltip(mainView, feature);
                   }
                 } else {
+                  mainView.container.setAttribute("title", "");
                   changeMouseCursor(mainView, "auto");
+                  mainView.popup.clear();
+                  mainView.popup.close();
+                  mainView.graphics.removeAll();
                 }
 
               })
@@ -181,6 +179,16 @@
         }
       }
 
+      function setTooltip(view, graphic){
+        if(graphic){
+          var county = graphic.attributes.NAME;
+          var dietDrinkers = numberWithCommas(graphic.attributes.MP12078a_B);
+          view.container.setAttribute("title", county + ": " + dietDrinkers + " drank diet");
+        } else {
+          view.container.setAttribute("title", "");
+        }
+      }
+
       function addSelectionToView(view, graphic){
         view.graphics.removeAll();
 
@@ -195,6 +203,10 @@
         view.graphics.add(feature);
 
         return feature;
+      }
+
+      function numberWithCommas(x) {
+        return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
       }
 
     });
