@@ -95,6 +95,7 @@
                 var feature;
 
                 if(response.results.length > 0){
+                  changeMouseCursor(mainView, "pointer");
                   feature = response.results[0].graphic;
 
                   if(!mainView.popup.selectedFeature ||
@@ -103,9 +104,10 @@
                     mainView.popup.open({
                       features: [ feature ]
                     });
-
                     addSelectionToView(mainView, feature);
                   }
+                } else {
+                  changeMouseCursor(mainView, "auto");
                 }
 
               })
@@ -168,6 +170,15 @@
         });
 
         return view;
+      }
+
+      function changeMouseCursor(view, cursor){
+        var viewContainer = view.container;
+        var currentCursor = viewContainer.style.cursor;
+
+        if(currentCursor !== cursor){
+          viewContainer.style.cursor = cursor;
+        }
       }
 
       function addSelectionToView(view, graphic){
