@@ -7,9 +7,9 @@
 
   <title>Generate above and below color visualization in 3D - 4.4</title>
 
-  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.4/esri/css/main.css">
-  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.4/dijit/themes/claro/claro.css">
-  <script src="https://jsdev.arcgis.com/4.4/"></script>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.4/esri/css/main.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/4.4/dijit/themes/claro/claro.css">
+  <script src="https://js.arcgis.com/4.4/"></script>
 
   <style>
     html,
@@ -44,6 +44,7 @@
       "esri/Map",
       "esri/views/SceneView",
       "esri/layers/FeatureLayer",
+      "esri/widgets/Legend",
       "esri/widgets/Expand",
       "esri/widgets/BasemapGallery",
       "esri/renderers/smartMapping/creators/color",
@@ -53,21 +54,18 @@
       "esri/widgets/ColorSlider",
       "esri/widgets/SizeSlider",
       "esri/core/lang",
-      "dojo/on",
-      "dojo/dom",
-      "dojo/dom-construct",
       "dojo/domReady!"
     ], function(
-      Map, SceneView, FeatureLayer, Expand, BasemapGallery, colorRendererCreator, sizeRendererCreator, locationRendererCreator,
+      Map, SceneView, FeatureLayer, Legend, Expand, BasemapGallery, colorRendererCreator, sizeRendererCreator, locationRendererCreator,
       histogram,
-      ColorSlider, SizeSlider, lang, on, dom, domConstruct
+      ColorSlider, SizeSlider, lang
     ) {
 
-      var colorFieldSelect = dom.byId("color-field-select");
-      var sizeFieldSelect = dom.byId("size-field-select");
-      var colorNormCheck = dom.byId("normalize-color-check");
-      var sizeNormCheck = dom.byId("normalize-size-check");
-      var themeOptions = dom.byId("theme-options");
+      var colorFieldSelect = document.getElementById("color-field-select");
+      var sizeFieldSelect = document.getElementById("size-field-select");
+      var colorNormCheck = document.getElementById("normalize-color-check");
+      var sizeNormCheck = document.getElementById("normalize-size-check");
+      var themeOptions = document.getElementById("theme-options");
       var colorSlider = null;
       var sizeSlider = null;
       var defaultSymbol = null;
@@ -121,7 +119,7 @@
 
       var sizeSliderExpand = new Expand({
         view: view,
-        content: dom.byId("size-container"),
+        content: document.getElementById("size-container"),
         expandIconClass: "esri-icon-pie-chart"
       });
       view.ui.add(sizeSliderExpand, "top-left");
@@ -131,7 +129,7 @@
 
       var colorSliderExpand = new Expand({
         view: view,
-        content: dom.byId("color-container"),
+        content: document.getElementById("color-container"),
         expandIconClass: "esri-icon-environment-settings"
       });
       view.ui.add(colorSliderExpand, "top-left");
@@ -161,24 +159,31 @@
 
       var layer = new FeatureLayer({
         url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/ArcGIS/rest/services/city_marriage_points/FeatureServer/0",
-        outFields: ["*"]
+        outFields: ["*"],
+        title: "U.S. cities"
       });
 
       map.add(layer);
 
-      layer.then(function(){
-        view.goTo(layer.fullExtent);
-      });
-
       view.then(function(){
+
+        layer.then(function(){
+          view.goTo(layer.fullExtent);
+        });
+
+        var legend = new Legend({
+          view: view
+        });
+        view.ui.add(legend, "bottom-right");
         return generateRenderer({
           view: view,
           layer: layer,
           basemap: map.basemap
         });
+
       });
 
-      on(themeOptions, "change", function(evt){
+      themeOptions.addEventListener("change", function(evt){
 
         var options = {
           layer: layer,
@@ -192,18 +197,38 @@
       });
 
       basemapGallery.watch("activeBasemap", function(newVal){
+        var visualVariables = layer.renderer.visualVariables;
+
+        var hasColorVV = visualVariables && visualVariables.filter(function(vv){
+          return vv.type === "color";
+        }).length > 0;
+
+        var hasSizeVV = visualVariables && visualVariables.filter(function(vv){
+          return vv.type === "size";
+        }).length > 0;
+
         var options = {
           layer: layer,
           basemap: newVal,
-          field: colorFieldSelect.value,
           view: view,
+          field: colorFieldSelect.value,
           theme: themeOptions.value
         };
 
-        getColorVisualVariable(options);
+        if (hasColorVV){
+          getColorVisualVariable(options);
+        } else if (hasSizeVV){
+          options.sizeVVs = visualVariables.filter(function(vv){
+            return vv.type === "size";
+          });
+          generateRenderer(options);
+        } else {
+          generateRenderer(options);
+        }
+
       });
 
-      on(colorFieldSelect, "change", function(evt){
+      colorFieldSelect.addEventListener("change", function(evt){
 
         var options = {
           layer: map.layers.getItemAt(0),
@@ -216,7 +241,7 @@
         getColorVisualVariable(options);
       });
 
-      on(sizeFieldSelect, "change", function(evt){
+      sizeFieldSelect.addEventListener("change", function(evt){
         var options = {
           layer: layer,
           field: evt.target.value,
@@ -227,7 +252,7 @@
         getSizeVisualVariables(options);
       });
 
-      on(colorNormCheck, "click", function(evt){
+      colorNormCheck.addEventListener("click", function(evt){
         var options = {
           layer: layer,
           basemap: map.basemap,
@@ -239,7 +264,7 @@
         getColorVisualVariable(options);
       });
 
-      on(sizeNormCheck, "click", function(evt){
+      sizeNormCheck.addEventListener("click", function(evt){
         var options = {
           layer: layer,
           field: sizeFieldSelect.value,
@@ -271,7 +296,7 @@
             return vv.type !== "size";
           });
           sizeParams.layer.renderer = renderer;
-          // destroy size slider widget
+//           destroy size slider widget
           sizeSlider.destroy();
           sizeSlideEvent.remove();
           sizeSlider = null;
@@ -301,9 +326,10 @@
             sizeParams.layer.renderer = renderer;
 
             return histogram({
-               layer: sizeParams.layer,
-               field: sizeParams.field,
-               normalizationField: sizeParams.normalizationField
+              layer: sizeParams.layer,
+              field: sizeParams.field,
+              normalizationField: sizeParams.normalizationField,
+              numBins: 30
             });
           }).then(function(sizeHistogram){
 
@@ -321,14 +347,19 @@
 
 
             if(!sizeSlider){
-              sizeSliderParams.container = "size-slider";
+
+              var sizeSliderParent = document.getElementById("size-container");
+              var sizeSliderContainer = document.createElement("div");
+              sizeSliderParent.appendChild(sizeSliderContainer);
+              sizeSliderParams.container = sizeSliderContainer;
+
               sizeSlider = new SizeSlider(sizeSliderParams);
 
               // when the user slides the handle(s), update the renderer
               // with the updated size visual variable objects
 
-              sizeSlideEvent = on(sizeSlider, "handle-value-change", function() {
-                console.log("handle-value-change");
+              sizeSlideEvent = sizeSlider.on("handle-value-change", function() {
+
                 var renderer = layer.renderer.clone();
                 var visualVariables = lang.clone(renderer.visualVariables);
                 var unchangedVVs = [];
@@ -404,7 +435,8 @@
             return histogram({
               layer: colorParams.layer,
               field: colorParams.field,
-              normalizationField: colorParams.normalizationField
+              normalizationField: colorParams.normalizationField,
+              numBins: 30
             });
           }).then(function(colorHistogram) {
             var colorSliderParams = {};
@@ -422,13 +454,17 @@
 
             if (!colorSlider) {
 
-              colorSliderParams.container = "color-slider";
+              var colorSliderParent = document.getElementById("color-container");
+              var colorSliderContainer = document.createElement("div");
+              colorSliderParent.appendChild(colorSliderContainer);
+              colorSliderParams.container = colorSliderContainer;
+
               colorSlider = new ColorSlider(colorSliderParams);
 
               // when the user slides the handle(s), update the renderer
               // with the updated color visual variable object
 
-              colorSlideEvent = on(colorSlider, "handle-value-change", function() {
+              colorSlideEvent = colorSlider.on("handle-value-change", function() {
                 var renderer = layer.renderer.clone();
 
                 var visualVariables = lang.clone(renderer.visualVariables);
@@ -447,15 +483,7 @@
               });
 
             } else {
-
-//              if (colorSliderParams.numHandles === 3){
-//                colorSlider.destroy();
-//                colorSlider = null;
-//                colorSliderParams.container = "color-slider";
-//                colorSlider = new ColorSlider(colorSliderParams);
-//              } else {
-                colorSlider.set(colorSliderParams);
-//              }
+              colorSlider.set(colorSliderParams);
             }
 
           }).otherwise(function(error){
@@ -475,10 +503,13 @@
 
         return locationRendererCreator.createRenderer(locationParams)
           .then(function(response){
-
-          locationParams.layer.renderer = response.renderer;
+          var renderer = response.renderer;
+          if (params.sizeVVs){
+            renderer.visualVariables = params.sizeVVs;
+          }
+          locationParams.layer.renderer = renderer;
           defaultSymbol = response.renderer.symbol.clone();
-
+          return defaultSymbol;
         }).otherwise(function(err) {
           console.log("there was an error: ", err);
         });
@@ -505,14 +536,11 @@
     </select>
     Normalize? <input type="checkbox" id="normalize-color-check" checked><br>
     Theme: <select id="theme-options">
-<!--
       <option value="high-to-low" selected>High to low</option>
       <option value="centered-on">Centered on</option>
       <option value="extremes">Extremes</option>
--->
       <option value="above-and-below">Above and below</option>
     </select><br>
-    <div id="color-slider"></div>
   </div>
   <div id="size-container" class="widget-background">
     <h3>Size</h3>
@@ -525,7 +553,6 @@
       <option value="GRADDEG_CY">Graduate degree</option>
     </select>
     Normalize? <input type="checkbox" id="normalize-size-check" checked><br>
-    <div id="size-slider"></div>
   </div>
 </body>
 
