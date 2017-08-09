@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Generate continuous color visualization for 3D buildings - 4.4</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.4/esri/css/main.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/4.4/dijit/themes/claro/claro.css">
+  <!-- In the head -->
+  <link rel="stylesheet" href="https://s3-us-west-1.amazonaws.com/patterns.esri.com/files/calcite-web/1.0.0-rc.7/css/calcite-web.min.css">
+  <script src="https://js.arcgis.com/4.4/"></script>
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    #containerDiv {
+      background-color: white;
+      padding: 10px;
+    }
+  </style>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/SceneView",
+      "esri/layers/SceneLayer",
+      "esri/renderers/smartMapping/creators/color",
+      "esri/renderers/smartMapping/statistics/histogram",
+      "esri/widgets/ColorSlider",
+      "esri/core/lang",
+      "dojo/domReady!"
+    ], function (
+      Map, SceneView, SceneLayer, colorRendererCreator,
+      histogram, ColorSlider, lang
+    ) {
+
+        // New York buildings enriched with values for
+        // % population that own a home and
+        // average home value
+
+        var layer = new SceneLayer({
+          portalItem: {
+            id: "2166635df31c477cae54c60de56f24d1"
+          },
+          popupTemplate: {
+            content: [{
+              type: "fields",
+              fieldInfos: [
+                {
+                  fieldName: "OWNER_P",
+                  label: "% home owners"
+                }, {
+                  fieldName: "AVGVAL_CY",
+                  label: "Average home value"
+                }, {
+                  fieldName: "CNSTRCT_YR",
+                  label: "Construction year"
+                }]
+            }]
+          }
+        });
+
+        // Create a map and add it to a SceneView
+
+        var map = new Map({
+          basemap: "gray",
+          layers: [layer]
+        });
+
+        var view = new SceneView({
+          container: "viewDiv",
+          map: map,
+          camera: {
+            heading: 35.7,
+            tilt: 75.6,
+            position: {
+              x: -8240657,
+              y: 4966114,
+              z: 1052,
+              spatialReference: {
+                wkid: 3857
+              }
+            }
+          },
+          popup: {
+            dockEnabled: true,
+            dockOptions: {
+              breakpoint: false,
+              position: "top-right"
+            }
+          }
+        });
+        view.ui.add("containerDiv", "bottom-right");
+
+        var fieldSelect;
+        var themeSelect;
+        var colorSlider;
+
+        view.then(function () {
+          fieldSelect = document.getElementById("color-field-select");
+          themeSelect = document.getElementById("theme-options");
+
+          fieldSelect.addEventListener("change", function (event) {
+            createRenderer({
+              field: event.target.value
+            });
+          });
+
+          themeSelect.addEventListener("change", function (event) {
+            createRenderer({
+              theme: event.target.value
+            });
+          });
+
+          createRenderer();
+        });
+
+        // Generate a continuous color renderer based on the
+        // statistics of the data in the provided layer
+        // and field.
+        //
+        // This resolves to an object containing several helpful
+        // properties, including color scheme, statistics,
+        // the renderer and visual variable
+
+        function createRenderer(params) {
+
+          // configure parameters for the color renderer generator
+          // the layer must be specified along with a field name
+          // or arcade expression. The basemap and other properties determine
+          // the appropriate default color scheme.
+
+          var colorParams = {
+            layer: params && params.layer ? params.layer : layer,
+            basemap: params && params.basemap ? params.basemap : map.basemap,
+            field: params && params.field ? params.field : fieldSelect.value,
+            theme: params && params.theme ? params.theme : themeSelect.value
+          };
+
+          return colorRendererCreator.createContinuousRenderer(colorParams)
+            .then(function (response) {
+
+              // set the renderer to the layer and add it to the map
+
+              layer.renderer = response.renderer;
+
+              var histogramParams = {
+                layer: colorParams.layer,
+                field: colorParams.field,
+                numBins: 30
+              };
+              return histogram(histogramParams)
+                .then(function (histogram) {
+
+                  // add the statistics and color visual variable objects
+                  // to the color slider parameters
+
+                  var sliderParams = {
+                    numHandles: colorParams.theme === "high-to-low" ? 2 : 3,
+                    syncedHandles: colorParams.theme !== "high-to-low",
+                    statistics: response.statistics,
+                    visualVariable: response.visualVariable,
+                    histogram: histogram,
+                    minValue: response.statistics.min,
+                    maxValue: response.statistics.max
+                  };
+
+                  if (!colorSlider) {
+                    sliderParams.container = "slider";
+                    colorSlider = new ColorSlider(sliderParams);
+                    // when the user slides the handle(s), update the renderer
+                    // with the updated color visual variable object
+
+                    colorSlider.on("data-change", function () {
+                      var renderer = layer.renderer.clone();
+                      renderer.visualVariables = [lang.clone(colorSlider.visualVariable)];
+                      layer.renderer = renderer;
+                    });
+
+                  } else {
+                    colorSlider.set(sliderParams);
+                  }
+                })
+            })
+            .otherwise(function (err) {
+              console.log("there was an error: ", err);
+            });
+        }
+
+      });
+  </script>
+</head>
+
+<body class="claro">
+  <div id="viewDiv"></div>
+  <div id="containerDiv" class="widget-background">
+    <h4>NYC homeownership</h4>
+    Field: <select id="color-field-select" class="modifier-class">
+      <option value="OWNER_P" selected>% home owners</option>
+      <option value="AVGVAL_CY">Average home value</option>
+      <option value="CNSTRCT_YR">Construction year</option>
+    </select> Theme: <select id="theme-options" class="modifier-class">
+      <option value="high-to-low" selected>High to low</option>
+      <option value="centered-on">Centered on</option>
+      <option value="extremes">Extremes</option>
+      <option value="above-and-below">Above and below</option>
+    </select><br>
+    <div id="slider"></div>
+  </div>
+</body>
+
+</html>
