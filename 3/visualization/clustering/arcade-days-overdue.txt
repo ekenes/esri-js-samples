@@ -1,0 +1,5 @@
+// Days incident closure was overdue
+var closed = toUTC($feature.closed_time);
+var due = toUTC($feature.due_time);
+var closureDueDiff = DateDiff(closed, due, "days");
+IIF(IsEmpty(closed) || IsEmpty(due), 0, closureDueDiff);

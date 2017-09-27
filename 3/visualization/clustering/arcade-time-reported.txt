@@ -1,0 +1,10 @@
+// Time of day incident was reported
+var t = Hour(toUTC($feature.created_time));
+
+When(
+  t >= 22 || t < 6, "Night",
+  t >= 6 && t < 11, "Morning",
+  t >= 11 && t < 13, "Midday", 
+  t >= 13 && t < 17, "Afternoon",
+  t >= 17 && t < 22, "Evening",
+"It never happened" );

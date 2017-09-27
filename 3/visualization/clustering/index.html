@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Arcade and Clustering</title>
+
+<link rel="stylesheet" href="https://js.arcgis.com/3.22/esri/themes/calcite/dijit/calcite.css">
+<link rel="stylesheet" href="https://js.arcgis.com/3.22/esri/css/esri.css">
+<script src="https://js.arcgis.com/3.22/"></script>
+
+<style>
+  html, body, #viewDiv {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  #info{
+    top: 0px;
+    right: 0px;
+    position: absolute;
+    z-index: 99;
+    opacity: 0.9;
+    background-color: white;
+    padding: 0px 0px 0px 10px;
+    max-width: 200px;
+  }
+</style>
+
+<script type="text/plain" id="arcade-time-reported">
+  // Time of day incident was reported
+  var t = Hour(toUTC($feature.created_time));
+  
+  When(
+    t >= 22 || t < 6, "Night",
+    t >= 6 && t < 11, "Morning",
+    t >= 11 && t < 13, "Midday", 
+    t >= 13 && t < 17, "Afternoon",
+    t >= 17 && t < 22, "Evening",
+  "It never happened" );
+</script>
+
+<script type="text/plain" id="arcade-days-overdue">
+  // Days incident closure was overdue
+  var closed = toUTC($feature.closed_time);
+  var due = toUTC($feature.due_time);
+  var closureDueDiff = DateDiff(closed, due, "days");
+  IIF(IsEmpty(closed) || IsEmpty(due), 0, closureDueDiff);
+</script>
+
+<script type="text/plain" id="arcade-overdue-text">
+  // Days incident closure was overdue
+  var closed = toUTC($feature.closed_time);
+  var due = toUTC($feature.due_time);
+  var closureDueDiff = DateDiff(closed, due, "days");
+  WHEN(
+    IsEmpty(closed), "Incident was not closed.",
+    IsEmpty(due), "Incident due date was not recorded.",
+    closureDueDiff > 0, "Incident closure was overdue by " + Round(closureDueDiff, 1) + " days.",
+    closureDueDiff == 0, "Incident closure was on time.",
+    closureDueDiff < 0, "Incident closure was early by " + Round(Abs(closureDueDiff), 1) + " days.",
+    "N/A"
+  );
+</script>
+
+<script type="text/plain" id="arcade-age-days">
+  // Incident report age (days)
+  var closed = toUTC($feature.closed_time);
+  var created = toUTC($feature.created_time);
+  IIF(!IsEmpty(closed) && !IsEmpty(created), DateDiff(closed, created, "days"), -1);
+</script>
+
+<script>
+require([
+  "esri/map",
+  "esri/layers/FeatureLayer",
+  "esri/renderers/UniqueValueRenderer",
+  "esri/renderers/SimpleRenderer",
+  "esri/symbols/SimpleMarkerSymbol",
+  "esri/symbols/SimpleLineSymbol",
+  "esri/Color",
+  "esri/dijit/Legend",
+  "esri/dijit/PopupTemplate",
+  "dojo/domReady!"
+], function(
+  Map, FeatureLayer, UniqueValueRenderer, SimpleRenderer, SimpleMarkerSymbol,
+  SimpleLineSymbol, Color, Legend, PopupTemplate
+) {
+
+  // The expressionInfos reference Arcade expressions and
+  // assign each of them a title and name. The name is used
+  // to reference it in the PopupTemplate and the title is
+  // used to describe the value in the popup and legend.
+
+  var arcadeExpressionInfos = [{
+    name: "arcade-time-reported",
+    title: "Time of incident report",
+    expression: document.getElementById("arcade-time-reported").text
+  }, {
+    name: "arcade-days-overdue",
+    title: "Number of days incident resolution was overdue at time of closure",
+    expression: document.getElementById("arcade-days-overdue").text
+  }, {
+    name: "arcade-overdue-text",
+    title: "to display in popup",
+    expression: document.getElementById("arcade-overdue-text").text
+  }, {
+    name: "arcade-age-days",
+    title: "Age of incident in days at time of closure",
+    expression: document.getElementById("arcade-age-days").text
+  }];
+
+  function getArcadeExpressionByName(name){
+    // find() isn't supported in IE
+    return arcadeExpressionInfos.filter(function(info){
+      return info.name === name;
+    })[0];
+  }
+
+  // Create FeatureLayer instance with popupTemplate
+  // Note the Arcade expression placeholders used in the text and fieldInfos
+  // e.g. {expression/predominance-arcade}
+  // Expression names are defined in the expressionInfos property
+
+  var serviceUrl = "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/nyc_311_2015_first_50k/FeatureServer/0";
+  var layer = new FeatureLayer(serviceUrl, {
+    outFields: [ "created_time", "due_time", "closed_time", "Complaint_Type" ],
+    infoTemplate: new PopupTemplate({
+      title: "{Complaint_Type}",
+      description: [
+        "<b>Time of day:</b> {expression/arcade-time-reported}<br>",
+        "<b>Days it took to close incident:</b> {expression/arcade-age-days}<br>",
+        "{expression/arcade-overdue-text}<br>" 
+      ].join(""),
+      fieldInfos: [{
+        fieldName: "expression/arcade-age-days",
+        format: {
+          digitSeparator: true,
+          places: 0
+        }
+      }],
+      expressionInfos: arcadeExpressionInfos
+    }),
+    // enable clustering for the layer
+    featureReduction: {
+      type: "cluster"
+    }
+  });
+
+  var map = new Map("viewDiv", {
+    basemap: "gray",
+    center: [ -73.90245, 40.68563 ],
+    zoom: 12
+  });
+  map.addLayer(layer);
+
+  // Creates a SimpleMarkerSymbol based on an input color
+  function createSymbol (color){
+    var outline = new SimpleLineSymbol()
+      .setColor(new Color([ 128, 128, 128, 0.5 ]))
+      .setWidth(0.5);
+
+    return new SimpleMarkerSymbol()
+      .setSize(6)
+      .setColor(new Color(color))
+      .setOutline(outline);
+  }
+
+  // Configure three renderers for exploring the data
+
+  var timeReportedRenderer = new UniqueValueRenderer({
+    valueExpression: getArcadeExpressionByName("arcade-time-reported").expression,
+    valueExpressionTitle: getArcadeExpressionByName("arcade-time-reported").title,
+    defaultSymbol: createSymbol("lightgray"),
+    defaultLabel: "It never happened",
+    uniqueValueInfos: [{
+      value: "Morning",
+      symbol: createSymbol("#A7C636"),
+      label: "Morning (6 a.m. - 11 a.m.)"
+    }, {
+      value: "Midday",
+      symbol: createSymbol("#FC921F"),
+      label: "Midday (11 a.m. - 1 p.m.)"
+    }, {
+      value: "Afternoon",
+      symbol: createSymbol("#ED5151"),
+      label: "Afternoon (1 p.m. - 5 p.m.)"
+    }, {
+      value: "Evening",
+      symbol: createSymbol("#149ECE"),
+      label: "Evening (5 p.m. - 10 p.m.)"
+    }, {
+      value: "Night",
+      symbol: createSymbol("#9E559C"),
+      label: "Night (10 p.m. - 6 a.m.)"
+    }]
+  });
+
+  var ageRenderer = new SimpleRenderer({
+    symbol: createSymbol("gray"),
+    visualVariables: [{
+      type: "colorInfo",
+      valueExpression: getArcadeExpressionByName("arcade-age-days").expression,
+      valueExpressionTitle: getArcadeExpressionByName("arcade-age-days").title,
+      stops: [
+        {value: 0, color: [255, 252, 212], label: "< 0" },
+        {value: 15, color: [177, 205, 194], label: null },
+        {value: 30, color: [98, 158, 176], label: "30" },
+        {value: 45, color: [56, 98, 122], label: null },
+        {value: 60, color: [13, 38, 68], label: "> 60" },
+      ]
+    }]
+  });
+
+  var overdueRenderer = new SimpleRenderer({
+    symbol: createSymbol("gray"),
+    visualVariables: [{
+      type: "colorInfo",
+      valueExpression: getArcadeExpressionByName("arcade-days-overdue").expression,
+      valueExpressionTitle: getArcadeExpressionByName("arcade-days-overdue").title,
+      stops: [
+        {value: -5, color: [5, 113, 176], label: "< -5" },
+        {value: -2.5, color: [146, 197, 222], label: null },
+        {value: 0, color: [247, 247, 247], label: "0" },
+        {value: 2.5, color: [244, 165, 130], label: null },
+        {value: 5, color: [202, 0, 32], label: "> 5" },
+      ]
+    }]
+  });
+
+  var rendererInfos = {
+    "arcade-time-reported": timeReportedRenderer,
+    "arcade-age-days": ageRenderer,
+    "arcade-days-overdue": overdueRenderer
+  };
+
+  map.on("load", function(evt){
+    var legend = new Legend({
+      map: map,
+      layerInfos: [{
+        layer: layer,
+        title: "311 calls from 2015"
+      }]
+    }, "legendDiv");
+    legend.startup();
+
+    var rendererSelect = document.getElementById("renderer-select");
+    layer.setRenderer(rendererInfos[rendererSelect.value]);
+
+    rendererSelect.addEventListener("change", function(event){
+      var newValue = event.target.value;
+      var newRenderer = rendererInfos[newValue];
+      layer.setRenderer(newRenderer);
+    });
+  });
+
+});
+</script>
+</head>
+
+<body class="calcite">
+  <div id="viewDiv"></div>
+  <div id="info">
+    <div>
+      <select id="renderer-select">
+        <option value="arcade-time-reported">Time of incident report</option>
+        <option value="arcade-age-days">Age in days of report at closure</option>
+        <option value="arcade-days-overdue">Days overdue at closure</option>
+      </select>
+    </div>
+    <div id="legendDiv"></div>
+  </div>
+</body>
+
+</html>
