@@ -3,10 +3,9 @@ var closed = toUTC($feature.closed_time);
 var due = toUTC($feature.due_time);
 var closureDueDiff = DateDiff(closed, due, "days");
 WHEN(
-IsEmpty(closed), "Incident was not closed.",
-IsEmpty(due), "Incident due date was not recorded.",
-closureDueDiff > 0, "Incident closure was overdue by " + Round(closureDueDiff, 1) + " days.",
-closureDueDiff == 0, "Incident closure was on time.",
-closureDueDiff < 0, "Incident closure was early by " + Round(Abs(closureDueDiff), 1) + " days.",
-"N/A"
-);
+  IsEmpty(closed), "Incident was not closed.",
+  IsEmpty(due), "Incident due date was not recorded.",
+  closureDueDiff > 0, "Incident closure was overdue by " + Round(closureDueDiff, 1) + " days.",
+  closureDueDiff == 0, "Incident closure was on time.",
+  closureDueDiff < 0, "Incident closure was early by " + Round(Abs(closureDueDiff), 1) + " days.",
+"N/A");
