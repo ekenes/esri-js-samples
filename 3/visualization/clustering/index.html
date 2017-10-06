@@ -30,9 +30,42 @@
 </style>
 
 <script type="text/plain" id="arcade-time-reported">
-  // Time of day incident was reported
-  var t = Hour(toUTC($feature.created_time));
+  function toEasternTime(localDate){
+    var d = toUTC(localDate);
+    // Eastern time zone offsets from UTC
+    var edt = -4;
+    var est = -5;
+    
+    var stM = 10;
+    var stD = 1;
+    // hours at 2 am EDT to UTC
+    var stH = 2 + Abs(edt);
+    
+    var dtM = 2;
+    var dtD = 8;
+    // hours at 2 am EST to UTC
+    var dtH = 2 + Abs(est);
+    
+    var dM = Month(d);
+    var dD = Day(d);
+    var dH = Hour(d);
   
+    // if any of these conditions are true, then
+    // the offset is EDT
+    var btwMarNov = (dM > dtM && dM < stM);
+    var AftMar8 = (dM == dtM && dD > dtD);
+    var Aft2amMar8 = (dM == dtM && dD == dtD && dH >= dtH);
+    var Bef2amNov1 = (dM == stM && dD == stD && dH < stH);
+  
+    var timeOffset = IIF(btwMarNov || AftMar8 || Aft2amMar8 || Bef2amNov1, edt, est);
+    return DateAdd(d, timeOffset, "hours");
+  }
+  
+  // toEasternTime is defined above
+  var created = toEasternTime($feature.Created_Date);
+  
+  // Time of day
+  var t = Hour(created);
   When(
     t >= 22 || t < 6, "Night",
     t >= 6 && t < 11, "Morning",
@@ -45,8 +78,8 @@
 <script type="text/plain" id="arcade-days-overdue">
   // Days incident closure was overdue
 
-  var closed = toUTC($feature.closed_time);
-  var due = toUTC($feature.due_time);
+  var closed = $feature.Closed_Date;
+  var due = $feature.Due_Date;
   var closureDueDiff = DateDiff(closed, due, "days");
   IIF(IsEmpty(closed) || IsEmpty(due), 0, closureDueDiff);
 </script>
@@ -54,8 +87,8 @@
 <script type="text/plain" id="arcade-overdue-text">
   // Days incident closure was overdue
 
-  var closed = toUTC($feature.closed_time);
-  var due = toUTC($feature.due_time);
+  var closed = $feature.Closed_Date;
+  var due = $feature.Due_Date;
   var closureDueDiff = DateDiff(closed, due, "days");
   WHEN(
     IsEmpty(closed), "Incident was not closed.",
@@ -70,8 +103,8 @@
 <script type="text/plain" id="arcade-age-days">
   // Incident report age (days)
 
-  var closed = toUTC($feature.closed_time);
-  var created = toUTC($feature.created_time);
+  var closed = $feature.Closed_Date;
+  var created = $feature.Created_Date;
   IIF(!IsEmpty(closed) && !IsEmpty(created), DateDiff(closed, created, "days"), 0);
 </script>
 
@@ -128,7 +161,7 @@ require([
   // e.g. {expression/predominance-arcade}
   // Expression names are defined in the expressionInfos property
 
-  var serviceUrl = "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/nyc_311_2015_first_50k/FeatureServer/0";
+  var serviceUrl = "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/311_Service_Requests_from_2015_50k/FeatureServer/0";
   var layer = new FeatureLayer(serviceUrl, {
     outFields: [ "created_time", "due_time", "closed_time", "Complaint_Type" ],
     infoTemplate: new PopupTemplate({
@@ -225,11 +258,11 @@ require([
       valueExpression: getArcadeExpressionByName("arcade-days-overdue").expression,
       valueExpressionTitle: getArcadeExpressionByName("arcade-days-overdue").title,
       stops: [
-        {value: -5, color: [5, 113, 176], label: "< -5" },
+        {value: -5, color: [5, 113, 176], label: "< -5 days (early)" },
         {value: -2.5, color: [146, 197, 222], label: null },
-        {value: 0, color: [247, 247, 247], label: "0" },
+        {value: 0, color: [247, 247, 247], label: "0 (on time)" },
         {value: 2.5, color: [244, 165, 130], label: null },
-        {value: 5, color: [202, 0, 32], label: "> 5" },
+        {value: 5, color: [202, 0, 32], label: "> 5 days (overdue)" },
       ]
     }]
   });
@@ -266,6 +299,7 @@ require([
       var newValue = event.target.value;
       var defExp = newValue ? "Complaint_Type = '" + newValue + "'" : null;
       layer.setDefinitionExpression(defExp);
+      map.infoWindow.hide();
     });
 
     var clusteringCheckbox = document.getElementById("use-clustering");
