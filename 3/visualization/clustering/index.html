@@ -25,14 +25,47 @@
     opacity: 0.9;
     background-color: white;
     padding: 0px 0px 0px 10px;
-    max-width: 200px;
+    max-width: 220px;
   }
 </style>
 
 <script type="text/plain" id="arcade-time-reported">
-  // Time of day incident was reported
-  var t = Hour(toUTC($feature.created_time));
+  function toEasternTime(localDate){
+    var d = toUTC(localDate);
+    // Eastern time zone offsets from UTC
+    var edt = -4;
+    var est = -5;
+    
+    var stM = 10;
+    var stD = 1;
+    // hours at 2 am EDT to UTC
+    var stH = 2 + Abs(edt);
+    
+    var dtM = 2;
+    var dtD = 8;
+    // hours at 2 am EST to UTC
+    var dtH = 2 + Abs(est);
+    
+    var dM = Month(d);
+    var dD = Day(d);
+    var dH = Hour(d);
   
+    // if any of these conditions are true, then
+    // the offset is EDT
+    var btwMarNov = (dM > dtM && dM < stM);
+    var AftMar8 = (dM == dtM && dD > dtD);
+    var Aft2amMar8 = (dM == dtM && dD == dtD && dH >= dtH);
+    var Bef2amNov1 = (dM == stM && dD == stD && dH < stH);
+  
+    var timeOffset = IIF(btwMarNov || AftMar8 || Aft2amMar8 || Bef2amNov1, edt, est);
+    return DateAdd(d, timeOffset, "hours");
+  }
+  
+  // toEasternTime is defined above
+  var created = toEasternTime($feature.Created_Date);
+  
+  // Time of day
+  var t = Hour(created);
   When(
     t >= 22 || t < 6, "Night",
     t >= 6 && t < 11, "Morning",
@@ -44,16 +77,18 @@
 
 <script type="text/plain" id="arcade-days-overdue">
   // Days incident closure was overdue
-  var closed = toUTC($feature.closed_time);
-  var due = toUTC($feature.due_time);
+
+  var closed = $feature.Closed_Date;
+  var due = $feature.Due_Date;
   var closureDueDiff = DateDiff(closed, due, "days");
   IIF(IsEmpty(closed) || IsEmpty(due), 0, closureDueDiff);
 </script>
 
 <script type="text/plain" id="arcade-overdue-text">
   // Days incident closure was overdue
-  var closed = toUTC($feature.closed_time);
-  var due = toUTC($feature.due_time);
+
+  var closed = $feature.Closed_Date;
+  var due = $feature.Due_Date;
   var closureDueDiff = DateDiff(closed, due, "days");
   WHEN(
     IsEmpty(closed), "Incident was not closed.",
@@ -67,15 +102,17 @@
 
 <script type="text/plain" id="arcade-age-days">
   // Incident report age (days)
-  var closed = toUTC($feature.closed_time);
-  var created = toUTC($feature.created_time);
-  IIF(!IsEmpty(closed) && !IsEmpty(created), DateDiff(closed, created, "days"), -1);
+
+  var closed = $feature.Closed_Date;
+  var created = $feature.Created_Date;
+  IIF(!IsEmpty(closed) && !IsEmpty(created), DateDiff(closed, created, "days"), 0);
 </script>
 
 <script>
 require([
   "esri/map",
   "esri/layers/FeatureLayer",
+  "esri/renderers/smartMapping",
   "esri/renderers/UniqueValueRenderer",
   "esri/renderers/SimpleRenderer",
   "esri/symbols/SimpleMarkerSymbol",
@@ -85,7 +122,7 @@ require([
   "esri/dijit/PopupTemplate",
   "dojo/domReady!"
 ], function(
-  Map, FeatureLayer, UniqueValueRenderer, SimpleRenderer, SimpleMarkerSymbol,
+  Map, FeatureLayer, smartMapping, UniqueValueRenderer, SimpleRenderer, SimpleMarkerSymbol,
   SimpleLineSymbol, Color, Legend, PopupTemplate
 ) {
 
@@ -124,9 +161,9 @@ require([
   // e.g. {expression/predominance-arcade}
   // Expression names are defined in the expressionInfos property
 
-  var serviceUrl = "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/nyc_311_2015_first_50k/FeatureServer/0";
+  var serviceUrl = "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/311_Service_Requests_from_2015_50k/FeatureServer/0";
   var layer = new FeatureLayer(serviceUrl, {
-    outFields: [ "created_time", "due_time", "closed_time", "Complaint_Type" ],
+    outFields: [ "Created_Date", "Due_Date", "Closed_Date", "Complaint_Type" ],
     infoTemplate: new PopupTemplate({
       title: "{Complaint_Type}",
       description: [
@@ -174,27 +211,27 @@ require([
     valueExpression: getArcadeExpressionByName("arcade-time-reported").expression,
     valueExpressionTitle: getArcadeExpressionByName("arcade-time-reported").title,
     defaultSymbol: createSymbol("lightgray"),
-    defaultLabel: "It never happened",
+    defaultLabel: "None",
     uniqueValueInfos: [{
       value: "Morning",
       symbol: createSymbol("#A7C636"),
-      label: "Morning (6 a.m. - 11 a.m.)"
+      label: "Morning (6 am - 11 am)"
     }, {
       value: "Midday",
       symbol: createSymbol("#FC921F"),
-      label: "Midday (11 a.m. - 1 p.m.)"
+      label: "Midday (11 am - 1 pm)"
     }, {
       value: "Afternoon",
       symbol: createSymbol("#ED5151"),
-      label: "Afternoon (1 p.m. - 5 p.m.)"
+      label: "Afternoon (1 pm - 5 pm)"
     }, {
       value: "Evening",
       symbol: createSymbol("#149ECE"),
-      label: "Evening (5 p.m. - 10 p.m.)"
+      label: "Evening (5 pm - 10 pm)"
     }, {
       value: "Night",
       symbol: createSymbol("#9E559C"),
-      label: "Night (10 p.m. - 6 a.m.)"
+      label: "Night (10 pm - 6 am)"
     }]
   });
 
@@ -221,11 +258,11 @@ require([
       valueExpression: getArcadeExpressionByName("arcade-days-overdue").expression,
       valueExpressionTitle: getArcadeExpressionByName("arcade-days-overdue").title,
       stops: [
-        {value: -5, color: [5, 113, 176], label: "< -5" },
+        {value: -5, color: [5, 113, 176], label: "< -5 days (early)" },
         {value: -2.5, color: [146, 197, 222], label: null },
-        {value: 0, color: [247, 247, 247], label: "0" },
+        {value: 0, color: [247, 247, 247], label: "0 (on time)" },
         {value: 2.5, color: [244, 165, 130], label: null },
-        {value: 5, color: [202, 0, 32], label: "> 5" },
+        {value: 5, color: [202, 0, 32], label: "> 5 days (overdue)" },
       ]
     }]
   });
@@ -241,7 +278,7 @@ require([
       map: map,
       layerInfos: [{
         layer: layer,
-        title: "311 calls from 2015"
+        title: "311 calls (2015)"
       }]
     }, "legendDiv");
     legend.startup();
@@ -253,8 +290,76 @@ require([
       var newValue = event.target.value;
       var newRenderer = rendererInfos[newValue];
       layer.setRenderer(newRenderer);
+      layer.redraw();
+      legend.refresh();
     });
+
+    var complaintSelect = document.getElementById("complaint-type-select");
+    complaintSelect.addEventListener("change", function(event){
+      var newValue = event.target.value;
+      var defExp = newValue ? "Complaint_Type = '" + newValue + "'" : null;
+      layer.setDefinitionExpression(defExp);
+      map.infoWindow.hide();
+    });
+
+    var clusteringCheckbox = document.getElementById("use-clustering");
+    // toggles clustering on and off in sync with the checkbox
+    clusteringCheckbox.addEventListener("click", function(event){
+      var checked = event.target.checked;
+      toggleFeatureReduction(checked);
+    });
+
+    createComplaintTypeRenderer();
   });
+
+  // Sets feature reduction on the layer if not previously done so.
+  // If indicated, then feature reduction is disabled. The initial
+  // feature reduction settings are enabled if indicated.
+  function toggleFeatureReduction(yes){
+    if(yes){
+      if(!layer.getFeatureReduction()){
+        layer.setFeatureReduction({
+          type: "cluster"
+        });
+      } else {
+        layer.enableFeatureReduction();
+      }
+    } else {
+      layer.disableFeatureReduction();
+    }
+  }
+
+  function createComplaintTypeRenderer(){
+    return smartMapping.createTypeRenderer({
+      basemap: "gray",
+      layer: layer,
+      field: "Complaint_Type"
+    }).then(function(response){
+      var renderer = response.renderer;
+      rendererInfos["complaint-type"] = renderer;
+      var complaintSelect = document.getElementById("renderer-select");
+      var option = document.createElement("option");
+      option.text = "Complaint Type";
+      option.value = "complaint-type";
+      complaintSelect.add(option);
+
+      addOptionsToSelect("complaint-type-select", renderer.values);
+    });
+  }
+
+  function addOptionsToSelect(id, values){
+    var select = document.getElementById(id);
+    var option = document.createElement("option");
+    option.text = "Show all";
+    option.value = "";
+    select.add(option);
+    values.forEach(function(value){
+      var option = document.createElement("option");
+      option.value = value;
+      option.text = value;
+      select.add(option);
+    });
+  }
 
 });
 </script>
@@ -264,12 +369,21 @@ require([
   <div id="viewDiv"></div>
   <div id="info">
     <div>
+      Visualize by:<br>
       <select id="renderer-select">
         <option value="arcade-time-reported">Time of incident report</option>
         <option value="arcade-age-days">Age in days of report at closure</option>
         <option value="arcade-days-overdue">Days overdue at closure</option>
       </select>
+      
     </div>
+    <div id="complaint-type-div">
+      Filter by:<br>
+      <select id="complaint-type-select"></select>
+    </div>
+    <div>
+      <input type="checkbox" id="use-clustering" checked> Use clustering?
+    </div><br>
     <div id="legendDiv"></div>
   </div>
 </body>
