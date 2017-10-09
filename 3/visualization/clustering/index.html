@@ -163,7 +163,7 @@ require([
 
   var serviceUrl = "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/311_Service_Requests_from_2015_50k/FeatureServer/0";
   var layer = new FeatureLayer(serviceUrl, {
-    outFields: [ "created_time", "due_time", "closed_time", "Complaint_Type" ],
+    outFields: [ "Created_Date", "Due_Date", "Closed_Date", "Complaint_Type" ],
     infoTemplate: new PopupTemplate({
       title: "{Complaint_Type}",
       description: [
