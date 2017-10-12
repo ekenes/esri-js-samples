@@ -53,8 +53,7 @@
       var selectedMagnitude;
 
       var map = new Map({
-        basemap: "dark-gray",
-        // ground: "world-elevation"
+        basemap: "dark-gray"
       });
 
       // Create MapView
@@ -82,11 +81,11 @@
         defaultSymbol: createMarkerSymbol("#8c8c8c"),
         uniqueValueInfos: [{
           value: "day",
-          label: "Day",
+          label: "Day (after 7 am until night)",
           symbol: createMarkerSymbol("#ffe400")
         }, {
           value: "night",
-          label: "Night",
+          label: "Night (after 7 pm until day)",
           symbol: createMarkerSymbol("00F2FF")
         }],
         visualVariables: [{
