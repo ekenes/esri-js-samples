@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Create a FeatureLayer with client side graphics - 4.5</title>
+
+  <script type="text/esri-arcade" id="arcade-time-day">
+    var localTime = DateAdd(ToUTC($feature.time), $feature.tz, "minutes");
+    var h = Hour(localTime);
+    IIF(h >= 7 && h < 19, "day", "night");
+  </script>
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+    #infoDiv {
+      padding: 5px;
+      opacity: 0.85;
+    }
+  </style>
+
+  <script>
+    var dojoConfig = {
+      paths: {
+        modules: location.pathname.replace(/\/[^/]+$/, "")
+      }
+    };
+  </script>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.5/esri/themes/dark-blue/main.css">
+  <script src="https://js.arcgis.com/4.5/"></script>
+
+  <script>
+    require([
+      "esri/views/SceneView",
+      "esri/Map",
+      "esri/widgets/Legend",
+      "esri/widgets/Expand",
+      "modules/EarthquakeData",
+      "dojo/domReady!"
+    ], function(SceneView, Map, Legend, Expand, EarthquakeData) {
+
+      // hour, day, week, month
+      var selectedTimeWindow;
+      // all, 1.0, 2.5, 4.5, significant
+      var selectedMagnitude;
+
+      var map = new Map({
+        basemap: "dark-gray",
+        // ground: "world-elevation"
+      });
+
+      // Create MapView
+      var view = new SceneView({
+        container: "viewDiv",
+        map: map,
+        camera: {
+          position: {
+            x: -12116747,
+            y: 2845158,
+            z: 2110216,
+            spatialReference: {
+              wkid: 3857
+            }
+          },
+          heading: 338,
+          tilt: 39
+        }
+      });
+
+      var quakesRenderer = {
+        type: "unique-value",
+        valueExpression: document.getElementById("arcade-time-day").text,
+        valueExpressionTitle: "Time of day at epicenter",
+        defaultSymbol: createMarkerSymbol("#8c8c8c"),
+        uniqueValueInfos: [{
+          value: "day",
+          label: "Day",
+          symbol: createMarkerSymbol("#ffe400")
+        }, {
+          value: "night",
+          label: "Night",
+          symbol: createMarkerSymbol("00F2FF")
+        }],
+        visualVariables: [{
+          type: "size",
+          field: "mag",
+          minDataValue: 2,
+          maxDataValue: 7,
+          minSize: 4,
+          maxSize: 50
+        }]
+      };
+
+      var legend = new Legend({
+        view: view,
+        container: document.createElement("div")
+      });
+
+      var legendExpand = new Expand({
+        view: view,
+        content: legend.container,
+        expandIconClass: "esri-icon-key",
+        expanded: true
+      });
+      view.ui.add(legendExpand, "bottom-right");
+      view.ui.add("infoDiv", "bottom-left");
+
+      function createMarkerSymbol(color){
+        var icon = {
+          type: "point-3d",
+          symbolLayers: [{
+            type: "icon",
+            resource: { primitive: "circle"},
+            material: { color:  [211, 255, 0, 0] },
+            outline: {
+              width: 0.5,
+              color: color,
+              style: "solid"
+            }
+          }],
+          verticalOffset: {
+            screenLength: 60,
+            maxWorldLength: 500000,
+            minWorldLength: 800
+          },
+          callout: {
+            type: "line",
+            color: [ 255, 255, 255, 0.2 ],
+            size: 1
+          }
+        };
+
+        return icon;
+      }
+
+      function addLayer(timeFrame, magnitude){
+        EarthquakeData.getFeatureLayer({
+          time: timeFrame,
+          mag: magnitude
+        }).then(function(layer){
+          layer.renderer = quakesRenderer;
+          
+          layer.elevationInfo = {
+            // billboards icons and places them
+            // relative to elevation and buildings
+            mode: "relative-to-scene"
+          };
+          layer.labelsVisible = true,
+          layer.labelingInfo = [{
+            labelExpressionInfo: {
+              value: "{mag}"
+            },
+            symbol: {
+              type: "label-3d",
+              symbolLayers: [{
+              type: "text",
+                material: {
+                  color: [ 200, 200, 200, 0.5 ]
+                },
+                size: 10
+              }]
+            }
+          }];
+
+          map.add(layer);
+
+          queryEarthquakeCount(layer)
+            .then(function(count){
+              layer.title = [
+                numberWithCommas(count), 
+                " earthquakes ",
+                "in the last ", 
+                selectedTimeWindow
+              ].join("");
+            });
+        });
+      }
+
+      view.then(function(){
+        var radioButtons = document.querySelectorAll("input[type=radio]");
+        radioButtons.forEach(function(radioButton){
+          if(radioButton.checked){
+            if(radioButton.name === "timeline"){
+              selectedTimeWindow = radioButton.value;
+            } else {
+              selectedMagnitude = radioButton.value;
+            }
+          }
+          radioButton.addEventListener("click", getTimeInput);
+        });
+
+        getTimeInput();
+      });
+
+
+      function getTimeInput (evt){
+        var target = evt && evt.target.name;
+        var value = evt && evt.target.value;
+
+        selectedTimeWindow = evt && target === "timeline" && value !== selectedTimeWindow ? value : selectedTimeWindow;
+        selectedMagnitude = evt && target === "magnitude" && value !== selectedMagnitude ? value : selectedMagnitude;
+
+        map.removeAll();
+        addLayer(selectedTimeWindow, selectedMagnitude);
+      }
+
+      function queryEarthquakeCount(layer){
+        return view.whenLayerView(layer)
+          .then(function(layerView){
+            return layerView.queryFeatureCount();
+          });
+      }
+
+      function numberWithCommas(x) {
+        return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      }
+
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+  <div id="infoDiv" class="esri-widget">
+    <div>
+      Filter by magnitude...
+      <input type="radio" name="magnitude" id="all-radio" value="all" checked> all
+      <input type="radio" name="magnitude" id="1-radio" value="1.0"> 1.0+
+      <input type="radio" name="magnitude" id="25-radio" value="2.5"> 2.5+
+      <input type="radio" name="magnitude" id="45-radio" value="4.5"> 4.5+
+      <input type="radio" name="magnitude" id="significant-radio" value="significant"> significant
+    </div>
+    <div>
+      from within the last...
+      <input type="radio" name="timeline" id="hour-radio" value="hour"> hour
+      <input type="radio" name="timeline" id="day-radio" value="day" checked> 24 hours
+      <input type="radio" name="timeline" id="week-radio" value="week"> 7 days
+      <input type="radio" name="timeline" id="month-radio" value="month"> 30 days
+    </div>
+  </div>
+</body>
+</html>
