@@ -1,38 +1,54 @@
+//
+// Only valid in the U.S. after 2007
+//
+function getStandardTimeStart(y){
+  // Daylight saving time ends on the 
+  // first Sunday in November
+  var st;
+
+  for(var d=1; d<8; d++){
+    var tempDate = Date(y, 10, d, 2);
+    st = IIF(Weekday(tempDate)==0, tempDate, st);
+  }
+
+  return st;
+}
+
+//
+// Only valid in the U.S. after 2007
+//
+function getDaylightTimeStart(y){
+  // Daylight saving time starts on the 
+  // second Sunday in March
+  var dt;
+
+  for(var d=1; d<15; d++){
+    var tempDate = Date(y, 2, d, 2);
+    dt = IIF(Weekday(tempDate)==0, tempDate, dt);
+  }
+
+  return dt;
+}
+
 function toEasternTime(localDate){
   var d = toUTC(localDate);
+  var yr = Year(d);
   // Eastern time zone offsets from UTC
   var edt = -4;
   var est = -5;
-  
-  var stM = 10;
-  var stD = 1;
-  // hours at 2 am EDT to UTC
-  var stH = 2 + Abs(edt);
-  
-  var dtM = 2;
-  var dtD = 8;
-  // hours at 2 am EST to UTC
-  var dtH = 2 + Abs(est);
-  
-  var dM = Month(d);
-  var dD = Day(d);
-  var dH = Hour(d);
 
-  // if any of these conditions are true, then
-  // the offset is EDT
-  var btwMarNov = (dM > dtM && dM < stM);
-  var AftMar8 = (dM == dtM && dD > dtD);
-  var Aft2amMar8 = (dM == dtM && dD == dtD && dH >= dtH);
-  var Bef2amNov1 = (dM == stM && dD == stD && dH < stH);
+  var stStart = DateAdd(getStandardTimeStart(yr), Abs(edt), "hours");
+  var dtStart = DateAdd(getDaylightTimeStart(yr), Abs(est), "hours");
 
-  var timeOffset = IIF(btwMarNov || AftMar8 || Aft2amMar8 || Bef2amNov1, edt, est);
+  var inDaylightTime = (d >= dtStart) && (d < stStart);
+  var timeOffset = IIF(inDaylightTime, edt, est);
   return DateAdd(d, timeOffset, "hours");
 }
 
 // toEasternTime is defined above
 var created = toEasternTime($feature.Created_Date);
 
-// Time of day issue was reported
+// Time of day
 var t = Hour(created);
 When(
   t >= 22 || t < 6, "Night",
