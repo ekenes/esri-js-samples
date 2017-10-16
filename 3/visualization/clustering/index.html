@@ -88,16 +88,16 @@
     t >= 11 && t < 13, "Midday", 
     t >= 13 && t < 17, "Afternoon",
     t >= 17 && t < 22, "Evening",
-  "It never happened" );
+  "Invalid date" );
 </script>
 
 <script type="text/plain" id="arcade-days-overdue">
   // Days incident closure was overdue
 
-  var closed = $feature.Closed_Date;
+  var closed = IIF(IsEmpty($feature.Closed_Date), Now(), $feature.Closed_Date);
   var due = $feature.Due_Date;
   var closureDueDiff = DateDiff(closed, due, "days");
-  IIF(IsEmpty(closed) || IsEmpty(due), 0, closureDueDiff);
+  IIF(IsEmpty(due), 0, closureDueDiff);
 </script>
 
 <script type="text/plain" id="arcade-overdue-text">
