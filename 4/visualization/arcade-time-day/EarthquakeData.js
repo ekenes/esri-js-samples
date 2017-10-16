@@ -1,14 +1,9 @@
 define([
-  "dojo/_base/declare",
   "esri/layers/FeatureLayer",
-  "esri/geometry/Point",
-  "esri/Graphic",
   "esri/request",
-  "esri/geometry/SpatialReference",
   "esri/config",
 ], function (
-  declare,
-  FeatureLayer, Point, Graphic, esriRequest, SpatialReference, esriConfig
+  FeatureLayer, esriRequest, esriConfig
 ){
 
   var getFieldInfos = function(){
@@ -72,27 +67,19 @@ define([
         fieldInfos: [{
           fieldName: "time",
           label: "Time at browser location",
-          // visible: true
         }, {
           fieldName: "expression/arcade-time-epicenter",
-          // label: "Depth",
-          // visible: true
         }, {
           fieldName: "expression/arcade-time-utc",
-          // label: "More info",
-          // visible: true
         }, {
           fieldName: "mag",
-          label: "Magnitude",
-          visible: true
+          label: "Magnitude"
         }, {
           fieldName: "depth",
-          label: "Depth",
-          visible: true
+          label: "Depth"
         }, {
           fieldName: "url",
-          label: "More info",
-          visible: true
+          label: "More info"
         }]
       }],
       fieldInfos: [{
