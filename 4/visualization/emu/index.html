@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Intro to SceneLayer - 4.5</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    #containerDiv {
+      background-color: white;
+      padding: 3px;
+      text-align: center;
+    }
+
+    #title {
+      font-size: 14pt;
+      font-weight: 500;
+    }
+
+    .widget-background{
+      background-color: white;
+      font-size: 12pt;
+      padding: 8px;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.5/esri/css/main.css">
+  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.5/dijit/themes/claro/claro.css">
+  <script src="https://jsdev.arcgis.com/4.5/"></script>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/SceneView",
+      "esri/layers/FeatureLayer",
+      "esri/widgets/Expand",
+      "esri/widgets/Legend",
+      "esri/widgets/ColorSlider",
+      "esri/renderers/smartMapping/creators/color",
+      "esri/renderers/smartMapping/statistics/histogram",
+      "esri/core/lang",
+      "dojo/domReady!"
+    ], function(Map, SceneView, FeatureLayer, 
+      Expand, Legend, ColorSlider, 
+      colorRendererCreator, histogram, lang
+    ) {
+
+      var colorFieldSelect = document.getElementById("color-field-select");
+      var themeOptions = document.getElementById("theme-options");
+      var depthFilter = document.getElementById("filter-container");
+      var dataFilter = document.getElementById("data-filter");
+      var colorSlider = null;
+      var colorSlideEvent;
+      var exaggeration = 500;
+
+      // Create Map
+      var map = new Map({
+        basemap: "satellite",
+        ground: "world-elevation"
+      });
+
+      // Create the SceneView
+      view = new SceneView({
+        container: "viewDiv",
+        viewingMode: "local",
+        map: map,
+        camera: {
+          position: {
+            spatialReference: {
+              latestWkid: 3857,
+              wkid: 102100
+            },
+            x: 9040444,
+            y: -837938,
+            z: 247393
+          },
+          heading: 325,
+          tilt: 79
+        },
+        clippingArea: {
+          spatialReference: {
+            latestWkid: 3857,
+            wkid: 102100
+          },
+          xmin: 7834109,
+          ymin: -69576,
+          xmax: 8502026,
+          ymax: 907517
+        },
+        // Allows for navigating the camera below the surface
+        constraints: {
+          collision: {
+            enabled: false
+          },
+          tilt: {
+            max: 179.99
+          }
+        },
+        // Turns off atmosphere and stars settings
+        environment: {
+          atmosphere: null,
+          starsEnabled: false
+        }
+      });
+
+      // Create SceneLayer and add to the map
+      layer = new FeatureLayer({
+        portalItem: {
+          id: "cfbc577e961342688b6c5dc6d246c58f"
+        },
+        outFields: ["*"],
+        elevationInfo: {
+          mode: "relative-to-ground",
+          featureExpressionInfo: {
+            expression: "$feature.UnitTop" + "*" + exaggeration
+          },
+          unit: "meters"
+        },
+        definitionExpression: "UnitTop <= -2400"
+      });
+      map.add(layer);
+
+      view.then(function(){
+        layer.then(function(){
+
+          var legend = new Legend({
+            view: view
+          });
+          view.ui.add(legend, "bottom-right");
+          console.log(layer.spatialReference.wkid);
+
+          layer.queryFeatureCount().then(function(r){
+            console.log("count: ", r);
+          });
+
+          generateContinuousVisualization();
+
+
+        });
+      });
+
+       // Create an Expand instance and set the content
+      // property to the DOM node of the color slider widget
+
+      var colorSliderExpand = new Expand({
+        view: view,
+        content: document.getElementById("color-container"),
+        expandIconClass: "esri-icon-environment-settings"
+      });
+      view.ui.add(colorSliderExpand, "top-left");
+
+      var filtersExpand = new Expand({
+        view: view,
+        content: document.getElementById("filter-container"),
+        expandIconClass: "esri-icon-filter"
+      });
+      view.ui.add(filtersExpand, "bottom-left");
+
+      function changeEventListener(event){
+        if(colorFieldSelect.value === "Cluster37"){
+          themeOptions.disabled = true;
+          getEMUClusterVisualization()
+        } else {
+          themeOptions.disabled = false;
+          generateContinuousVisualization();
+        }
+      }
+
+      colorFieldSelect.addEventListener("change", changeEventListener);
+      themeOptions.addEventListener("change", changeEventListener);
+
+      function getNumHandles(theme){
+        return theme === "high-to-low" ? 2 : 3;
+      }
+
+      function getEMUClusterVisualization(){
+        
+        var renderer = {
+          type: "unique-value",
+          field: "Cluster37",
+          defaultSymbol: createSymbol("darkgray"),
+          defaultLabel: "no classification",
+          uniqueValueInfos: [{
+            value: 10, 
+            label: "EMU 10",
+            symbol: createSymbol([117,112,230])
+          }, {
+            value: 13, 
+            label: "EMU 13",
+            symbol: createSymbol([54,71,153])
+          }, {
+            value: 33, 
+            label: "EMU 33",
+            symbol: createSymbol([117,145,255])
+          }, {
+            value: 24, 
+            label: "EMU 24",
+            symbol: createSymbol([235,169,212])
+          }, {
+            value: 26, 
+            label: "EMU 26",
+            symbol: createSymbol([147,101,230])
+          }, {
+            value: 18, 
+            label: "EMU 18",
+            symbol: createSymbol([235,150,204])
+          }, {
+            value: 36, 
+            label: "EMU 36",
+            symbol: createSymbol([26,82,170])
+          }, {
+            value: 14, 
+            label: "EMU 14",
+            symbol: createSymbol([70,82,144])
+          }],
+          visualVariables: [{
+            type: "size",
+            valueExpression: "$feature.ThicknessPos" + " * " + exaggeration,
+            valueUnit: "meters",
+            axis: "height"
+          }, {
+            type: "size",
+            useSymbolValue: true,
+            axis: "width-and-depth"
+          }]
+        };
+
+        layer.renderer = renderer;
+        // destroy color slider widget
+        colorSlider.destroy();
+        colorSlideEvent.remove();
+        colorSlider = null;
+        return;
+      }
+
+      function createSymbol(color){
+        return {
+          type: "point-3d",
+          symbolLayers: [{
+            type: "object",
+            resource: {
+              primitive: "cylinder"
+            },
+            material: {
+              color: color ? color : "white"
+            },
+            width: 7000,
+            anchor: "top"
+          }]
+        };
+      }
+
+      function generateContinuousVisualization(){
+        // var layer = options.layer;
+
+        var options = {
+          layer: layer,
+          basemap: map.basemap,
+          field: colorFieldSelect.value,
+          view: view,
+          theme: themeOptions.value,
+          view: view,
+          worldScale: true
+        };
+
+        var renderer = {
+          type: "simple",
+          symbol: createSymbol(),
+          visualVariables: [{
+            type: "size",
+            valueExpression: "$feature.ThicknessPos" + "*" + exaggeration,
+            valueUnit: "meters",
+            axis: "height"
+          }, {
+            type: "size",
+            useSymbolValue: true,
+            axis: "width-and-depth"
+          }]
+        }
+
+        
+        var colorResponse, colorVV;
+        colorRendererCreator.createVisualVariable(options)
+          .then(function(response){
+            colorResponse = response;
+            colorVV = response.visualVariable;
+
+            renderer.visualVariables.push(colorVV);
+            layer.renderer = renderer;
+
+            return histogram({
+              layer: options.layer,
+              field: options.field,
+              numBins: 30
+            });
+          }).then(function(colorHistogram) {
+            var colorSliderParams = {
+              statistics: colorResponse.statistics,
+              maxValue: colorResponse.statistics.max,
+              minValue: colorResponse.statistics.min,
+              histogram: colorHistogram,
+              visualVariable: colorVV,
+              numHandles: getNumHandles(options.theme),
+              syncedHandles: getNumHandles(options.theme) > 2
+            };
+
+            // input the slider parameters in the slider's constructor
+            // and add it to the view's UI
+
+            if (!colorSlider) {
+
+              var colorSliderParent = document.getElementById("color-container");
+              var colorSliderContainer = document.createElement("div");
+              colorSliderParent.appendChild(colorSliderContainer);
+              colorSliderParams.container = colorSliderContainer;
+
+              colorSlider = new ColorSlider(colorSliderParams);
+
+              // when the user slides the handle(s), update the renderer
+              // with the updated color visual variable object
+
+              colorSlideEvent = colorSlider.on("handle-value-change", function() {
+                var renderer = layer.renderer.clone();
+                var visualVariables = lang.clone(renderer.visualVariables);
+                layer.renderer.visualVariables = [];
+
+                if(visualVariables){
+                  var unchangedVVs = visualVariables.filter(function(vv){
+                    return vv.type !== "color";
+                  });
+                  renderer.visualVariables = unchangedVVs.concat([lang.clone(colorSlider.visualVariable)]);
+                } else {
+                  // renderer.visualVariables.pop();
+                  renderer.visualVariables.push(lang.clone(colorSlider.visualVariable));
+                }
+                layer.renderer = renderer;
+              });
+
+            } else {
+              colorSlider.set(colorSliderParams);
+            }
+          });
+      }
+
+    });
+  </script>
+</head>
+
+<body class="claro">
+  <div id="viewDiv"></div>
+  <div id="color-container" class="widget-background">
+    <h3></h3>
+    Field: <select id="color-field-select">
+      <option value="Cluster37">EMU Cluster</option>
+      <option value="temp" selected>Temperature</option>
+      <option value="salinity">Salinity</option>
+      <option value="appO2ut">Apparent O2</option>
+      <option value="dissO2">Dissolved O2</option>
+      <option value="nitrate">Nitrate</option>
+      <option value="percO2sat">% O2 Saturation</option>
+      <option value="phosphate">Phosphate</option>
+      <option value="silicate">Silicate</option>
+      <option value="ChlorA_12yrAvg">ChlorA (12 yr avg)</option>
+    </select><br>
+    Theme: <select id="theme-options">
+      <option value="high-to-low" selected>High to low</option>
+      <option value="centered-on">Centered on</option>
+      <option value="extremes">Extremes</option>
+      <option value="above-and-below">Above and below</option>
+    </select><br>
+  </div>
+  <div id="filter-container" class="esri-widget">
+    Depth: <select id="depth-filter">
+      <option value="-300" selected>0 - 300m +</option>
+      <option value="-1100">300m - 1100m</option>
+      <option value="-2400">1100m - 2400m</option>
+      <option value="deep">> 2400m</option>
+    </select><br>
+    <input type="range" id="data-filter">
+  </div>
+</html>
