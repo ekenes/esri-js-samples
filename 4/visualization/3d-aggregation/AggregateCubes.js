@@ -119,6 +119,10 @@ define([
       source: features,
       opacity: 0.7, 
       title: (resolutionKm/1000) + "km cubed bins",
+      elevationInfo: {
+        mode: "relative-to-ground",
+        offset: 50
+      },
       geometryType: "point",
       spatialReference: { wkid: 3857 },
       objectIdField: "ObjectID",
@@ -204,10 +208,10 @@ define([
           stops: [  // 0 2 10 25 30 50
             { value: 0, color: [254, 240, 217, 0] },
             { value: 2, color: [254, 240, 217, 0.05]/*0.05, label: "< 2" */},
-            { value: 5, color: [253, 204, 138, 0.7]/*0.7*/, label: "< 10"  },
-            { value: 10, color: [252, 141, 89, 1], label: "20" },
-            { value: 15, color: [227, 74, 51, 1] },
-            { value: 20, color: [179, 0, 0, 1], label: "> 50" }
+            { value: 10, color: [253, 204, 138, 0.7]/*0.7*/, label: "< 10"  },
+            { value: 25, color: [252, 141, 89, 1], label: "20" },
+            { value: 35, color: [227, 74, 51, 1] },
+            { value: 50, color: [179, 0, 0, 1], label: "> 50" }
           ]
         }]
       }
