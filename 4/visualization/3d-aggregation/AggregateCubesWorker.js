@@ -1,10 +1,11 @@
 define([
   "esri/core/promiseUtils",
   "esri/Graphic",
-  "esri/geometry/support/jsonUtils"
+  "esri/geometry/support/jsonUtils",
+  "esri/geometry/support/webMercatorUtils"
 ], function(
   promiseUtils,
-  Graphic, jsonUtils
+  Graphic, jsonUtils, webMercatorUtils
 ) {
 
   var AggregateCubesWorker = function() {};
@@ -17,7 +18,7 @@ define([
       var levels = params.levels;
 
       var grid = create3DGrid(extent, resolution, levels);
-      
+
       var gridCellsWithStats = grid.map(function(cell){
         var stats = getStatsInCube(pointFeatures, cell);
         cell.attributes.count = stats.count;
@@ -25,10 +26,20 @@ define([
       }).filter(function(cell){
         return cell.attributes.count > 0;
       });
-      
+      var counts = getValuesArray(gridCellsWithStats, "count");
+
       return promiseUtils.resolve({
         data: {
-          aggregatePoints: gridCellsWithStats
+          aggregatePoints: gridCellsWithStats,
+          statsByField: {
+            count: {
+              min: getMin(counts),
+              max: getMax(counts),
+              avg: getAverage(counts),
+              stddev: getStandardDeviation(counts),
+              count: getCount(counts)
+            }
+          }
         }
       });
     }
@@ -92,7 +103,7 @@ define([
   }
 
   function getStatsInCube(pointFeatures, extentCentroid){
-
+    
     var cellXmin = extentCentroid.attributes.xmin;
     var cellXmax = extentCentroid.attributes.xmax;
     var cellYmin = extentCentroid.attributes.ymin;
@@ -101,14 +112,16 @@ define([
     var cellZmax = extentCentroid.attributes.zmax;
 
     var features = pointFeatures.filter(function(feature){
-      var geometry = feature.geometry;
-      var z = -1000 * feature.attributes.depth;
+      // var geometryFromJson = jsonUtils.fromJSON(feature.geometry);
+      var geometry = feature.geometry.spatialReference.wkid === 4326 ? webMercatorUtils.geographicToWebMercator(jsonUtils.fromJSON(feature.geometry)) : feature.geometry;
+      var z = -1000 * parseFloat(feature.attributes.depth);
+      
       var withinXBounds = geometry.x >= cellXmin && geometry.x < cellXmax;
       var withinYBounds = geometry.y >= cellYmin && geometry.y < cellYmax;
       var withinZBounds = z >= cellZmin && z < cellZmax;
+
       return withinXBounds && withinYBounds && withinZBounds;
     });
-
     var count = features.length;
     var stats = {
       count: count
@@ -146,9 +159,9 @@ define([
     return sum / num;
   }
 
-  function getValuesArray(a){
+  function getValuesArray(a, valueName){
     return a.map(function(item){
-      return item.value;
+      return item.attributes[valueName];
     });
   }
 

@@ -4,14 +4,16 @@ define([
   "esri/geometry/Extent",
   "esri/layers/FeatureLayer",
   "esri/Graphic",
-  "esri/geometry/Point"
+  "esri/geometry/Point",
+  "esri/tasks/support/Query",
 ], function(
   workers,
   SpatialReference,
   Extent,
   FeatureLayer,
   Graphic,
-  Point
+  Point,
+  Query
 ){
 
   var AggregateCubes = function AggregateCubes() {};
@@ -19,6 +21,7 @@ define([
   AggregateCubes.prototype = {
     execute: function (params) {
       var layer = params.layer;
+      var layerView = params.layerView;
       var extent = params.extent;
       var resolution = params.resolution;
       var levels = params.levels;
@@ -28,6 +31,7 @@ define([
         .then(function() {
           return queryFeatures({
             layer: layer,
+            layerView: layerView,
             allFeatures: allFeatures,
             geometry: extent,
             resolution: resolution,
@@ -44,6 +48,7 @@ define([
 
   function queryFeatures(params){
     var layer = params.layer;
+    var layerView = params.layerView;
     var geometry = params.geometry;
     var resolution = params.resolution;
     var levels = params.levels;
@@ -51,6 +56,28 @@ define([
     var num = params.num ? params.num : 2000;
     var exceededTransferLimit = typeof params.exceededTransferLimit === "undefined" ? true : params.exceededTransferLimit;
     var start = params.start ? params.start : 0;
+
+    if(layerView){
+      var q = new Query({
+        geometry: new Extent(geometry),
+        spatialRelationship: "intersects"
+      });
+      return layerView.queryFeatures()
+        .then(function(features){
+          var jsonFeatures = features.map(function(feature){
+            var jsonFeature = feature.toJSON();
+            delete jsonFeature.popupTemplate;
+            return jsonFeature;
+          });
+          return {
+            layer: layerView.layer,
+            pointFeatures: jsonFeatures,
+            extent: geometry,
+            resolution: resolution,
+            levels: levels
+          };
+        });
+    }
 
     if(!exceededTransferLimit){
       return {
@@ -66,7 +93,8 @@ define([
     query.start = start;
     query.num = num;
     query.outSpatialReference = new SpatialReference({ wkid: 3857 });
-    // query.geometry = geometry;
+    query.geometry = new Extent(geometry);
+    query.spatialRelationship = "intersects";
 
     return layer.queryFeatures(query)
       .then(function(response){
@@ -108,12 +136,21 @@ define([
             geometry: new Point(graphicJson.geometry)
           });
         });
-        return aggregatePoints;
+        return {
+          features: aggregatePoints,
+          stats: results.statsByField.count
+        };
       });
   }
 
-  function createLayer(features) {
+  function createLayer(params) {
+    var features = params.features;
+    var stats = params.stats;
     var resolutionKm = features[0].attributes.resolution;
+
+    var minStop = (stats.avg - stats.stddev*2) < stats.min ? stats.min : stats.avg - stats.stddev*2;
+    var maxStop = (stats.avg + stats.stddev*2) > stats.max ? stats.max : stats.avg + stats.stddev*2;
+    var avgStop = stats.avg;
 
     var gridLayer = new FeatureLayer({
       source: features,
@@ -176,8 +213,8 @@ define([
         type: "double"
       }],
       popupTemplate: {
-        title: "{count}",
-        content: "{ObjectID}, {count}"
+        title: "{count} earthquakes occurred in this bin",
+        // content: "{ObjectID}, {count}"
       },
       popupEnabled: true,
       hasZ: true,
@@ -207,18 +244,19 @@ define([
           },
           stops: [  // 0 2 10 25 30 50
             { value: 0, color: [254, 240, 217, 0] },
-            { value: 2, color: [254, 240, 217, 0.05]/*0.05, label: "< 2" */},
-            { value: 10, color: [253, 204, 138, 0.7]/*0.7*/, label: "< 10"  },
-            { value: 25, color: [252, 141, 89, 1], label: "20" },
-            { value: 35, color: [227, 74, 51, 1] },
-            { value: 50, color: [179, 0, 0, 1], label: "> 50" }
+            { value: minStop, color: [254, 240, 217, 0.05], label: "< " + Math.round(minStop)},
+            { value: avgStop - ((avgStop - minStop) * 0.5), color: [253, 204, 138, 0.7] },
+            { value: avgStop, color: [252, 141, 89, 1], label: Math.round(avgStop)},
+            { value: avgStop + ((maxStop - avgStop) * 0.5), color: [227, 74, 51, 1] },
+            { value: maxStop, color: [179, 0, 0, 1], label: "> " + Math.round(maxStop) }
           ]
         }]
       }
     });
 
     return {
-      gridLayer: gridLayer
+      gridLayer: gridLayer,
+      stats: stats
     }
 
   }
