@@ -4,6 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>Intro to SceneLayer - 4.5</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.5/dijit/themes/claro/claro.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/4.5/esri/themes/dark-blue/main.css">
+
   <style>
     html,
     body,
@@ -14,8 +18,20 @@
       width: 100%;
     }
 
+    #titleDiv {
+      padding: 5px;
+      position: absolute;
+      z-index: 2;
+      top: 0;
+      right: 0;
+      font-size: 20pt;
+      font-weight: bolder;
+      width: 100%;
+      height: 40px;
+      text-align: center;
+    }
+
     #filter-container {
-      background-color: white;
       padding: 5px;
       width: 220px;
     }
@@ -30,15 +46,22 @@
     }
 
     .widget-background{
-      background-color: white;
+      background-color: #242424;
       font-size: 12pt;
       padding: 8px;
     }
+
+    /* #esri_widgets_RendererSlider_0{
+      background-color: #242424;
+      color: white;
+    }
+
+    .esri-handle-label-span{
+      color: white;
+    } */
   </style>
 
-  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.5/esri/css/main.css">
-  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.5/dijit/themes/claro/claro.css">
-  <script src="https://jsdev.arcgis.com/4.5/"></script>
+  <script src="https://js.arcgis.com/4.5/"></script>
 
   <script>
     require([
@@ -50,6 +73,7 @@
       "esri/widgets/ColorSlider",
       "esri/widgets/LayerList",
       "esri/widgets/Home",
+      "esri/widgets/BasemapToggle",
       "esri/Graphic",
       "esri/layers/GroupLayer",
       "esri/layers/GraphicsLayer",
@@ -58,7 +82,7 @@
       "esri/core/lang",
       "dojo/domReady!"
     ], function(Map, SceneView, FeatureLayer, 
-      Expand, Legend, ColorSlider, LayerList, Home,
+      Expand, Legend, ColorSlider, LayerList, Home, BasemapToggle,
       Graphic, GroupLayer, GraphicsLayer, 
       colorRendererCreator, histogram, lang
     ) {
@@ -73,6 +97,8 @@
       var cylinderSymbolsUsed = false;
       var dataMinElem = document.getElementById("data-min");
       var dataMaxElem = document.getElementById("data-max");
+      var filterCheckbox = document.getElementById("filter-data-check");
+      var dataFilterContainer = document.getElementById("data-filter-container");
       var colorSlideEvent;
       var exaggeration = 500;
 
@@ -100,6 +126,9 @@
         container: "viewDiv",
         viewingMode: "local",
         map: map,
+        padding: {
+          top: 40
+        },
         camera: {
           position: {
             spatialReference: {
@@ -146,8 +175,8 @@
             },
             symbol: {
               type: "simple-line",
-              width: 3,
-              color: "orange"
+              width: 2,
+              color: "#69dcff"
             }
           }]
         });
@@ -175,7 +204,7 @@
               symbolLayers: [{
                 type: "text",
                 material: {
-                  color: "orange"
+                  color: "#69dcff"
                 },
                 size: 12
               }]
@@ -192,15 +221,15 @@
               symbolLayers: [{
                 type: "icon",
                 material: {
-                  color: "orange"
+                  color: "#69dcff"
                 },
                 resource: {
                   primitive: "cross"
                 },
                 size: 10,
                 outline: {
-                  color: "orange",
-                  size: 3
+                  color: "#69dcff",
+                  size: 2
                 }
               }]
             }
@@ -232,7 +261,7 @@
         var depthRuler = new GroupLayer({
           title: "Depth ruler",
           listMode: "hide-children",
-          layers: [ ruler, rulerTickLayer],
+          layers: [ ruler, rulerTickLayer ],
           visible: false
         });
 
@@ -253,21 +282,31 @@
             expression: "$feature.UnitTop" + "*" + exaggeration
           },
           unit: "meters"
-        },
-        definitionExpression: "UnitTop >= -300"
+        }
       });
       map.add(layer);
 
       view.then(function(){
         addDepthRuler(view, studyArea, depth);
         layer.then(function(){
-
+          layer.definitionExpression = depthFilter.value;
           layer.queryFeatureCount().then(function(r){
             console.log("count: ", r);
           });
 
           generateContinuousVisualization();
 
+          filterCheckbox.addEventListener("click", function(){
+            dataFilter.disabled = !filterCheckbox.checked;
+
+            if (dataFilter.disabled){
+              dataFilterContainer.style.color = "gray";
+            } else {
+              dataFilterContainer.style.color = null;
+            }
+
+            filterChange();
+          });
           depthFilter.addEventListener("change", filterChange);
           dataFilter.addEventListener("change", filterChange);
           dataFilter.addEventListener("input", function(event){
@@ -279,7 +318,7 @@
 
           function filterChange (evt){
             var depthExpression = depthFilter.value;
-            var dataExpression = colorFieldSelect.value + " <= " + dataFilter.value;
+            var dataExpression = filterCheckbox.checked ? colorFieldSelect.value + " <= " + dataFilter.value : null;
             // var expression = depthExpression;
 
             if(depthExpression){
@@ -314,6 +353,13 @@
       view.ui.add(new Home({
         view: view
       }), "top-left");
+      
+      // BasemapToggle
+
+      view.ui.add(new BasemapToggle({
+        view: view,
+        nextBasemap: "oceans"
+      }), "top-right");
 
       // LayerList
 
@@ -335,7 +381,7 @@
       layerList.on("trigger-action", function(event){
         if(event.action.id === "toggle-3d-cylinders"){
           cylinderSymbolsUsed = !cylinderSymbolsUsed;
-          generateContinuousVisualization();
+          changeEventListener();
         }
       });
 
@@ -427,7 +473,7 @@
         }
       });
 
-      function changeEventListener(event){
+      function changeEventListener(){
         if(colorFieldSelect.value === "Cluster37"){
           themeOptions.disabled = true;
           getEMUClusterVisualization();
@@ -523,7 +569,7 @@
             material: {
               color: color ? color : "white"
             },
-            size: type === "icon" ? 5 : null,
+            size: type === "icon" ? 7 : null,
             width: type === "object" ? 7000 : null,
             anchor: type === "object" ? "top" : null
           }]
@@ -588,7 +634,7 @@
             dataFilter.max = max + stddev;
             dataMaxElem.innerText = Math.round(max*100) / 100;
             dataFilter.value = max;
-            dataFilterValue.innerText = Math.round(max*100) / 100;
+            dataFilterValue.innerText = Math.round(dataFilter.value*100) / 100;
             dataFilter.step = stddev;
 
             return histogram({
@@ -614,6 +660,7 @@
 
               var colorSliderParent = document.getElementById("color-container");
               var colorSliderContainer = document.createElement("div");
+              colorSliderContainer.className = "esri-widget";
               colorSliderParent.appendChild(colorSliderContainer);
               colorSliderParams.container = colorSliderContainer;
 
@@ -664,7 +711,11 @@
 </head>
 
 <body class="claro">
-  <div id="viewDiv"></div>
+  <div id="viewDiv">
+    <div id="titleDiv" class="esri-widget">
+      Ecological Marine Units - Maldives
+    </div>
+  </div>
   <div id="color-container" class="widget-background">
     <h3></h3>
     Field: &nbsp;&nbsp;&nbsp;<select id="color-field-select" class="esri-widget">
@@ -687,18 +738,20 @@
     </select>
   </div>
   <div id="filter-container" class="esri-widget">
-    <div>
+    <div class="esri-widget">
       Depth: <select id="depth-filter" class="esri-widget">
         <option value="1=1">none</option>
-        <option value="UnitTop >= -300" selected>0 - 300m +</option>
-        <option value="UnitTop >= -1100 AND UnitTop <= -300">300m - 1100m</option>
-        <option value="UnitTop >= -2400 AND UnitTop <= -1100">1100m - 2400m</option>
-        <option value="UnitTop <= -2400">> 2400m</option>
+        <option value="UnitTop > -200" selected>0 - 200m +</option>
+        <option value="UnitTop >= -1000 AND UnitTop <= -200">200m - 1000m</option>
+        <option value="UnitTop >= -2000 AND UnitTop <= -1000">1000m - 2000m</option>
+        <option value="UnitTop >= -3000 AND UnitTop <= -2000">2000m - 3000m</option>
+        <option value="UnitTop <= -3000">> 3000m</option>
       </select>
   </div>
-  <div style="padding-top: 10px;">
+  <div id="data-filter-container" class="esri-widget" style="padding-top: 10px; color: gray;">
+    <input type="checkbox" id="filter-data-check"> filter by data values?<br>
     <span id="field-name"></span> values less than <span id="data-value"></span><br>
-    <span id="data-min">0</span><input type="range" id="data-filter" min="0" max="38" step="1" class="esri-widget"><span id="data-max">38</span>
+    <span id="data-min">0</span><input type="range" id="data-filter" min="0" max="38" step="1" class="esri-widget" disabled><span id="data-max">38</span>
   </div>
   </div>
 </html>
