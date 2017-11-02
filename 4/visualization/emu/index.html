@@ -68,6 +68,8 @@
       "esri/Map",
       "esri/views/SceneView",
       "esri/layers/FeatureLayer",
+      "esri/layers/ElevationLayer",
+      "esri/layers/BaseElevationLayer",
       "esri/widgets/Expand",
       "esri/widgets/Legend",
       "esri/widgets/ColorSlider",
@@ -77,15 +79,53 @@
       "esri/Graphic",
       "esri/layers/GroupLayer",
       "esri/layers/GraphicsLayer",
+      "esri/layers/graphics/controllers/SnapshotController",
       "esri/renderers/smartMapping/creators/color",
       "esri/renderers/smartMapping/statistics/histogram",
       "esri/core/lang",
       "dojo/domReady!"
-    ], function(Map, SceneView, FeatureLayer, 
+    ], function(Map, SceneView, FeatureLayer, ElevationLayer, BaseElevationLayer,
       Expand, Legend, ColorSlider, LayerList, Home, BasemapToggle,
-      Graphic, GroupLayer, GraphicsLayer, 
+      Graphic, GroupLayer, GraphicsLayer, SnapshotController,
       colorRendererCreator, histogram, lang
     ) {
+
+      SnapshotController.prototype._maxFeatures.point = 100000;
+
+       //////////////////////////////////////////////
+      //
+      //   Create a subclass of BaseElevationLayer
+      //
+      /////////////////////////////////////////////
+
+      var ExaggeratedElevationLayer = BaseElevationLayer.createSubclass({
+
+        properties: {
+          exaggeration: 100
+        },
+
+        load: function() {
+          this._elevation = new ElevationLayer({
+            portalItem: {
+              id: "0c69ba5a5d254118841d43f03aa3e97d"
+            }
+          });
+          this.addResolvingPromise(this._elevation.load());
+        },
+
+        fetchTile: function(level, row, col) {
+          return this._elevation.fetchTile(level, row, col)
+            .then(function(data) {
+
+              var exaggeration = this.exaggeration;
+              data.values.forEach(function(value, index, values) {
+                values[index] = value * exaggeration;
+              });
+
+              return data;
+            }.bind(this));
+        }
+      });
 
       var colorFieldSelect = document.getElementById("color-field-select");
       var themeOptions = document.getElementById("theme-options");
@@ -100,7 +140,7 @@
       var filterCheckbox = document.getElementById("filter-data-check");
       var dataFilterContainer = document.getElementById("data-filter-container");
       var colorSlideEvent;
-      var exaggeration = 500;
+      var exaggeration = 100;
 
       var studyArea = {
         spatialReference: {
@@ -115,19 +155,30 @@
 
       var depth = -5000 * exaggeration;
 
-      // Create Map
       var map = new Map({
         basemap: "satellite",
-        ground: "world-elevation"
+        ground: {
+          layers: [
+            new ExaggeratedElevationLayer({
+              exaggeration: exaggeration
+            })
+          ]
+        }
       });
 
-      // Create the SceneView
       view = new SceneView({
         container: "viewDiv",
         viewingMode: "local",
         map: map,
         padding: {
           top: 40
+        },
+        popup: {
+          dockEnabled: true,
+          dockOptions: {
+            breakpoint: false,
+            position: "top-right"
+          }
         },
         camera: {
           position: {
@@ -274,10 +325,55 @@
         portalItem: {
           id: "cfbc577e961342688b6c5dc6d246c58f"
         },
+        popupTemplate: {
+          title: "{NameEMU}",
+          content: [{
+            type: "fields",
+            fieldInfos: [{
+              fieldName: "temp",
+              label: "Temperature (F)"
+            }, {
+              fieldName: "salinity",
+              label: "Salinity"
+            }, {
+              fieldName: "appO2ut",
+              label: "Apparent Oxygen"
+            }, {
+              fieldName: "dissO2",
+              label: "Dissolved Oxygen"
+            }, {
+              fieldName: "nitrate",
+              label: "Nitrate"
+            }, {
+              fieldName: "percO2sat",
+              label: "% Saturated Oxygen"
+            }, {
+              fieldName: "phosphate",
+              label: "Phosphate"
+            }, {
+              fieldName: "silicate",
+              label: "Silicate"
+            }, {
+              fieldName: "Cluster37",
+              label: "EMU Cluster"
+            }, {
+              fieldName: "ChlorA_12yrAvg",
+              label: "Chlor A (12 yr avg)"
+            }, {
+              fieldName: "expression/depth",
+              label: "Depth profile"
+            }]
+          }],
+          expressionInfos: [{
+            name: "depth",
+            title: "Depth",
+            expression: "Text(Abs($feature.UnitTop), '#,###') + 'm - ' + Text(Abs($feature.UnitBottom), '#,###') + 'm'"
+          }]
+        },
         outFields: ["*"],
         // screenSizePerspectiveEnabled: false,
         elevationInfo: {
-          mode: "relative-to-ground",
+          mode: "absolute-height",
           featureExpressionInfo: {
             expression: "$feature.UnitTop" + "*" + exaggeration
           },
@@ -359,7 +455,7 @@
       view.ui.add(new BasemapToggle({
         view: view,
         nextBasemap: "oceans"
-      }), "top-right");
+      }), "bottom-right");
 
       // LayerList
 
@@ -523,7 +619,7 @@
           }, {
             value: 18, 
             label: "EMU 18",
-            symbol: createSymbol([235,150,204], symbolType)
+            symbol: createSymbol([188,90,152], symbolType)
           }, {
             value: 36, 
             label: "EMU 36",
@@ -552,10 +648,12 @@
       }
 
       function destroyColorSlider(){
-        colorSlider.destroy();
-        colorSlideChangeEvent.remove();
-        colorSlideSlideEvent.remove();
-        colorSlider = null;
+        if(colorSlider){
+          colorSlider.destroy();
+          colorSlideChangeEvent.remove();
+          colorSlideSlideEvent.remove();
+          colorSlider = null;
+        }
       }
 
       function createSymbol(color, type){
@@ -740,8 +838,8 @@
   <div id="filter-container" class="esri-widget">
     <div class="esri-widget">
       Depth: <select id="depth-filter" class="esri-widget">
-        <option value="1=1">none</option>
-        <option value="UnitTop > -200" selected>0 - 200m +</option>
+        <option value="1=1" selected>none</option>
+        <option value="UnitTop > -200">0 - 200m +</option>
         <option value="UnitTop >= -1000 AND UnitTop <= -200">200m - 1000m</option>
         <option value="UnitTop >= -2000 AND UnitTop <= -1000">1000m - 2000m</option>
         <option value="UnitTop >= -3000 AND UnitTop <= -2000">2000m - 3000m</option>
