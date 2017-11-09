@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>Intro to SceneLayer - 4.5</title>
-
-  <link rel="stylesheet" href="https://js.arcgis.com/4.5/dijit/themes/claro/claro.css">
+  <title>3D EMU Cluster viewer</title>
+  
   <link rel="stylesheet" href="https://js.arcgis.com/4.5/esri/themes/dark-blue/main.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/4.5/dijit/themes/claro/claro.css">
 
   <style>
     html,
@@ -51,15 +51,29 @@
       padding: 8px;
     }
 
-    /* #esri_widgets_RendererSlider_0{
+    #esri_widgets_RendererSlider_0{
       background-color: #242424;
       color: white;
     }
 
     .esri-handle-label-span{
       color: white;
-    } */
+    }
+    .esri-renderer-slider{
+      background-color: #242424;
+    }
+    .esri-renderer-slider .esri-top-label-node, .esri-renderer-slider .esri-bottom-label-node, .esri-renderer-slider .esri-handle-label{
+      color: white;
+    }
   </style>
+
+  <script>
+    var dojoConfig = {
+      has: {
+        "esri-promise-compatibility": 1
+      }
+    };
+  </script>
 
   <script src="https://js.arcgis.com/4.5/"></script>
 
@@ -131,6 +145,7 @@
       var themeOptions = document.getElementById("theme-options");
       var depthFilter = document.getElementById("depth-filter");
       var dataFilter = document.getElementById("data-filter");
+      var emuFilter = document.getElementById("emu-filter");
       var dataFilterValue = document.getElementById("data-value");
       var fieldNameValue = document.getElementById("field-name");
       var colorSlider = null;
@@ -153,7 +168,7 @@
         ymax: 907517
       };
 
-      var depth = -5000 * exaggeration;
+      var depth = -4000 * exaggeration;
 
       var map = new Map({
         basemap: "satellite",
@@ -371,7 +386,7 @@
           }]
         },
         outFields: ["*"],
-        // screenSizePerspectiveEnabled: false,
+        screenSizePerspectiveEnabled: false,
         elevationInfo: {
           mode: "absolute-height",
           featureExpressionInfo: {
@@ -385,10 +400,12 @@
       view.then(function(){
         addDepthRuler(view, studyArea, depth);
         layer.then(function(){
-          layer.definitionExpression = depthFilter.value;
-          layer.queryFeatureCount().then(function(r){
-            console.log("count: ", r);
-          });
+          // layer.definitionExpression = depthFilter.value;
+          // layer.queryFeatureCount().then(function(r){
+          //   console.log("count: ", r);
+          // });
+
+          filterChange();
 
           generateContinuousVisualization();
 
@@ -405,6 +422,7 @@
           });
           depthFilter.addEventListener("change", filterChange);
           dataFilter.addEventListener("change", filterChange);
+          emuFilter.addEventListener("change", filterChange);
           dataFilter.addEventListener("input", function(event){
             dataFilterValue.innerText = Math.round(event.target.value*100) / 100;
           });
@@ -412,21 +430,12 @@
             generateContinuousVisualization();
           })
 
-          function filterChange (evt){
+          function filterChange (){
             var depthExpression = depthFilter.value;
-            var dataExpression = filterCheckbox.checked ? colorFieldSelect.value + " <= " + dataFilter.value : null;
-            // var expression = depthExpression;
+            var emuExpression = emuFilter.value;
+            var dataExpression = filterCheckbox.checked ? colorFieldSelect.value + " <= " + dataFilter.value : "1=1";
 
-            if(depthExpression){
-              if(dataExpression){
-                expression = "(" + depthExpression + ") AND (" + dataExpression + ")";
-              } else {
-                expression = depthExpression;
-              }
-            } else {
-              expression = dataExpression;
-            }
-
+            var expression = "(" + depthExpression + ") AND (" + dataExpression + ") AND (" + emuExpression + ")";
             layer.definitionExpression = expression;
           }
 
@@ -667,7 +676,7 @@
             material: {
               color: color ? color : "white"
             },
-            size: type === "icon" ? 7 : null,
+            size: type === "icon" ? 9 : null,
             width: type === "object" ? 21000 : null,
             anchor: type === "object" ? "top" : null
           }]
@@ -836,6 +845,19 @@
     </select>
   </div>
   <div id="filter-container" class="esri-widget">
+  <div class="esri-widget">
+      EMU Cluster: <select id="emu-filter" class="esri-widget">
+        <option value="1=1">none</option>
+        <option value="Cluster37 = 10" selected>EMU 10</option>
+        <option value="Cluster37 = 13">EMU 13</option>
+        <option value="Cluster37 = 14">EMU 14</option>
+        <option value="Cluster37 = 18">EMU 18</option>
+        <option value="Cluster37 = 24">EMU 24</option>
+        <option value="Cluster37 = 26">EMU 26</option>
+        <option value="Cluster37 = 33">EMU 33</option>
+        <option value="Cluster37 = 36">EMU 36</option>
+      </select>
+    </div>
     <div class="esri-widget">
       Depth: <select id="depth-filter" class="esri-widget">
         <option value="1=1" selected>none</option>
@@ -845,11 +867,11 @@
         <option value="UnitTop >= -3000 AND UnitTop <= -2000">2000m - 3000m</option>
         <option value="UnitTop <= -3000">> 3000m</option>
       </select>
-  </div>
-  <div id="data-filter-container" class="esri-widget" style="padding-top: 10px; color: gray;">
-    <input type="checkbox" id="filter-data-check"> filter by data values?<br>
-    <span id="field-name"></span> values less than <span id="data-value"></span><br>
-    <span id="data-min">0</span><input type="range" id="data-filter" min="0" max="38" step="1" class="esri-widget" disabled><span id="data-max">38</span>
-  </div>
+    </div>
+    <div id="data-filter-container" class="esri-widget" style="padding-top: 10px; color: gray;">
+      <input type="checkbox" id="filter-data-check"> filter by data values?<br>
+      <span id="field-name"></span> values less than <span id="data-value"></span><br>
+      <span id="data-min">0</span><input type="range" id="data-filter" min="0" max="38" step="1" class="esri-widget" disabled><span id="data-max">38</span>
+    </div>
   </div>
 </html>
