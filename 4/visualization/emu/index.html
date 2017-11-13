@@ -51,6 +51,15 @@
       padding: 8px;
     }
 
+    #display-mean{
+      color: #f4f4f4;
+      /* font-weight: 600; */
+      font-size: 36px;
+      text-align: right;
+      visibility: hidden;
+      background-color: rgba(36,36,36,0.2);
+    }
+
     #esri_widgets_RendererSlider_0{
       background-color: #242424;
       color: white;
@@ -148,6 +157,10 @@
       var emuFilter = document.getElementById("emu-filter");
       var dataFilterValue = document.getElementById("data-value");
       var fieldNameValue = document.getElementById("field-name");
+      var displayMean = document.getElementById("display-mean");
+      var displayMeanValue = document.getElementById("display-mean-value");
+      var displayVariable = document.getElementById("display-variable");
+      var displayUnit = document.getElementById("display-unit");
       var colorSlider = null;
       var cylinderSymbolsUsed = false;
       var dataMinElem = document.getElementById("data-min");
@@ -453,6 +466,10 @@
       //
       //////////////////////////////////////
 
+      // Display mean
+
+      view.ui.add(displayMean, "top-right");
+
       // Home
 
       view.ui.add(new Home({
@@ -585,6 +602,14 @@
           destroyColorSlider();
         } else {
           themeOptions.disabled = false;
+          displayMean.style.visibility = themeOptions.value === "centered-on" ? "visible" : "hidden";
+          displayVariable.innerHTML = colorFieldSelect.selectedOptions[0].text;
+
+          if(colorFieldSelect.value === "salinity"){
+            displayUnit.innerHTML = "";
+          } else {
+            displayUnit.innerHTML = colorFieldSelect.value === "temp" ? " °C" : " µmol/l";
+          }
           generateContinuousVisualization();
         }
       }
@@ -676,8 +701,8 @@
             material: {
               color: color ? color : "white"
             },
-            size: type === "icon" ? 8 : null,
-            width: type === "object" ? 21000 : null,
+            size: type === "icon" ? 6 : null,
+            width: type === "object" ? 27000 : null,
             anchor: type === "object" ? "top" : null
           }]
         };
@@ -688,7 +713,7 @@
 
         var options = {
           layer: layer,
-          basemap: map.basemap,
+          basemap: themeOptions.value === "high-to-low" ? map.basemap : "dark-gray",
           field: colorFieldSelect.value,
           view: view,
           theme: themeOptions.value,
@@ -795,6 +820,7 @@
                   // renderer.visualVariables.pop();
                   renderer.visualVariables.push(lang.clone(colorSlider.visualVariable));
                 }
+                displayMeanValue.innerHTML = Math.round(colorSlider.visualVariable.stops[2].value*100)/100;
                 layer.renderer = renderer;
               });
 
@@ -804,6 +830,7 @@
                   return;
                 }
                 renderer.visualVariables = [ lang.clone(colorSlider.visualVariable) ];
+                displayMeanValue.innerHTML = Math.round(colorSlider.visualVariable.stops[2].value*100)/100;
                 layer.renderer = renderer;
               });
 
@@ -824,7 +851,6 @@
     </div>
   </div>
   <div id="color-container" class="widget-background">
-    <h3></h3>
     Field: &nbsp;&nbsp;&nbsp;<select id="color-field-select" class="esri-widget">
       <option value="Cluster37">EMU Cluster</option>
       <option value="temp">Temperature</option>
@@ -873,5 +899,9 @@
       <span id="field-name"></span> values less than <span id="data-value"></span><br>
       <span id="data-min">0</span><input type="range" id="data-filter" min="0" max="38" step="1" class="esri-widget" disabled><span id="data-max">38</span>
     </div>
+  </div>
+  <div id="display-mean" class="esri-widget">
+    <span id="display-variable"></span><br>
+    <span id="display-mean-value"></span><span id="display-unit"></span>
   </div>
 </html>
