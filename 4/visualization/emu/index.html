@@ -89,6 +89,7 @@
   <script>
     require([
       "esri/Map",
+      "esri/Camera",
       "esri/views/SceneView",
       "esri/layers/FeatureLayer",
       "esri/layers/ElevationLayer",
@@ -107,11 +108,79 @@
       "esri/renderers/smartMapping/statistics/histogram",
       "esri/core/lang",
       "dojo/domReady!"
-    ], function(Map, SceneView, FeatureLayer, ElevationLayer, BaseElevationLayer,
+    ], function(Map, Camera, SceneView, FeatureLayer, ElevationLayer, BaseElevationLayer,
       Expand, Legend, ColorSlider, LayerList, Home, BasemapToggle,
       Graphic, GroupLayer, GraphicsLayer, SnapshotController,
       colorRendererCreator, histogram, lang
     ) {
+
+      cameras = [
+        new Camera({
+          "position": {
+            "x": 8850935.645084891,
+            "y": -921808.3183676039,
+            "z": 160543.9681539568,
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            }
+          },
+          "heading": 330.5273575155239,
+          "tilt": 73.04547326633931
+        }),
+        new Camera({
+          "position": {
+            "x": 7075662.431307213,
+            "y": -545287.4081817305,
+            "z": 111211.68987328262,
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            }
+          },
+          "heading": 49.39331284529598,
+          "tilt": 73.44244171562167
+        }),
+        new Camera({
+          "position": {
+            "x": 7457802.314663684,
+            "y": 1960883.931150024,
+            "z": 322974.3554561713,
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            }
+          },
+          "heading": 154.95236074822157,
+          "tilt": 69.07578877351612
+        }),
+        new Camera({
+          "position": {
+            "x": 9264486.06881108,
+            "y": 1295052.9606176852,
+            "z": 580613.4903679888,
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            }
+          },
+          "heading": 233.54868888028503,
+          "tilt": 58.15915641825212
+        }),
+        new Camera({
+          "position": {
+            "x": 9666069.505875772,
+            "y": 99896.44748392468,
+            "z": 79413.60489667486,
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            }
+          },
+          "heading": 281.5423300724199,
+          "tilt": 78.20606310700948
+        })
+      ];
 
       SnapshotController.prototype._maxFeatures.point = 100000;
 
@@ -413,13 +482,8 @@
       view.then(function(){
         addDepthRuler(view, studyArea, depth);
         layer.then(function(){
-          // layer.definitionExpression = depthFilter.value;
-          // layer.queryFeatureCount().then(function(r){
-          //   console.log("count: ", r);
-          // });
 
           filterChange();
-
           generateContinuousVisualization();
 
           filterCheckbox.addEventListener("click", function(){
@@ -455,7 +519,6 @@
           function definitionExpressionHasValue(expression, value){
             return expression.indexOf(value) > -1;
           }
-
 
         });
       });
@@ -510,7 +573,8 @@
       var layerListExpand = new Expand({
         view: view,
         content: layerList.container,
-        expandIconClass: "esri-icon-layer-list"
+        expandIconClass: "esri-icon-layer-list",
+        group: "top-left"
       });
       view.ui.add(layerListExpand, "top-left");
 
@@ -527,7 +591,8 @@
       var legendExpand = new Expand({
         view: view,
         content: legend.container,
-        expandIconClass: "esri-icon-key"
+        expandIconClass: "esri-icon-key",
+        group: "top-left"
       });
       view.ui.add(legendExpand, "top-left");
 
@@ -536,7 +601,8 @@
       var colorSliderExpand = new Expand({
         view: view,
         content: document.getElementById("color-container"),
-        expandIconClass: "esri-icon-chart"
+        expandIconClass: "esri-icon-chart",
+        group: "top-left"
       });
       view.ui.add(colorSliderExpand, "top-left");
 
@@ -545,7 +611,8 @@
       var filtersExpand = new Expand({
         view: view,
         content: document.getElementById("filter-container"),
-        expandIconClass: "esri-icon-filter"
+        expandIconClass: "esri-icon-filter",
+        group: "top-left"
       });
       view.ui.add(filtersExpand, "top-left");
 
@@ -838,6 +905,17 @@
               colorSlider.set(colorSliderParams);
             }
           });
+      }
+
+      rotate = function(cams, index){
+        var i = index ? index : 0;
+        if (i === cams.length){
+          view.goTo(cams[0], { duration: 5000, easing: "ease-in-out" })
+          return;
+        }
+        return view.goTo(cams[i], { duration: 5000, easing: "ease-in-out" }).then(function(){
+          return rotate(cams, i+1);
+        });
       }
 
     });
