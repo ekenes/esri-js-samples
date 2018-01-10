@@ -20,7 +20,7 @@ define([
         id: portalItemId
       },
       outFields: ["*"],
-      definitionExpression: "GENERATION <= 1"
+      definitionExpression: "GENERATION <= 2"
     });
   }
 

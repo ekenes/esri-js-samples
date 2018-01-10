@@ -18,6 +18,9 @@
       color: rgba(255,255,255,0.7);
       font-weight: bolder;
     }
+    #display-message {
+
+    }
     #start-button {
       font-size: 18pt;
       color: white;
@@ -64,7 +67,7 @@
       var portalItemId = "ee76f1b63753426891255cc406684dc4";
 
       var timelineManager = {
-        year: 1950,
+        year: 1944,
         sortedFeatures: null,
         happened: null,
         sortedByPerson: {}
@@ -92,6 +95,8 @@
 
       view.then(function(){
         return GraphicsFeatureLayer.getLayer(portalItemId);
+      }, function(e){
+        console.error("wut: ", e);
       }).then(function(response){
 
         var features = response.features;
@@ -132,6 +137,7 @@
 
       function playTimeline(params){
 
+      //  var startYear = params.startYear;
         var yearInterval = setInterval(function(){
           if(!timelineManager.sortedFeatures.length){
             console.log("no more features in queue");
@@ -158,7 +164,7 @@
           }
 
           // Account for simultaneous migrations
-        }, 2500);
+        }, 3000);
       }
 
 
@@ -174,7 +180,7 @@
             startPoint: previousFeature,
             endPoint: currentFeature,
             view: view,
-            lineEffect: "trail",  // trail, retain, none
+            lineEffect: "none",  // trail, retain, none
             animateEndPoint: true,
             offset: offset
           }).then(function(){
@@ -233,6 +239,7 @@
 <body>
   <div id="viewDiv"></div>
   <div id="display-year"></div>
+  <div id="display-message"></div>
   <div id="start-button">Play timeline animation</div>
 </body>
 </html>
