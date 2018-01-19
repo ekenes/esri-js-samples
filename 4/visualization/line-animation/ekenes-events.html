@@ -94,7 +94,7 @@
       view.ui.add("start-button", "bottom-left");
 
       view.then(function(){
-        return GraphicsFeatureLayer.getLayer(portalItemId);
+        return GraphicsFeatureLayer.getEventsLayer(portalItemId);
       }, function(e){
         console.error("wut: ", e);
       }).then(function(response){
