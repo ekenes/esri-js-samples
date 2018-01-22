@@ -17,21 +17,24 @@ define([
    * Point graphic.
    * 
    * @param {esri/Graphic[]} features - Point features.
-   * @param {string} [weightField] - The name of a positive numeric field for which
+   * @param {boolean} [weightByDate] - The name of a positive numeric field for which
    *   to weight the geographic mean center.
    * @param {string[]} [dimensionFields] - The names of numeric fields to average in the 
    *   resulting feature.
+   * @param {number} [yearsInFuture] - The number of years in the future if all else remains the same.
+   *   Use this param for predicting future 
    * 
    * @return {esri/Graphic} A graphic whose geometry represents the geographic mean center
    *   of the input points.
    */
-   var geographicMeanCenter = function (features, weightField, dimensionFields){
+   var geographicMeanCenter = function (features, weightByDate, dimensionFields, yearsInFuture){
     let xTotal = 0;
     let yTotal = 0;
     let numPoints = features.length;
     let weightedDenominator = numPoints;
     let sr = features[0].geometry.spatialReference.clone();
     let dimensionFieldValues = {};
+    let yearsFuture = yearsInFuture ? yearsInFuture : 0;
 
     if(dimensionFields){
       dimensionFields.forEach( (field, i) => {
@@ -43,7 +46,18 @@ define([
     
     features.forEach(f => {
       let geometry = f.geometry;
-      let weight = f.attributes[weightField] ? f.attributes[weightField] : 1;
+      let weight = 1;
+
+      if(weightByDate){
+        let start = f.attributes.DATE;
+        let end = f.attributes.END_DATE;
+        if(start && end){
+          weight = end > start ? getDays(end - start) : getDays((Date.now() + (yearsFuture * 31536000000)) - start);
+        } 
+        // else {
+        //   weight = start && !end ? getDays(Date.now() - start) : 1;
+        // }
+      }
       xTotal += (geometry.x * weight);
       yTotal += (geometry.y * weight);
       weightedDenominator += weight > 1 ? weight : 0;
@@ -82,6 +96,10 @@ define([
     gmcPoint.attributes["avg_dist_points_gmc"] = Math.round(totalDistanceToGMC / numPoints);
 
     return gmcPoint;
+  }
+
+  function getDays(milliseconds){
+    return milliseconds / 1000 / 60 / 60 / 24;
   }
 
   /**

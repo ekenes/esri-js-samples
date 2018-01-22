@@ -91,7 +91,8 @@ define([
         objectIdField: lang.clone(layer.objectIdField),
         geometryType: lang.clone(layer.geometryType),
         spatialReference: layer.spatialReference.clone(),
-        renderer: renderer
+        renderer: renderer,
+        title: "Significant Events"
       });
 
       return graphicsFeatureLayer.load()
@@ -118,7 +119,7 @@ define([
         var gmcFeatures = ids.map( (id, i) => {
           var events = filterUtils.filterEventsForPerson(features, id);
 
-          var gmc = spatialStats.geographicMeanCenter(events);
+          var gmc = spatialStats.geographicMeanCenter(events, true);
 
           var birthEvent = filterUtils.getBirthEvents(events)[0];
           var marriageEvent = filterUtils.getMarriageEvents(events)[0];
@@ -143,6 +144,7 @@ define([
         });
 
         var layer = new FeatureLayer({
+          title: "GMC by person",
           source: gmcFeatures,
           fields: [{
             name: "OBJECTID",

@@ -40,6 +40,7 @@
       "esri/symbols/SimpleLineSymbol",
       "esri/symbols/SimpleMarkerSymbol",
       "esri/Graphic",
+      "esri/widgets/LayerList",
       "modules/lineAnimation",
       "modules/GraphicsFeatureLayer",
       "modules/spatialStats",
@@ -48,7 +49,7 @@
       "dojo/domReady!"
     ], function(Map, MapView, Collection,FeatureLayer, GraphicsLayer, Point, Polyline, ge,
                 SimpleRenderer, SimpleLineSymbol, SimpleMarkerSymbol,
-                Graphic, lineAnimation, GraphicsFeatureLayer, 
+                Graphic, LayerList, lineAnimation, GraphicsFeatureLayer, 
                 spatialStats, filterUtils, dom, on) {
 
       var portalItemId = "ee76f1b63753426891255cc406684dc4";
@@ -64,6 +65,8 @@
         zoom: 3,
         center: [-45, 55]
       });
+
+      view.ui.add(new LayerList({ view: view }), "top-right");
 
       view.then(function(){
         return GraphicsFeatureLayer.getEventsLayer(portalItemId);
