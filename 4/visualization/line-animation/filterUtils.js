@@ -12,6 +12,13 @@ define([
   lang
 ){
 
+  var filterPeopleByGeneration = function(features, generation){
+    return features.filter(f => { return f.attributes.GENERATION === generation});
+  }
+
+  var filterPeopleBySide = function(features, side){
+    return features.filter(f => { return f.attributes.GEN_0_SIDE === side});
+  }
   
   var filterEventsForPerson = function (features, id){
     return features.filter(f => { return f.attributes.ID === id });
@@ -40,6 +47,8 @@ define([
 
 
   return {
+    filterPeopleByGeneration: filterPeopleByGeneration,
+    filterPeopleBySide: filterPeopleBySide,
     filterEventsForPerson: filterEventsForPerson,
     getBirthEvents: getBirthEvents,
     getMarriageEvents: getMarriageEvents,

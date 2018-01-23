@@ -38,7 +38,7 @@ define([
 
     if(dimensionFields){
       dimensionFields.forEach( (field, i) => {
-        if(features[0].attributes[field] === "number"){
+        if(typeof features[0].attributes[field] === "number"){
           dimensionFieldValues[field] = 0;
         }
       });
@@ -69,6 +69,7 @@ define([
 
     for (let name in dimensionFieldValues){
       dimensionFieldValues["avg_"+name] = dimensionFieldValues[name] / numPoints;
+      delete dimensionFieldValues[name];
     }
 
     let avgX = xTotal / weightedDenominator;

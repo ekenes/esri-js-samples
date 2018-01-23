@@ -66,6 +66,8 @@
         center: [-45, 55]
       });
 
+      var eventsFeatures = [];
+
       view.ui.add(new LayerList({ view: view }), "top-right");
 
       view.then(function(){
@@ -75,6 +77,7 @@
       }).then(function(response){
 
         var features = response.features;
+        eventsFeatures = features;
         var eventsLayer = response.layer;
         eventsLayer.source = features;
         eventsLayer.renderer = {
@@ -91,11 +94,20 @@
         };
         map.add(eventsLayer);
 
-        return GraphicsFeatureLayer.getPeopleLayer(null, features);
+        return GraphicsFeatureLayer.getPeopleLayer(features);
 
       }).then(function(response){
-        console.log(response);
-        map.add(response.layer);
+        console.log("people response", response);
+
+        var peopleGMCLayer = response.layer;
+
+        var genResponse = GraphicsFeatureLayer.getGenerationsLayer(response.features, true);
+        var genGMCLayer = genResponse.layer;
+        console.log("gen response", genResponse);
+
+        map.addMany([ peopleGMCLayer, genGMCLayer ]);
+
+
       }).otherwise(e => { console.log(e) });
 
 

@@ -109,9 +109,161 @@ define([
 
   };
 
-  var getGenerationsLayer = function(){}
+  var getGenerationsLayer = function(features, splitBySide){
 
-  var getPeopleLayer = function(layer, features){
+    let fieldsToSummarize = [
+      "DIST_BIRTH_DEATH",
+      "DIST_BIRTH_MARRIAGE",
+      "numPoints"
+    ];
+
+    let gmcFeatures = [];
+    // gmcFeatures.push(filterUtils.filterPeopleByGeneration(features, 0)[0]);
+    
+    let objId = 0;
+
+    for(let i = 1; i <= 6; i++){
+
+      let generationFeatures = [];
+
+      if(i === 1){
+        let gen0 = filterUtils.filterPeopleByGeneration(features, 0);
+        let gen1 = filterUtils.filterPeopleByGeneration(features, 1);
+        generationFeatures = gen0.concat(gen1);
+      } else {
+        generationFeatures = filterUtils.filterPeopleByGeneration(features, i);
+      }
+      
+      if(!splitBySide || i === 1){
+        let gmc = spatialStats.geographicMeanCenter(generationFeatures, false, fieldsToSummarize);
+        gmc.attributes.OBJECTID = objId++;
+        gmc.attributes.GENERATION = i;
+        gmcFeatures.push(gmc);
+      } else {
+        let maternalFeatures = filterUtils.filterPeopleBySide(generationFeatures, "m");
+        let gmcM = spatialStats.geographicMeanCenter(maternalFeatures, false, fieldsToSummarize);
+        gmcM.attributes.OBJECTID = objId++;
+        gmcM.attributes.GENERATION = i;
+        gmcM.attributes.GEN_0_SIDE = "m";
+        gmcFeatures.push(gmcM);
+
+        let paternalFeatures = filterUtils.filterPeopleBySide(generationFeatures, "p");
+        let gmcP = spatialStats.geographicMeanCenter(paternalFeatures, false, fieldsToSummarize);
+        gmcP.attributes.OBJECTID = objId++;
+        gmcP.attributes.GENERATION = i;
+        gmcP.attributes.GEN_0_SIDE = "p";
+        gmcFeatures.push(gmcP);
+      }
+    }
+
+    const expressionInfos = [{
+      name: "title",
+      title: "Generation",
+      expression: `
+        var side = IIF(IsEmpty($feature.GEN_0_SIDE), "", $feature.GEN_0_SIDE);
+        var gen = $feature.GENERATION;
+        var finalDigit = Number(Right(gen, 1));
+        var genSuffix = WHEN(
+          finalDigit == 1, 'st',
+          finalDigit == 2, 'nd',
+          finalDigit == 3, 'rd',
+          'th'
+        );
+        gen + genSuffix + ' generation ' + WHEN(side == 'm', 'maternal', side == 'p', 'paternal', '');
+      `
+    }]
+
+    let layer = new FeatureLayer({
+      title: "GMC by generation",
+      source: gmcFeatures,
+      fields: [{
+        name: "OBJECTID",
+        alias: "OBJECTID",
+        type: "oid"
+      }, {
+        name: "GENERATION",
+        alias: "GENERATION",
+        type: "number"
+      }, {
+        name: "GEN_0_SIDE",
+        alias: "Side of generation 0's family",
+        type: "string"
+      }, {
+        name: "DIST_BIRTH_DEATH",
+        alias: "DIST_BIRTH_DEATH",
+        type: "number"
+      }, {
+        name: "DIST_BIRTH_MARRIAGE",
+        alias: "DIST_BIRTH_MARRIAGE",
+        type: "number"
+      }, {
+        name: "avg_dist_points_gmc",
+        alias: "avg_dist_points_gmc",
+        type: "number"
+      }, {
+        name: "avg_DIST_BIRTH_DEATH",
+        alias: "avg_DIST_BIRTH_DEATH",
+        type: "number"
+      }, {
+        name: "avg_DIST_BIRTH_MARRIAGE",
+        alias: "avg_DIST_BIRTH_MARRIAGE",
+        type: "number"
+      }, {
+        name: "avg_numPoints",
+        alias: "avg_numPoints",
+        type: "number"
+      }],
+      objectIdField: "OBJECTID",
+      geometryType: "point",
+      spatialReference: eventsLayer.spatialReference.clone(),
+      renderer: {
+        type: "simple",
+        symbol: {
+          type: "simple-marker",
+          color: [0,255,0],
+          size: 10,
+          outline: {
+            width: 1,
+            color: [0,255,0,0.5]
+          }
+        }
+      },
+      popupTemplate: {
+        title: "{expression/title}",
+        content: "birth to death: {avg_DIST_BIRTH_DEATH}; birth to marriage: {avg_DIST_BIRTH_MARRIAGE}",
+        expressionInfos: expressionInfos
+        // content: [{
+        //   type: "fields",
+        //   fieldInfos: [{
+        //     fieldName: "GENERATION",
+        //     // label: ""
+        //   }, {
+        //     fieldName: "GEN_0_SIDE",
+        //     // label: ""
+        //   }, {
+        //     fieldName: "MOTHER",
+        //     // label: ""
+        //   }, {
+        //     fieldName: "FATHER",
+        //     // label: ""
+        //   }, {
+        //     fieldName: "DIST_BIRTH_DEATH",
+        //     // label: ""
+        //   }, {
+        //     fieldName: "DIST_BIRTH_MARRIAGE",
+        //     // label: ""
+        //   }]
+        // }]
+      }
+    });
+    
+    return {
+      layer: layer,
+      features: gmcFeatures
+    }
+  }
+
+  var getPeopleLayer = function(features){
     return filterUtils.fetchUniqueValues(eventsLayer, "ID")
       .then(function(ids){
         console.log(ids);
@@ -229,10 +381,11 @@ define([
             //   }]
             // }]
           }
-        })
+        });
 
         return {
-          layer: layer
+          layer: layer,
+          features: gmcFeatures
         };
       });
   }
