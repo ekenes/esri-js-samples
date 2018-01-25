@@ -66,6 +66,8 @@
         center: [-45, 55]
       });
 
+      var pointerMove, pointerClick;
+
       var eventsFeatures = [];
 
       view.ui.add(new LayerList({ view: view }), "top-right");
@@ -100,12 +102,51 @@
         console.log("people response", response);
 
         var peopleGMCLayer = response.layer;
+        var gmcPeopleFeatures = response.features;
 
         var genResponse = GraphicsFeatureLayer.getGenerationsLayer(response.features, true);
         var genGMCLayer = genResponse.layer;
         console.log("gen response", genResponse);
 
         map.addMany([ peopleGMCLayer, genGMCLayer ]);
+
+        pointerMove = view.on("click", function(e){
+          e.stopPropagation();
+          view.hitTest(e).then(function(r){
+            view.graphics.removeAll();
+            // console.log(r);
+            let connectorInfo;
+            let results = r && r.results;
+
+            let personGMCResult = results.filter(r => {
+              let isGMC = r.graphic.attributes.isGMC;
+              let id = r.graphic.attributes.ID;
+              return isGMC && id;
+            })[0];
+
+            if(personGMCResult && personGMCResult.graphic){
+              var personGMC = personGMCResult.graphic;
+              connectorInfo = personGMC ? GraphicsFeatureLayer.connectPersonGMCtoEvents(personGMC) : null;
+              view.graphics.addMany(connectorInfo.connectors);
+              view.graphics.addMany(connectorInfo.events);
+            }
+
+            let genGMCresult = results.filter(r => {
+              let isGMC = r.graphic.attributes.isGMC;
+              let id = r.graphic.attributes.ID;
+              return isGMC && !id;
+            })[0];
+
+            if(genGMCresult && genGMCresult.graphic){
+              var genGMC = genGMCresult.graphic;
+              connectorInfo = genGMC ? GraphicsFeatureLayer.connectGenerationToPeople(genGMC, gmcPeopleFeatures, true) : null;
+              view.graphics.addMany(connectorInfo.connectors);
+              view.graphics.addMany(connectorInfo.people);
+            }
+
+            console.log('connector info: ', connectorInfo);
+          });
+        });
 
 
       }).otherwise(e => { console.log(e) });

@@ -1,12 +1,15 @@
 define([
   "esri/layers/FeatureLayer",
   "esri/symbols/SimpleMarkerSymbol",
+  "esri/Graphic",
+  "esri/geometry/Polyline",
+  "esri/geometry/geometryEngine",
 
   "modules/spatialStats",
   "modules/filterUtils",
   "esri/core/lang",
 ], function(
-  FeatureLayer, SimpleMarkerSymbol, spatialStats, filterUtils, lang
+  FeatureLayer, SimpleMarkerSymbol, Graphic, Polyline, geometryEngine, spatialStats, filterUtils, lang
 ){
 
   var allFeatures = [];
@@ -138,6 +141,7 @@ define([
         let gmc = spatialStats.geographicMeanCenter(generationFeatures, false, fieldsToSummarize);
         gmc.attributes.OBJECTID = objId++;
         gmc.attributes.GENERATION = i;
+        gmc.attributes.isGMC = true;
         gmcFeatures.push(gmc);
       } else {
         let maternalFeatures = filterUtils.filterPeopleBySide(generationFeatures, "m");
@@ -145,6 +149,7 @@ define([
         gmcM.attributes.OBJECTID = objId++;
         gmcM.attributes.GENERATION = i;
         gmcM.attributes.GEN_0_SIDE = "m";
+        gmcM.attributes.isGMC = true;
         gmcFeatures.push(gmcM);
 
         let paternalFeatures = filterUtils.filterPeopleBySide(generationFeatures, "p");
@@ -152,6 +157,7 @@ define([
         gmcP.attributes.OBJECTID = objId++;
         gmcP.attributes.GENERATION = i;
         gmcP.attributes.GEN_0_SIDE = "p";
+        gmcP.attributes.isGMC = true;
         gmcFeatures.push(gmcP);
       }
     }
@@ -280,6 +286,7 @@ define([
           var distBirthMarriage = birthEvent && marriageEvent ? spatialStats.distanceBetweenFeatures([birthEvent, marriageEvent], "kilometers") : -1;
           var distBirthDeath = birthEvent && deathEvent ? spatialStats.distanceBetweenFeatures([birthEvent, deathEvent], "kilometers") : -1;
 
+          gmc.attributes.isGMC = true;
           gmc.attributes.OBJECTID = i;
           gmc.attributes.ID = id;
           gmc.attributes.NAME = birthEvent ? lang.clone(birthEvent.attributes.NAME) : "";
@@ -388,9 +395,93 @@ define([
           features: gmcFeatures
         };
       });
+  };
+
+  var connectPersonGMCtoEvents = function(gmcFeature){
+
+    let allEvents = allFeatures;
+    let id = gmcFeature.attributes.ID;
+    let eventFeatures = filterUtils.filterEventsForPerson(allEvents, id);
+
+    let connectors = eventFeatures.map(f => {
+
+      var straightLine = new Polyline({
+        paths: [[
+          [ f.geometry.x, f.geometry.y ],
+          [ gmcFeature.geometry.x, gmcFeature.geometry.y ]
+        ]],
+        spatialReference: eventsLayer.spatialReference.clone()
+      });
+
+      var connector = new Graphic({
+        attributes: {
+          personId: id,
+        },
+        geometry: geometryEngine.geodesicDensify(straightLine, 100, "kilometers"),
+        symbol: {
+          type: "simple-line",
+          color: [ 255, 255, 255, 0.3 ],
+          width: 1
+        }
+      });
+
+      return connector;
+    });
+
+    return {
+      gmcFeature: gmcFeature,
+      events: eventFeatures,
+      connectors: connectors 
+    };
+  };
+
+
+  var connectGenerationToPeople = function(genGMCfeature, peopleGMCfeatures, matchSide){
+
+    var peopleFeatures = peopleGMCfeatures.filter(person => {
+      var personGen = person.attributes.GENERATION === 0 ? 1 : person.attributes.GENERATION;
+      var sideMatch = personGen <= 1 || person.attributes.GEN_0_SIDE === genGMCfeature.attributes.GEN_0_SIDE;
+      var genMatch = personGen === genGMCfeature.attributes.GENERATION;
+
+      return matchSide ? sideMatch && genMatch : sideMatch;
+    });
+
+    let connectors = peopleFeatures.map(f => {
+
+      var straightLine = new Polyline({
+        paths: [[
+          [ f.geometry.x, f.geometry.y ],
+          [ genGMCfeature.geometry.x, genGMCfeature.geometry.y ]
+        ]],
+        spatialReference: eventsLayer.spatialReference.clone()
+      });
+
+      var connector = new Graphic({
+        attributes: {
+          GENERATION: genGMCfeature.attributes.GENERATION,
+        },
+        geometry: geometryEngine.geodesicDensify(straightLine, 100, "kilometers"),
+        symbol: {
+          type: "simple-line",
+          color: [ 255, 255, 255, 0.3 ],
+          width: 1
+        }
+      });
+
+      return connector;
+    });
+
+    return {
+      gmcFeature: genGMCfeature,
+      people: peopleFeatures,
+      connectors: connectors 
+    };
   }
 
+
   return {
+    connectGenerationToPeople: connectGenerationToPeople,
+    connectPersonGMCtoEvents: connectPersonGMCtoEvents,
     getEventsLayer: getEventsLayer,
     getGenerationsLayer: getGenerationsLayer,
     getPeopleLayer: getPeopleLayer
