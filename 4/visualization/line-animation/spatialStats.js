@@ -32,6 +32,7 @@ define([
     let yTotal = 0;
     let numPoints = features.length;
     let weightedDenominator = numPoints;
+    let age = 0;
     let sr = features[0].geometry.spatialReference.clone();
     let dimensionFieldValues = {};
     let yearsFuture = yearsInFuture ? yearsInFuture : 0;
@@ -49,14 +50,17 @@ define([
       let weight = 1;
 
       if(weightByDate){
-        let start = f.attributes.DATE;
-        let end = f.attributes.END_DATE;
-        if(start && end){
-          weight = end > start ? getDays(end - start) : getDays((Date.now() + (yearsFuture * 31536000000)) - start);
-        } 
-        // else {
-        //   weight = start && !end ? getDays(Date.now() - start) : 1;
-        // }
+        if(f.attributes.age){
+          weight = f.attributes.age;
+        } else {
+          let start = f.attributes.DATE;
+          let end = f.attributes.END_DATE;
+          if(start && end){
+            weight = end > start ? getDays(end - start) : getDays((Date.now() + (yearsFuture * 31536000000)) - start);
+          }
+          age += weight;
+        }
+
       }
       xTotal += (geometry.x * weight);
       yTotal += (geometry.y * weight);
@@ -75,6 +79,7 @@ define([
     let avgX = xTotal / weightedDenominator;
     let avgY = yTotal / weightedDenominator;
 
+    dimensionFieldValues.age = age;
     dimensionFieldValues.gmcX = avgX;
     dimensionFieldValues.gmcY = avgY;
     dimensionFieldValues.numPoints = numPoints;

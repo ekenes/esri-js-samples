@@ -63,14 +63,21 @@
         container: "viewDiv",
         map: map,
         zoom: 3,
-        center: [-45, 55]
+        center: [-45, 55],
+        popup: {
+          dockEnabled: true,
+          dockOptions: {
+            breakpoint: false,
+            buttonEnabled: false
+          }
+        }
       });
 
       var pointerMove, pointerClick;
 
       var eventsFeatures = [];
 
-      view.ui.add(new LayerList({ view: view }), "top-right");
+      view.ui.add(new LayerList({ view: view }), "bottom-left");
 
       view.then(function(){
         return GraphicsFeatureLayer.getEventsLayer(portalItemId);
@@ -111,7 +118,7 @@
         map.addMany([ peopleGMCLayer, genGMCLayer ]);
 
         pointerMove = view.on("click", function(e){
-          e.stopPropagation();
+          // e.stopPropagation();
           view.hitTest(e).then(function(r){
             view.graphics.removeAll();
             // console.log(r);

@@ -117,7 +117,8 @@ define([
     let fieldsToSummarize = [
       "DIST_BIRTH_DEATH",
       "DIST_BIRTH_MARRIAGE",
-      "numPoints"
+      "numPoints",
+      "age"
     ];
 
     let gmcFeatures = [];
@@ -138,14 +139,14 @@ define([
       }
       
       if(!splitBySide || i === 1){
-        let gmc = spatialStats.geographicMeanCenter(generationFeatures, false, fieldsToSummarize);
+        let gmc = spatialStats.geographicMeanCenter(generationFeatures, true, fieldsToSummarize);
         gmc.attributes.OBJECTID = objId++;
         gmc.attributes.GENERATION = i;
         gmc.attributes.isGMC = true;
         gmcFeatures.push(gmc);
       } else {
         let maternalFeatures = filterUtils.filterPeopleBySide(generationFeatures, "m");
-        let gmcM = spatialStats.geographicMeanCenter(maternalFeatures, false, fieldsToSummarize);
+        let gmcM = spatialStats.geographicMeanCenter(maternalFeatures, true, fieldsToSummarize);
         gmcM.attributes.OBJECTID = objId++;
         gmcM.attributes.GENERATION = i;
         gmcM.attributes.GEN_0_SIDE = "m";
@@ -153,7 +154,7 @@ define([
         gmcFeatures.push(gmcM);
 
         let paternalFeatures = filterUtils.filterPeopleBySide(generationFeatures, "p");
-        let gmcP = spatialStats.geographicMeanCenter(paternalFeatures, false, fieldsToSummarize);
+        let gmcP = spatialStats.geographicMeanCenter(paternalFeatures, true, fieldsToSummarize);
         gmcP.attributes.OBJECTID = objId++;
         gmcP.attributes.GENERATION = i;
         gmcP.attributes.GEN_0_SIDE = "p";
@@ -223,16 +224,62 @@ define([
       geometryType: "point",
       spatialReference: eventsLayer.spatialReference.clone(),
       renderer: {
-        type: "simple",
-        symbol: {
+        type: "unique-value",
+        valueExpression: `
+          var g = $feature.GENERATION;
+          var s = $feature.GEN_0_SIDE;
+          IIF(g<=1, '0-1', s);
+        `,
+        defaultSymbol: {
           type: "simple-marker",
-          color: [0,255,0],
-          size: 10,
+          color: "gray",
+          style: "diamond",
+          size: 16,
           outline: {
-            width: 1,
-            color: [0,255,0,0.5]
+            width: 6,
+            color: "light-gray"
           }
-        }
+        },
+        uniqueValueInfos: [{
+          value: "0-1",
+          symbol: {
+            type: "simple-marker",
+            style: "diamond",
+            color: "#8eebb7",
+            size: 16,
+            outline: {
+              width: 6,
+              color: [ 81, 177, 132, 0.5 ]
+            }
+          },
+          label: "First generation"
+        }, {
+          value: "m",
+          symbol: {
+            type: "simple-marker",
+            style: "diamond",
+            color: "#fb9fe0",
+            size: 16,
+            outline: {
+              width: 6,
+              color: [ 247, 96, 199, 0.5 ]
+            }
+          },
+          label: "Maternal side"
+        }, {
+          value: "p",
+          symbol: {
+            type: "simple-marker",
+            style: "diamond",
+            color: "#97b9d3",
+            size: 16,
+            outline: {
+              width: 6,
+              color: [ 129, 150, 216, 0.5 ]
+            }
+          },
+          label: "Paternal side"
+        }]
       },
       popupTemplate: {
         title: "{expression/title}",
@@ -350,16 +397,58 @@ define([
           geometryType: "point",
           spatialReference: eventsLayer.spatialReference.clone(),
           renderer: {
-            type: "simple",
-            symbol: {
+            type: "unique-value",
+            valueExpression: `
+              var g = $feature.GENERATION;
+              var s = $feature.GEN_0_SIDE;
+              IIF(g==0, 'beginning', s);
+            `,
+            defaultSymbol: {
               type: "simple-marker",
-              color: [255,0,0],
-              size: 10,
+              color: "gray",
+              size: 6,
               outline: {
-                width: 1,
-                color: [255,0,0]
+                width: 3,
+                color: "light-gray"
               }
-            }
+            },
+            uniqueValueInfos: [{
+              value: "beginning",
+              symbol: {
+                type: "simple-marker",
+                color: "#8eebb7",
+                size: 6,
+                outline: {
+                  width: 3,
+                  color: [ 81, 177, 132, 0.5 ]
+                }
+              },
+              label: "First generation"
+            }, {
+              value: "m",
+              symbol: {
+                type: "simple-marker",
+                color: "#fb9fe0",
+                size: 6,
+                outline: {
+                  width: 3,
+                  color: [ 247, 96, 199, 0.5 ]
+                }
+              },
+              label: "Maternal side"
+            }, {
+              value: "p",
+              symbol: {
+                type: "simple-marker",
+                color: "#97b9d3",
+                size: 6,
+                outline: {
+                  width: 3,
+                  color: [ 129, 150, 216, 0.5 ]
+                }
+              },
+              label: "Paternal side"
+            }]
           },
           popupTemplate: {
             title: "{NAME} {SURNAME}",
