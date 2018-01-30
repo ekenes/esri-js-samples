@@ -33,7 +33,7 @@ define([
         id: portalItemId
       },
       outFields: ["*"],
-      // definitionExpression: "GENERATION <= 2"
+      // definitionExpression: "GENERATION <= 1"
     });
     return eventsLayer;
   }
@@ -139,14 +139,14 @@ define([
       }
       
       if(!splitBySide || i === 1){
-        let gmc = spatialStats.geographicMeanCenter(generationFeatures, true, fieldsToSummarize);
+        let gmc = spatialStats.geographicMeanCenter(generationFeatures, false, fieldsToSummarize);
         gmc.attributes.OBJECTID = objId++;
         gmc.attributes.GENERATION = i;
         gmc.attributes.isGMC = true;
         gmcFeatures.push(gmc);
       } else {
         let maternalFeatures = filterUtils.filterPeopleBySide(generationFeatures, "m");
-        let gmcM = spatialStats.geographicMeanCenter(maternalFeatures, true, fieldsToSummarize);
+        let gmcM = spatialStats.geographicMeanCenter(maternalFeatures, false, fieldsToSummarize);
         gmcM.attributes.OBJECTID = objId++;
         gmcM.attributes.GENERATION = i;
         gmcM.attributes.GEN_0_SIDE = "m";
@@ -154,7 +154,7 @@ define([
         gmcFeatures.push(gmcM);
 
         let paternalFeatures = filterUtils.filterPeopleBySide(generationFeatures, "p");
-        let gmcP = spatialStats.geographicMeanCenter(paternalFeatures, true, fieldsToSummarize);
+        let gmcP = spatialStats.geographicMeanCenter(paternalFeatures, false, fieldsToSummarize);
         gmcP.attributes.OBJECTID = objId++;
         gmcP.attributes.GENERATION = i;
         gmcP.attributes.GEN_0_SIDE = "p";
@@ -284,29 +284,26 @@ define([
       popupTemplate: {
         title: "{expression/title}",
         content: "birth to death: {avg_DIST_BIRTH_DEATH}; birth to marriage: {avg_DIST_BIRTH_MARRIAGE}",
-        expressionInfos: expressionInfos
-        // content: [{
-        //   type: "fields",
-        //   fieldInfos: [{
-        //     fieldName: "GENERATION",
-        //     // label: ""
-        //   }, {
-        //     fieldName: "GEN_0_SIDE",
-        //     // label: ""
-        //   }, {
-        //     fieldName: "MOTHER",
-        //     // label: ""
-        //   }, {
-        //     fieldName: "FATHER",
-        //     // label: ""
-        //   }, {
-        //     fieldName: "DIST_BIRTH_DEATH",
-        //     // label: ""
-        //   }, {
-        //     fieldName: "DIST_BIRTH_MARRIAGE",
-        //     // label: ""
-        //   }]
-        // }]
+        expressionInfos: expressionInfos,
+        content: [{
+          type: "fields",
+          fieldInfos: [{
+            fieldName: "GENERATION",
+            // label: ""
+          }, {
+            fieldName: "GEN_0_SIDE",
+            // label: ""
+          }, {
+            fieldName: "avg_DIST_BIRTH_DEATH",
+            // label: ""
+          }, {
+            fieldName: "avg_DIST_BIRTH_MARRIAGE",
+            // label: ""
+          }, {
+            fieldName: "avg_dist_points_gmc",
+            // label: ""
+          }]
+        }]
       }
     });
     
@@ -389,8 +386,12 @@ define([
             alias: "DIST_BIRTH_DEATH",
             type: "number"
           }, {
-            fieldName: "DIST_BIRTH_MARRIAGE",
+            name: "DIST_BIRTH_MARRIAGE",
             alias: "DIST_BIRTH_MARRIAGE",
+            type: "number"
+          }, {
+            name: "avg_dist_points_gmc",
+            alias: "Average distance to events",
             type: "number"
           }],
           objectIdField: "OBJECTID",
@@ -448,34 +449,46 @@ define([
                 }
               },
               label: "Paternal side"
+            }],
+            visualVariables: [{
+              type: "size",
+              field: "avg_dist_points_gmc",
+              minSize: 6,
+              maxSize: 50,
+              minDataValue: 0,
+              maxDataValue: 4000
             }]
           },
           popupTemplate: {
             title: "{NAME} {SURNAME}",
-            content: "MOTHER: {MOTHER}; FATHER: {FATHER};<br>"
-               + "b2d: {DIST_BIRTH_DEATH};" // b2m: {DIST_BIRTH_MARRIAGE}"
-            // content: [{
-            //   type: "fields",
-            //   fieldInfos: [{
-            //     fieldName: "GENERATION",
-            //     // label: ""
-            //   }, {
-            //     fieldName: "GEN_0_SIDE",
-            //     // label: ""
-            //   }, {
-            //     fieldName: "MOTHER",
-            //     // label: ""
-            //   }, {
-            //     fieldName: "FATHER",
-            //     // label: ""
-            //   }, {
-            //     fieldName: "DIST_BIRTH_DEATH",
-            //     // label: ""
-            //   }, {
-            //     fieldName: "DIST_BIRTH_MARRIAGE",
-            //     // label: ""
-            //   }]
-            // }]
+            content:  // "MOTHER: {MOTHER}; FATHER: {FATHER};<br>"
+              // + "dist to events: {avg_dist_points_gmc};" // b2m: {DIST_BIRTH_MARRIAGE}"
+            // }, 
+            [{
+              type: "fields",
+              fieldInfos: [{
+                fieldName: "GENERATION",
+                // label: ""
+              }, {
+                fieldName: "GEN_0_SIDE",
+                // label: ""
+              }, {
+                fieldName: "MOTHER",
+                // label: ""
+              }, {
+                fieldName: "FATHER",
+                // label: ""
+              }, {
+                fieldName: "DIST_BIRTH_DEATH",
+                // label: ""
+              }, {
+                fieldName: "avg_dist_points_gmc",
+                label: "Avg distance to events (km)"
+              }, {
+                fieldName: "DIST_BIRTH_MARRIAGE",
+                // label: ""
+              }]
+            }]
           }
         });
 
