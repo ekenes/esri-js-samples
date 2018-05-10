@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Ekenes Events</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+
+  <script>
+    var dojoConfig = {
+      paths: {
+        modules: location.pathname.replace(/\/[^/]+$/, "")
+      }
+    };
+  </script>
+
+  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.7/esri/css/main.css">
+  <script src="https://jsdev.arcgis.com/4.7/"></script>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/core/Collection",
+      "esri/layers/FeatureLayer",
+      "esri/layers/GraphicsLayer",
+      "esri/geometry/Point",
+      "esri/geometry/Polyline",
+      "esri/geometry/geometryEngine",
+      "esri/renderers/SimpleRenderer",
+      "esri/symbols/SimpleLineSymbol",
+      "esri/symbols/SimpleMarkerSymbol",
+      "esri/Graphic",
+      "esri/widgets/LayerList",
+      "modules/lineAnimation",
+      "modules/GraphicsFeatureLayer",
+      "modules/spatialStats",
+      "modules/filterUtils",
+      "dojo/dom", "dojo/on",
+      "dojo/domReady!"
+    ], function(Map, MapView, Collection,FeatureLayer, GraphicsLayer, Point, Polyline, ge,
+                SimpleRenderer, SimpleLineSymbol, SimpleMarkerSymbol,
+                Graphic, LayerList, lineAnimation, GraphicsFeatureLayer, 
+                spatialStats, filterUtils, dom, on) {
+
+      var portalItemId = "ee76f1b63753426891255cc406684dc4";
+
+      var map = new Map({
+        basemap: "dark-gray",
+        layers: [ ]
+      });
+
+      view = new MapView({
+        container: "viewDiv",
+        map: map,
+        zoom: 3,
+        center: [-45, 55],
+        popup: {
+          dockEnabled: true,
+          dockOptions: {
+            breakpoint: false,
+            buttonEnabled: false
+          }
+        }
+      });
+
+      var pointerMove, pointerClick;
+
+      var eventsFeatures = [];
+
+      view.ui.add(new LayerList({ view: view }), "bottom-left");
+
+      view.then(function(){
+        return GraphicsFeatureLayer.getEventsLayer(portalItemId);
+      }, function(e){
+        console.error("wut: ", e);
+      }).then(function(response){
+
+        var features = response.features;
+        eventsFeatures = features;
+        var eventsLayer = response.layer;
+        eventsLayer.source = features;
+        eventsLayer.renderer = {
+          type: "simple",
+          symbol: {
+            type: "simple-marker",
+            color: [255,255,255,0.15],
+            size: 3,
+            outline: {
+              width: 0.5,
+              color: [255,255,255,0.25]
+            }
+          }
+        };
+        map.add(eventsLayer);
+
+        return GraphicsFeatureLayer.getPeopleLayer(features);
+
+      }).then(function(response){
+        console.log("people response", response);
+
+        var peopleGMCLayer = response.layer;
+        var gmcPeopleFeatures = response.features;
+
+        var genResponse = GraphicsFeatureLayer.getGenerationsLayer(response.features, true);
+        var genGMCLayer = genResponse.layer;
+        console.log("gen response", genResponse);
+
+        map.addMany([ peopleGMCLayer, genGMCLayer ]);
+
+        pointerMove = view.on("click", function(e){
+          // e.stopPropagation();
+          view.hitTest(e).then(function(r){
+            view.graphics.removeAll();
+            // console.log(r);
+            let connectorInfo;
+            let results = r && r.results;
+
+            let personGMCResult = results.filter(r => {
+              let isGMC = r.graphic.attributes.isGMC;
+              let id = r.graphic.attributes.ID;
+              return isGMC && id;
+            })[0];
+
+            if(personGMCResult && personGMCResult.graphic){
+              var personGMC = personGMCResult.graphic;
+              connectorInfo = personGMC ? GraphicsFeatureLayer.connectPersonGMCtoEvents(personGMC) : null;
+              view.graphics.addMany(connectorInfo.connectors);
+              view.graphics.addMany(connectorInfo.events);
+            }
+
+            let genGMCresult = results.filter(r => {
+              let isGMC = r.graphic.attributes.isGMC;
+              let id = r.graphic.attributes.ID;
+              return isGMC && !id;
+            })[0];
+
+            if(genGMCresult && genGMCresult.graphic){
+              var genGMC = genGMCresult.graphic;
+              connectorInfo = genGMC ? GraphicsFeatureLayer.connectGenerationToPeople(genGMC, gmcPeopleFeatures, true) : null;
+              view.graphics.addMany(connectorInfo.connectors);
+              view.graphics.addMany(connectorInfo.people);
+            }
+
+            console.log('connector info: ', connectorInfo);
+          });
+        });
+
+
+      }).otherwise(e => { console.log(e) });
+
+
+
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+  <div id="display-year"></div>
+  <div id="display-message"></div>
+  <div id="start-button">Play timeline animation</div>
+</body>
+</html>

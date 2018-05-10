@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
+
+  <title>Combine LayerList and Legend widgets - 4.7</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.7/esri/themes/dark/main.css">
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+  </style>
+
+  <script>
+    var dojoConfig = {
+      has: {
+        "esri-featurelayer-webgl": 1
+      }
+    };
+  </script>
+
+  <script src="https://js.arcgis.com/4.7/"></script>
+
+  <script>
+    require([
+      "esri/WebMap",
+      "esri/views/MapView",
+      "esri/widgets/LayerList",
+      "dojo/domReady!"
+    ], function(
+      WebMap, MapView, LayerList
+    ) {
+
+      const map = new WebMap({
+        // paste any WebMap ID here and item metadata for each
+        // layer saved as a portal item will appear in the layer 
+        // list widget.
+        portalItem: {
+          id: "d5dda743788a4b0688fe48f43ae7beb9"
+        }
+      });
+
+      // Add the map to a MapView
+      const view = new MapView({
+        container: "viewDiv",
+        map: map
+      });
+
+      // Add a legend instance to the panel of a
+      // ListItem in a LayerList instance
+      const layerList = new LayerList({
+        view: view,
+        listItemCreatedFunction: function(event) {
+
+          // modified, created, numViews, snippet
+          // iconUrl, description, extent, accessInformation
+          const item = event.item;
+          item.actionsSections = [
+            [{
+              title: "Go to full extent",
+              className: "esri-icon-zoom-out-fixed",
+              id: "full-extent"
+            }], [{
+              title: "Increase opacity",
+              className: "esri-icon-up",
+              id: "increase-opacity"
+            }, {
+              title: "Decrease opacity",
+              className: "esri-icon-down",
+              id: "decrease-opacity"
+            }]
+          ];
+
+          if(item.layer.loaded && item.layer.portalItem){
+            const metadata = item.layer.portalItem;
+
+            var imgElement = document.createElement("img");
+            imgElement.src = metadata.thumbnailUrl;
+
+            item.panel = {
+              // image: metadata.thumbnailUrl,
+              className: "esri-icon-layer-list",
+              content: [
+                imgElement,
+                "Created on " + metadata.created.toDateString(),
+                "<p>Number of views: " + metadata.numViews.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+"</p>",
+                "<p>Last modified: " + dateDiff(new Date(), metadata.modified, "days") + " ago</p>",
+                "<p>" + metadata.snippet + "</p>",
+                "<p><b>Source:</b> " + metadata.accessInformation + "</p>"
+              ]
+            };
+          }
+          
+        }
+      });
+      view.ui.add(layerList, "top-right");
+
+      function dateDiff(endDate, startDate, units){
+        const conversion = {
+          "days": 1000 * 3600 * 24,
+          "weeks": 1000 * 3600 * 24 * 7,
+          "months": 1000 * 3600 * 24 * 30,
+          "years": 1000 * 3600 * 24 * 365
+        };
+        const conversionFactor = conversion[units];
+        const timeDiff = Math.abs(endDate.getTime() - startDate.getTime());
+        var diff = Math.ceil(timeDiff / conversionFactor);
+        console.log(diff);
+        return diff + " " + units;
+      }
+
+      layerList.on("trigger-action", function(event) {
+
+        var layer = view.map.layers.getItemAt(0);
+
+        // Capture the action id.
+        var id = event.action.id;
+
+        if (id === "full-extent") {
+          // if the full-extent action is triggered then navigate
+          // to the full extent of the visible layer
+          view.goTo(layer.fullExtent);
+
+        } else if (id === "increase-opacity") {
+          // if the increase-opacity action is triggered, then
+          // increase the opacity of the GroupLayer by 0.25
+          if (layer.opacity < 1) {
+            layer.opacity += 0.25;
+          }
+
+        } else if (id === "decrease-opacity") {
+          // if the decrease-opacity action is triggered, then
+          // decrease the opacity of the GroupLayer by 0.25
+          if (layer.opacity > 0) {
+            layer.opacity -= 0.25;
+          }
+
+        }
+      });
+
+    });
+  </script>
+
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>

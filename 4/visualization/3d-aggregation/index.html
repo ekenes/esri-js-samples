@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>3D point aggregation</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.5/esri/css/main.css">
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+    #ui-controls{
+      padding: 10px;
+      background-color: white;
+    }
+  </style>
+
+  <script>
+    var dojoConfig = {
+      paths: {
+        app: window.location.href.replace(/\/[^/]+$/, "")
+      }
+    };
+  </script>
+
+  <script src="https://js.arcgis.com/4.5/"></script>
+
+  <script>
+    require([
+      "app/App",
+      "dojo/domReady!"
+    ], function(App) {
+
+      var app = new App();
+      app.run();
+
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+  <!-- <div id="ui-controls">
+    <button id="clip-extent-btn">Start</button>
+    <button id="clear-btn">Reset</button>
+  </div> -->
+</body>
+</html>

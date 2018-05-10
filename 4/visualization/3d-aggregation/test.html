@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Create a local scene - 4.5</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.5/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.5/"></script>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/SceneView",
+      "esri/layers/FeatureLayer",
+      "esri/widgets/Home",
+      "esri/widgets/Legend",
+      "esri/geometry/Extent",
+      "esri/Graphic",
+      "esri/core/promiseUtils",
+      "esri/core/lang",
+      "esri/core/watchUtils",
+      "dojo/domReady!"
+    ], function(Map, SceneView, FeatureLayer, Home, Legend, Extent, Graphic, promiseUtils, lang, watchUtils) {
+
+      // var wellsUrl = "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/disposal_injection_wells_KS/FeatureServer/0";
+      var quakesUrl = "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/Oklahoma_earthquakes/FeatureServer/0";
+      
+      var resolution = 2000;  //3000;  // meters
+      var height = -10000;
+
+      // The clipping extent for the scene
+      var kansasExtent = { // autocasts as new Extent()
+        xmax: -10834217,
+        xmin: -10932882,
+        ymax: 4493918,
+        ymin: 4432667,
+        spatialReference: { // autocasts as new SpatialReference()
+          wkid: 3857
+        }
+      };
+
+      
+
+      // function queryCount(extent)
+
+      function getStatsInExtent(pointFeatures, extentCentroid, dimension){
+        var features;
+        if(dimension === "3d"){
+          features = getPointsIn3DExtent(pointFeatures, extentCentroid);
+        } else {
+          features = getPointsIn2DExtent(pointFeatures, extentCentroid);
+        }
+        var count = features.length;
+        var stats = {};
+        
+        // var sumMag = features.reduce(function(accumulator, currentValue){
+        //   return accumulator.attributes.mag + currentValue.attributes.mag;
+        // });
+
+        stats.count = count;
+        // stats.avgMag = count ? sumMag / count : 0;
+
+        return stats;
+      }
+
+      function getPointsIn2DExtent(features, extentCentroid){
+        var cellXmin = extentCentroid.attributes.xmin;
+        var cellXmax = extentCentroid.attributes.xmax;
+        var cellYmin = extentCentroid.attributes.ymin;
+        var cellYmax = extentCentroid.attributes.ymax;
+
+        return features.filter(function(feature){
+          var geometry = feature.geometry;
+          var withinXBounds = geometry.x >= cellXmin && geometry.x < cellXmax;
+          var withinYBounds = geometry.y >= cellYmin && geometry.y < cellYmax;
+          return withinXBounds && withinYBounds;
+        });
+      }
+
+      function getPointsIn3DExtent(features, extentCentroid){
+        var cellXmin = extentCentroid.attributes.xmin;
+        var cellXmax = extentCentroid.attributes.xmax;
+        var cellYmin = extentCentroid.attributes.ymin;
+        var cellYmax = extentCentroid.attributes.ymax;
+        var cellZmin = extentCentroid.attributes.zmin;
+        var cellZmax = extentCentroid.attributes.zmax;
+
+        return features.filter(function(feature){
+          var geometry = feature.geometry;
+          var z = -1000 * feature.attributes.depth;
+          var withinXBounds = geometry.x >= cellXmin && geometry.x < cellXmax;
+          var withinYBounds = geometry.y >= cellYmin && geometry.y < cellYmax;
+          var withinZBounds = z >= cellZmin && z < cellZmax;
+          return withinXBounds && withinYBounds && withinZBounds;
+        });
+      }
+
+      var quakeTemplate = {
+        title: "",
+        content: "{*}"
+      };
+
+      // Defines a layer for drawing the exact location of quakes below the surface
+      var pointLayer = new FeatureLayer({
+        url: quakesUrl,
+        // definitionExpression: "mag >= 2",
+        outFields: ["*"],
+        popupTemplate: quakeTemplate,
+        returnZ: true,
+        elevationInfo: {
+          mode: "relative-to-ground"
+        },
+        title: "earthquake location"
+      });
+
+
+
+      
+
+      var map = new Map({
+        basemap: "topo",
+        layers: [ pointLayer ]
+      });
+      view = new SceneView({
+        container: "viewDiv",
+        map: map,
+        // Indicates to create a local scene
+        viewingMode: "local",
+        // Use the exent defined in clippingArea to define the bounds of the scene
+        clippingArea: kansasExtent,
+        extent: kansasExtent,
+        // Allows for navigating the camera below the surface
+        constraints: {
+          collision: {
+            enabled: false
+          },
+          tilt: {
+            max: 179.99
+          }
+        },
+        // Turns off atmosphere and stars settings
+        environment: {
+          atmosphere: null,
+          starsEnabled: false
+        }
+      });
+
+      view.then(function(){
+        pointLayer.then(function(){
+          var grid = create3DGrid(kansasExtent, resolution, height, pointLayer)
+
+          var falseOnce = 0;
+          view.whenLayerView(pointLayer).then(function(layerView){
+            layerView.watch("updating", function(val){
+              if(!val && falseOnce < 1){  // wait for the layer view to finish updating
+                falseOnce++;
+                layerView.queryFeatures().then(function(results){
+                  console.log(results);  // prints the array of client-side graphics to the console
+
+                  var gridCellsWithStats = grid.map(function(cell){
+                    var stats = getStatsInExtent(results, cell, "3d");
+                    cell.attributes.count = stats.count;
+                    //cell.attributes.avgMag = stats.avgMag;
+                    return cell;
+                  });
+
+                  createGridLayer(gridCellsWithStats);
+
+                });
+              }
+            });
+          });
+
+          // console.log("response: ", response);
+
+            // console.log("grid created: ");
+            // r.forEach(function(c){
+            //   console.log(c.geometry.x, c.geometry.y);
+            // });
+
+            //   createGridLayer(r);
+
+          });
+
+          view.ui.add(new Legend({
+            view: view
+          }), "bottom-right");
+      });
+
+      function fetchCounts(params){
+        var layer = params.layer;
+        // var field = params.field;
+        var cells = params.cells;
+        // var index = 0;
+
+        var nextCell = cells.filter(function(cell, i){
+          // index = i;
+          return cell.attributes.count == null;
+        })[0];
+        //console.log(nextCell.attributes.ObjectID);
+        if(nextCell){
+          var q = layer.createQuery();
+          q.where = "depth * -1000 >= " + nextCell.attributes.zmin + " AND depth * -1000 < " + nextCell.attributes.zmax;
+          q.geometry = new Extent({
+            xmin: nextCell.attributes.xmin,
+            xmax: nextCell.attributes.xmax,
+            ymin: nextCell.attributes.ymin,
+            ymax: nextCell.attributes.ymax,
+            spatialReference: nextCell.geometry.spatialReference
+          });
+          layer.queryFeatureCount(q).then(function(c){
+            cells[cells.indexOf(nextCell)].attributes.count = c;
+            fetchCounts({
+              layer: layer,
+              // field: field,
+              cells: cells
+            });
+          });
+        } else {
+          createGridLayer(cells);
+          // return cells; //promiseUtils.resolve(cells);
+        }
+      }
+
+      function create3DGrid(extent, resolution, height, layer){
+        var centroids = [];
+        var gridCells2D = [];
+        var xmin = extent.xmin;
+        var xmax = extent.xmax;
+        var ymin = extent.ymin;
+        var ymax = extent.ymax;
+
+        var columns = Math.round((xmax - xmin) / resolution);
+        var rows = Math.round((ymax - ymin) / resolution);
+        var shelves = Math.abs(Math.round(height / resolution));
+        var numCells = columns * rows * shelves;
+
+        var queryPromises = [];
+        var attributes;
+        var centroid, cellExtent;
+        var oidCount = 0;
+
+        for(var s = 0; s < shelves; s++){
+          for(var r = 0; r < rows; r++){
+            for(var c = 0; c < columns; c++){
+
+              attributes = {
+                row: r,
+                column: c,
+                shelf: s,
+                ObjectID: oidCount++,
+                resolution: resolution,
+                xmin: xmin + (resolution * c),
+                xmax: xmin + (resolution * (c+1)),
+                ymin: ymin + (resolution * r),
+                ymax: ymin + (resolution * (r+1)),
+                zmax: height < 0 ? -1 * s * resolution : 1 * s * resolution,
+                zmin: height < 0 ? -1 * (s+1) * resolution : 1 * (s+1) * resolution
+              };
+
+              cellExtent = new Extent({
+                xmin: xmin + (resolution * c),
+                xmax: xmin + (resolution * (c+1)),
+                ymin: ymin + (resolution * r),
+                ymax: ymax + (resolution * (r+1)),
+                spatialReference: extent.spatialReference
+              });
+
+              // var zmin = height < 0 && s ? -1 * (s+1) * resolution : 1 * (s+1) * resolution;
+              // var zmax = height < 0 ? -1 * s * resolution : 1 * s * resolution;
+
+              centroid = {
+                type: "point",
+                x: attributes.xmin + ((attributes.xmax - attributes.xmin) * 0.5),
+                y: attributes.ymin + ((attributes.ymax - attributes.ymin) * 0.5),
+                z: attributes.zmin + ((attributes.zmax - attributes.zmin) * 0.5),
+                spatialReference: extent.spatialReference
+              };
+
+              var cell3d = new Graphic({
+                attributes: lang.clone(attributes),
+                geometry: lang.clone(centroid)
+              });
+
+              centroids.push(lang.clone(cell3d));
+
+              // var q = layer.createQuery();
+              // q.geometry = extent.clone();
+              // q.where = "depth * -1000 >= " + cell3d.attributes.zmin + " AND depth * -1000 < " + cell3d.attributes.zmax;
+
+              // var queryPromise = layer.queryFeatureCount(q).then(function(c){
+                //cell3d.attributes.count = c;
+                
+                // centroids.push(lang.clone(cell3d));
+                
+                // if(centroids.length === numCells){
+                // createGridLayer(centroids);
+                  // return promiseUtils.resolve(cell3d);
+                // }
+               
+              // }, function(e){
+              //   console.error(e);
+              // });
+
+              // queryPromise.resolve();
+
+              // queryPromises.push(queryPromise);
+
+              
+
+
+
+              
+
+              
+
+              // var stats3DExtent = getStatsInExtent(singlePoints, cell3d, "3d");
+
+              // cell3d.attributes.count = stats3DExtent.count;
+              // cell3d.attributes.avgMag = stats3DExtent.avgMag;
+
+              // centroids.push(cell3d);
+
+              // if(s === 0){
+              //   var stats2D = getStatsInExtent(singlePoints, cell3d, "2d");
+
+              //   var cellAttributes = {
+              //     row: r,
+              //     column: c,
+              //     xmin: xmin + (resolution * c),
+              //     xmax: xmin + (resolution * (c+1)),
+              //     ymin: ymin + (resolution * r),
+              //     ymax: ymax + (resolution * (r+1)),
+              //     avgMag: stats.avgMag,
+              //     count: stats.count
+              //   };
+
+              //   var extent = {
+              //     type: "extent",
+              //     xmin: xmin + (resolution * c),
+              //     xmax: xmin + (resolution * (c+1)),
+              //     ymin: ymin + (resolution * r),
+              //     ymax: ymax + (resolution * (r+1)),
+              //     zmin: s * resolution,
+              //     zmax: (s+1) * resolution,
+              //     spatialReference: extent.spatialReference
+              //   };
+
+              //   gridCells2D.push({
+              //     attributes: cellAttributes,
+              //     geometry: extent
+              //   });
+
+              // }
+
+              
+            }
+          }
+        }
+
+        // return promiseUtils.eachAlways(queryPromises);
+        return centroids;
+        // return promiseUtils.resolve(centroids);
+      }
+
+      var gridLayer;
+
+      function createGridLayer(features){
+        // features.forEach(function(feature){
+        //   console.log(feature.attributes.ObjectID);
+        // });
+
+        
+          gridLayer = new FeatureLayer({
+            source: features,
+            title: "Earthquakes aggregated in 2x2x2 km cube",
+            geometryType: "point",
+            spatialReference: { wkid: 3857 },
+            objectIdField: "ObjectID",
+            fields: [{
+              name: "ObjectID",
+              alias: "ObjectID",
+              type: "oid"
+            }, {
+              name: "row",
+              alias: "row",
+              type: "double"
+            }, {
+              name: "column",
+              alias: "column",
+              type: "double"
+            }, {
+              name: "shelf",
+              alias: "shelf",
+              type: "double"
+            }, {
+              name: "resolution",
+              alias: "resolution",
+              type: "double"
+            }, {
+              name: "xmin",
+              alias: "xmin",
+              type: "double"
+            }, {
+              name: "xmax",
+              alias: "xmax",
+              type: "double"
+            }, {
+              name: "ymin",
+              alias: "ymin",
+              type: "double"
+            }, {
+              name: "ymax",
+              alias: "ymax",
+              type: "double"
+            }, {
+              name: "zmin",
+              alias: "zmin",
+              type: "double"
+            }, {
+              name: "zmax",
+              alias: "zmax",
+              type: "double"
+            }, {
+              name: "count",
+              alias: "count",
+              type: "double"
+            }],
+            popupTemplate: {
+              title: "{count}",
+              content: "{ObjectID}, {count}"
+            },
+            popupEnabled: true,
+            hasZ: true,
+            returnZ: true,
+            // elevationInfo: {
+            //   mode: "relative-to-ground",
+            //   featureExpressionInfo: {
+            //     expression: "$feature."
+            //   }
+            // },
+            renderer: {
+              type: "simple",
+              symbol: {
+                // type: "simple-marker",
+                // color: "red",
+                // size: 12
+                type: "point-3d",
+                symbolLayers: [{
+                  type: "object",
+                  resource: { primitive: "cube" }
+                }]
+              },
+              visualVariables: [{
+                type: "size",
+                field: "resolution",
+                valueUnit: "meters",
+                axis: "all",
+                legendOptions: {
+                  showLegend: false
+                }
+              }, {
+                type: "color",
+                field: "count",
+                legendOptions: {
+                  title: "Number of earthquakes"
+                },
+                stops: [
+                  { value: 0, color: [254, 240, 217, 0] },
+                  { value: 2, color: [254, 240, 217, 0.05]/*, label: "< 2" */},
+                  { value: 10, color: [253, 204, 138, 0.7], label: "< 10"  },
+                  { value: 25, color: [252, 141, 89, 1], label: "20" },
+                  { value: 30, color: [227, 74, 51, 1] },
+                  { value: 50, color: [179, 0, 0, 1], label: "> 50" }
+                ]
+              }]
+            }
+          });
+
+    //       "stops": [
+    //   [254, 240, 217, 1],
+    //   [253, 204, 138, 1],
+    //   [252, 141, 89, 1],
+    //   [227, 74, 51, 1],
+    //   [179, 0, 0, 1]
+    // ]
+
+          map.add(gridLayer);
+
+      }
+
+
+      function queryFeatures(params){
+        var layer = params.layer;
+        var allFeatures = params.allFeatures ? params.allFeatures : [];
+        var num = params.num ? params.num : 2000;
+        var exceededTransferLimit = typeof params.exceededTransferLimit === "undefined" ? true : params.exceededTransferLimit;
+        var start = params.start ? params.start : 0;
+
+        if(!exceededTransferLimit){
+          return {
+            features: allFeatures
+          };
+        }
+
+        var query = layer.createQuery();
+        query.start = start;
+        query.num = num;
+        query.outSpatialReference = new SpatialReference({ wkid: 3857 });
+
+        return layer.queryFeatures(query)
+          .then(function(response){
+            allFeatures.push.apply(allFeatures, response.features);
+            return queryFeatures({
+              layer: layer,
+              allFeatures: allFeatures,
+              num: num,
+              start: start+2000,
+              exceededTransferLimit: response.exceededTransferLimit
+            });
+          });
+      }
+
+      // Set up a home button for resetting the viewpoint to the intial extent
+      view.ui.add(new Home({
+        view: view
+      }), "top-left");
+
+
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+</html>

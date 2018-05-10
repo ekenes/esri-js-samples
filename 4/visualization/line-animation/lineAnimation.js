@@ -49,7 +49,16 @@ define([
     var lineDensified = densifyLine(lineGeometry, TOLERANCE, params.offset, view.scale);
     lineGraphic.geometry = lineDensified;
 
-    var numVertices = lineDensified.paths[0].length;
+    var numPaths = lineDensified.paths.length;
+
+    if (numPaths === 2 && startPoint.geometry.x < endPoint.geometry.x){
+      lineDensified.paths = lineDensified.paths.reverse();
+    }
+
+    var path1vertexCount = lineDensified.paths[0].length;
+    var path2vertexCount = numPaths === 2 ? lineDensified.paths[1].length : 0;
+
+    var numVertices = getPolylineVerticeCount(lineDensified); //  lineDensified.paths[0].length;
     var interval = duration / numVertices;
     var vertexCounter = 0;
     var updatedLineGeom, updatedLineGraphic;
@@ -64,6 +73,7 @@ define([
 
         if (view.graphics.includes(previousPointGraphic)){
           view.graphics.remove(previousPointGraphic);
+          // view.graphics.removeAll();
         }
 
         if (lineEffect === "none" && animateEndPoint){
@@ -72,8 +82,20 @@ define([
         }
 
         if(lineEffect === "trail"){
-          var numVerticesRemove = updatedLineGeom.paths[0].length;
-          if(numVerticesRemove === numVertices){
+          var numVerticesRemove = getPolylineVerticeCount(updatedLineGeom); // updatedLineGeom.paths[0].length;
+          var pathIndexRemove;
+
+          if(numPaths === 1){
+            pathIndexRemove = 0;
+          } else {
+            if (updatedLineGeom.paths[0].length > 0){
+              pathIndexRemove = 0;
+            } else {
+              pathIndexRemove = 1;
+            }
+          }
+
+          if(numVerticesRemove === numVertices + 1){
             dfd.resolve(lineGraphic);
           }
 
@@ -83,7 +105,7 @@ define([
           }
 
           // using numVertices - 1 unanimates the line in the opposite direction
-          updatedLineGeom = removeLineSegment(updatedLineGeom, 0);
+          updatedLineGeom = removeLineSegment(updatedLineGeom, 0, pathIndexRemove);
 
           previousSegment = drawSegment(updatedLineGeom, previousSegment, view, color, lineGraphic.attributes.isMarriage);
         } else if (lineEffect === "retain"){
@@ -94,8 +116,25 @@ define([
 
       } else {
 
-        var currentPointCoords = lineDensified.paths[0][vertexCounter-1];
-        updatedLineGeom = addLineSegment(updatedLineGeom, currentPointCoords);
+        var pathIndex;
+        var pointIndex;
+        if (numPaths === 1){
+          pathIndex = 0;
+          pointIndex = vertexCounter-1;
+        } else {
+
+          if(vertexCounter <= path1vertexCount){
+            pathIndex = 0;
+            pointIndex = vertexCounter-1;
+          } else {
+            pathIndex = 1;
+            pointIndex = vertexCounter - path1vertexCount - 1;
+          }
+
+        }
+
+        var currentPointCoords = lineDensified.paths[pathIndex][pointIndex];
+        updatedLineGeom = addLineSegment(updatedLineGeom, currentPointCoords, pathIndex);
 
         if (lineEffect === "none"){
           previousSegment = new Graphic({
@@ -116,6 +155,14 @@ define([
 
     }, interval);
     return dfd.promise;
+  }
+
+  function getPolylineVerticeCount(polyline){
+    var count = 0;
+    polyline.paths.forEach(function(path){
+      count += path.length;
+    });
+    return count;
   }
 
   function densifyLine(geometry, tolerance, offset, scale){
@@ -171,6 +218,7 @@ define([
 
     if (view.graphics.includes(lineGraphic)){
       view.graphics.remove(lineGraphic);
+      // view.graphics.removeAll();
     }
 
     var removeSegmentsInterval = setInterval(function(){
@@ -238,6 +286,14 @@ define([
     });
   }
 
+  function denormalizePoint(point){
+    return new Point({
+      longitude: point.longitude + 360,
+      latitude: point.latitude,
+      spatialReference: point.spatialReference
+    });
+  }
+
   /**
    * Adds a new segment to an existing line during animation.
    * @param {module:esri/geometry/Polyline} line - Line geometry to update.
@@ -245,10 +301,13 @@ define([
    *   path of line animation.
    * @return {module:esri/geometry/Polyline} Returns the line with the updated coordinate.
    */
-  function addLineSegment(line, newPointCoords){
+  function addLineSegment(line, newPointCoords, pathIndex){
     var lineGeom;
     if (line){
       lineGeom = line;
+      if (pathIndex === 1 && lineGeom.paths.length === 1){
+        lineGeom.addPath([]);
+      }
     } else {
       lineGeom = new Polyline({
         paths: [newPointCoords, newPointCoords],
@@ -262,18 +321,19 @@ define([
       y: newPointCoords[1],
       spatialReference: { wkid: 3857 }
     });
-    return lineGeom.insertPoint(0,lineGeom.paths[0].length, newPoint);
+    return lineGeom.insertPoint(pathIndex,lineGeom.paths[pathIndex].length, newPoint);
   }
 
-  function removeLineSegment(lineGeometry, vertexIndex){
-    var line = lineGeometry.clone();
-    line.removePoint(0, vertexIndex);
-    return line;
+  function removeLineSegment(lineGeometry, vertexIndex, pathIndex){
+    //var line = lineGeometry.clone();
+    lineGeometry.removePoint(pathIndex, vertexIndex);
+    return lineGeometry;//line;
   }
 
   function drawSegment(lineGeom, previousSegmentGraphic, view, color, isMarriage){
     if(previousSegmentGraphic){
-      view.graphics.remove(previousSegmentGraphic);
+      // view.graphics.remove(previousSegmentGraphic);
+      view.graphics.removeAll();
     }
 
     var segment = new Graphic({
@@ -293,6 +353,7 @@ define([
   function drawPoint(pointGraphic, previousPointGraphic, view){
     if(previousPointGraphic){
       view.graphics.remove(previousPointGraphic);
+      // view.graphics.removeAll();
     }
     view.graphics.add(pointGraphic);
     return pointGraphic;
