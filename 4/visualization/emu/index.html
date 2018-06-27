@@ -5,8 +5,8 @@
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>3D EMU Cluster viewer</title>
   
-  <link rel="stylesheet" href="https://js.arcgis.com/4.5/esri/themes/dark-blue/main.css">
-  <link rel="stylesheet" href="https://js.arcgis.com/4.5/dijit/themes/claro/claro.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/4.8/esri/themes/dark-blue/main.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/4.8/dijit/themes/claro/claro.css">
 
   <style>
     html,
@@ -84,7 +84,7 @@
     };
   </script>
 
-  <script src="https://js.arcgis.com/4.5/"></script>
+  <script src="https://jsdev.arcgis.com/4.8/"></script>
 
   <script>
     require([
@@ -182,7 +182,7 @@
         })
       ];
 
-      SnapshotController.prototype._maxFeatures.point = 100000;
+      // SnapshotController.prototype._maxFeatures.point = 100000;
 
        //////////////////////////////////////////////
       //
@@ -479,9 +479,9 @@
       });
       map.add(layer);
 
-      view.then(function(){
+      view.when().then(function(){
         addDepthRuler(view, studyArea, depth);
-        layer.then(function(){
+        layer.when().then(function(){
 
           filterChange();
           generateContinuousVisualization();
@@ -951,8 +951,8 @@
   <div id="filter-container" class="esri-widget">
   <div class="esri-widget">
       EMU Cluster: <select id="emu-filter" class="esri-widget">
-        <option value="1=1">all</option>
-        <option value="Cluster37 = 10" selected>EMU 10</option>
+        <option value="1=1" selected>all</option>
+        <option value="Cluster37 = 10">EMU 10</option>
         <option value="Cluster37 = 13">EMU 13</option>
         <option value="Cluster37 = 14">EMU 14</option>
         <option value="Cluster37 = 18">EMU 18</option>
