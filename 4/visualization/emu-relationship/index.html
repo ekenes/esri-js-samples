@@ -1,0 +1,1089 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>3D EMU Cluster relationship viewer</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.9/esri/themes/dark-blue/main.css">
+  <script src="https://js.arcgis.com/4.9/"></script>
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    #titleDiv {
+      padding: 5px;
+      position: absolute;
+      z-index: 2;
+      top: 0;
+      right: 0;
+      font-size: 20pt;
+      font-weight: bolder;
+      width: 100%;
+      height: 40px;
+      text-align: center;
+    }
+
+    #filter-container {
+      padding: 5px;
+      width: 220px;
+    }
+
+    #title {
+      font-size: 14pt;
+      font-weight: 500;
+    }
+
+    #data-value {
+      font-weight: bolder;
+    }
+
+    .widget-background{
+      background-color: #242424;
+      font-size: 12pt;
+      padding: 8px;
+    }
+
+    #display-mean{
+      color: #f4f4f4;
+      /* font-weight: 600; */
+      font-size: 36px;
+      text-align: right;
+      visibility: hidden;
+      background-color: rgba(36,36,36,0.2);
+    }
+
+    #esri_widgets_RendererSlider_0{
+      background-color: #242424;
+      color: white;
+    }
+
+    .esri-handle-label-span{
+      color: white;
+    }
+    .esri-renderer-slider{
+      background-color: #242424;
+    }
+    .esri-renderer-slider .esri-top-label-node, .esri-renderer-slider .esri-bottom-label-node, .esri-renderer-slider .esri-handle-label{
+      color: white;
+    }
+  </style>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/Camera",
+      "esri/views/SceneView",
+      "esri/layers/FeatureLayer",
+      "esri/layers/ElevationLayer",
+      "esri/layers/BaseElevationLayer",
+      "esri/widgets/Expand",
+      "esri/widgets/Legend",
+      "esri/widgets/ColorSlider",
+      "esri/widgets/LayerList",
+      "esri/widgets/Home",
+      "esri/widgets/BasemapToggle",
+      "esri/Graphic",
+      "esri/layers/GroupLayer",
+      "esri/layers/GraphicsLayer",
+      "esri/layers/graphics/controllers/SnapshotController",
+      "esri/renderers/smartMapping/creators/color",
+      "esri/renderers/smartMapping/statistics/histogram",
+      "esri/renderers/smartMapping/creators/relationship",
+      "esri/core/lang"
+    ], function(Map, Camera, SceneView, FeatureLayer, ElevationLayer, BaseElevationLayer,
+      Expand, Legend, ColorSlider, LayerList, Home, BasemapToggle,
+      Graphic, GroupLayer, GraphicsLayer, SnapshotController,
+      colorRendererCreator, histogram, relationshipRendererCreator, lang
+    ) {
+
+      cameras = [
+        new Camera({
+          "position": {
+            "x": 8850935.645084891,
+            "y": -921808.3183676039,
+            "z": 160543.9681539568,
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            }
+          },
+          "heading": 330.5273575155239,
+          "tilt": 73.04547326633931
+        }),
+        new Camera({
+          "position": {
+            "x": 7075662.431307213,
+            "y": -545287.4081817305,
+            "z": 111211.68987328262,
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            }
+          },
+          "heading": 49.39331284529598,
+          "tilt": 73.44244171562167
+        }),
+        new Camera({
+          "position": {
+            "x": 7457802.314663684,
+            "y": 1960883.931150024,
+            "z": 322974.3554561713,
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            }
+          },
+          "heading": 154.95236074822157,
+          "tilt": 69.07578877351612
+        }),
+        new Camera({
+          "position": {
+            "x": 9264486.06881108,
+            "y": 1295052.9606176852,
+            "z": 580613.4903679888,
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            }
+          },
+          "heading": 233.54868888028503,
+          "tilt": 58.15915641825212
+        }),
+        new Camera({
+          "position": {
+            "x": 9666069.505875772,
+            "y": 99896.44748392468,
+            "z": 79413.60489667486,
+            "spatialReference": {
+              "latestWkid": 3857,
+              "wkid": 102100
+            }
+          },
+          "heading": 281.5423300724199,
+          "tilt": 78.20606310700948
+        })
+      ];
+
+       //////////////////////////////////////////////
+      //
+      //   Create a subclass of BaseElevationLayer
+      //
+      /////////////////////////////////////////////
+
+      var ExaggeratedElevationLayer = BaseElevationLayer.createSubclass({
+
+        properties: {
+          exaggeration: 100
+        },
+
+        load: function() {
+          this._elevation = new ElevationLayer({
+            portalItem: {
+              id: "0c69ba5a5d254118841d43f03aa3e97d"
+            }
+          });
+          this.addResolvingPromise(this._elevation.load());
+        },
+
+        fetchTile: function(level, row, col) {
+          return this._elevation.fetchTile(level, row, col)
+            .then(function(data) {
+
+              var exaggeration = this.exaggeration;
+              data.values.forEach(function(value, index, values) {
+                values[index] = value * exaggeration;
+              });
+
+              return data;
+            }.bind(this));
+        }
+      });
+
+      var colorField1Select = document.getElementById("color-field1-select");
+      var colorField2Select = document.getElementById("color-field2-select");
+      var depthFilter = document.getElementById("depth-filter");
+      var dataFilter = document.getElementById("data-filter");
+      var emuFilter = document.getElementById("emu-filter");
+      var dataFilterValue = document.getElementById("data-value");
+      var fieldNameValue = document.getElementById("field-name");
+      var displayMean = document.getElementById("display-mean");
+      var displayMeanValue = document.getElementById("display-mean-value");
+      var displayVariable = document.getElementById("display-variable");
+      var displayUnit = document.getElementById("display-unit");
+      var colorSlider = null;
+      var cylinderSymbolsUsed = false;
+      var dataMinElem = document.getElementById("data-min");
+      var dataMaxElem = document.getElementById("data-max");
+      var filterCheckbox = document.getElementById("filter-data-check");
+      var dataFilterContainer = document.getElementById("data-filter-container");
+      var colorSlideEvent;
+      var exaggeration = 100;
+
+      var studyArea = {
+        spatialReference: {
+          latestWkid: 3857,
+          wkid: 102100
+        },
+        xmin: 7834109,
+        ymin: -69576,
+        xmax: 8502026,
+        ymax: 907517
+      };
+
+      var depth = -4000 * exaggeration;
+
+      var map = new Map({
+        basemap: "satellite",
+        ground: {
+          layers: [
+            new ExaggeratedElevationLayer({
+              exaggeration: exaggeration
+            })
+          ]
+        }
+      });
+
+      view = new SceneView({
+        container: "viewDiv",
+        viewingMode: "local",
+        map: map,
+        padding: {
+          top: 40
+        },
+        popup: {
+          dockEnabled: true,
+          dockOptions: {
+            breakpoint: false,
+            position: "top-right"
+          }
+        },
+        camera: {
+          position: {
+            spatialReference: {
+              latestWkid: 3857,
+              wkid: 102100
+            },
+            x: 9040444,
+            y: -837938,
+            z: 247393
+          },
+          heading: 325,
+          tilt: 79
+        },
+        clippingArea: studyArea,
+        // Allows for navigating the camera below the surface
+        constraints: {
+          collision: {
+            enabled: false
+          },
+          tilt: {
+            max: 179.99
+          }
+        },
+        // Turns off atmosphere and stars settings
+        environment: {
+          atmosphere: null,
+          starsEnabled: false
+        }
+      });
+
+      function addDepthRuler (view, extent, depth){
+        var ruler = new GraphicsLayer({
+          graphics: [{
+            geometry: {
+              type: "polyline",
+              spatialReference: view.spatialReference,
+              hasZ: true,
+              paths: [
+                [
+                  [extent.xmin, extent.ymax, 0],
+                  [extent.xmin, extent.ymax, depth]
+                ]
+              ]
+            },
+            symbol: {
+              type: "simple-line",
+              width: 2,
+              color: "#69dcff"
+            }
+          }]
+        });
+
+        var rulerTickLayer = new FeatureLayer({
+          objectIdField: "ObjectID",
+          spatialReference: view.spatialReference,
+          fields: [{
+            name: "ObjectID",
+            alias: "ObjectID",
+            type: "oid"
+          }, {
+            name: "label",
+            alias: "label",
+            type: "double"
+          }],
+          geometryType: "point",
+          source: createGraphics(200, depth),
+          screenSizePerspectiveEnabled: false,
+          featureReduction: null,
+          labelsVisible: true,
+          labelingInfo: [{
+            symbol: {
+              type: "label-3d",
+              symbolLayers: [{
+                type: "text",
+                material: {
+                  color: "#69dcff"
+                },
+                size: 12
+              }]
+            },
+            labelPlacement: "center-right",
+            labelExpressionInfo: {
+              expression: "$feature.label"
+            }
+          }],
+          renderer: {
+            type: "simple",
+            symbol: {
+              type: "point-3d", 
+              symbolLayers: [{
+                type: "icon",
+                material: {
+                  color: "#69dcff"
+                },
+                resource: {
+                  primitive: "cross"
+                },
+                size: 10,
+                outline: {
+                  color: "#69dcff",
+                  size: 2
+                }
+              }]
+            }
+          }
+        });
+
+        function createGraphics(interval, depth){
+          var features = [];
+          var trueDepth = Math.round(Math.abs(depth/exaggeration));
+          for(var i = 0; i <= trueDepth; i+=interval){
+            var depthValue = i === 0 ? i : -i;
+            features.push(new Graphic({
+              attributes: {
+                ObjectID: i,
+                label: "  " + Math.round(depthValue) + " m"
+              },
+              geometry: {
+                type: "point",
+                spatialReference: view.spatialReference,
+                x: extent.xmin,
+                y: extent.ymax,
+                z: depthValue * exaggeration
+              }
+            }));
+          }
+          return features;
+        }
+
+        var depthRuler = new GroupLayer({
+          title: "Depth ruler",
+          listMode: "hide-children",
+          layers: [ ruler, rulerTickLayer ],
+          visible: false
+        });
+
+        view.map.add(depthRuler);
+      }
+
+      // Create SceneLayer and add to the map
+      layer = new FeatureLayer({
+        title: "EMU data points",
+        // portalItem: {
+        //   id: "cfbc577e961342688b6c5dc6d246c58f"
+        // },
+        url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/ArcGIS/rest/services/EMU_master_3857_2/FeatureServer/0",
+        popupTemplate: {
+          title: "{NameEMU}",
+          content: [{
+            type: "fields",
+            fieldInfos: [{
+              fieldName: "temp",
+              label: "Temperature (F)"
+            }, {
+              fieldName: "salinity",
+              label: "Salinity"
+            }, {
+              fieldName: "appO2ut",
+              label: "Apparent Oxygen"
+            }, {
+              fieldName: "dissO2",
+              label: "Dissolved Oxygen"
+            }, {
+              fieldName: "nitrate",
+              label: "Nitrate"
+            }, {
+              fieldName: "percO2sat",
+              label: "% Saturated Oxygen"
+            }, {
+              fieldName: "phosphate",
+              label: "Phosphate"
+            }, {
+              fieldName: "silicate",
+              label: "Silicate"
+            }, {
+              fieldName: "Cluster37",
+              label: "EMU Cluster"
+            }, {
+              fieldName: "ChlorA_12yrAvg",
+              label: "Chlor A (12 yr avg)"
+            }, {
+              fieldName: "expression/depth",
+              label: "Depth profile"
+            }]
+          }],
+          expressionInfos: [{
+            name: "depth",
+            title: "Depth",
+            expression: "Text(Abs($feature.UnitTop), '#,###') + 'm - ' + Text(Abs($feature.UnitBottom), '#,###') + 'm'"
+          }]
+        },
+        outFields: ["*"],
+        screenSizePerspectiveEnabled: false,
+        elevationInfo: {
+          mode: "absolute-height",
+          featureExpressionInfo: {
+            expression: "$feature.UnitTop" + "*" + exaggeration
+          },
+          unit: "meters"
+        }
+      });
+      map.add(layer);
+
+      view.when().then(function(){
+        addDepthRuler(view, studyArea, depth);
+        layer.when().then(function(){
+
+          // filterChange();
+          generateContinuousVisualization();
+
+          filterCheckbox.addEventListener("click", function(){
+            dataFilter.disabled = !filterCheckbox.checked;
+
+            if (dataFilter.disabled){
+              dataFilterContainer.style.color = "gray";
+            } else {
+              dataFilterContainer.style.color = null;
+            }
+
+            filterChange();
+          });
+          depthFilter.addEventListener("change", filterChange);
+          dataFilter.addEventListener("change", filterChange);
+          emuFilter.addEventListener("change", filterChange);
+          dataFilter.addEventListener("input", function(event){
+            dataFilterValue.innerText = Math.round(event.target.value*100) / 100;
+          });
+          symbolCheck.addEventListener("click", function(){
+            generateContinuousVisualization();
+          })
+
+          function filterChange (){
+            var depthExpression = depthFilter.value;
+            var emuExpression = emuFilter.value;
+            var dataExpression = filterCheckbox.checked ? colorField1Select.value + " <= " + dataFilter.value : "1=1";
+
+            var expression = "(" + depthExpression + ") AND (" + dataExpression + ") AND (" + emuExpression + ")";
+            layer.definitionExpression = expression;
+          }
+
+          function definitionExpressionHasValue(expression, value){
+            return expression.indexOf(value) > -1;
+          }
+
+        });
+      });
+
+      ///////////////////////////////////////
+      //
+      // Widgets
+      //
+      //////////////////////////////////////
+
+      // Display mean
+
+      view.ui.add(displayMean, "top-right");
+
+      // Home
+
+      view.ui.add(new Home({
+        view: view
+      }), "top-left");
+      
+      // BasemapToggle
+
+      view.ui.add(new BasemapToggle({
+        view: view,
+        nextBasemap: "oceans"
+      }), "bottom-right");
+
+      // LayerList
+
+      var layerList = new LayerList({
+        view: view,
+        container: document.createElement("div"),
+        listItemCreatedFunction: function(event){
+          var item = event.item;
+          if(item.title === layer.title){
+            item.actionsSections = [[{
+              title: "Toggle 3D cylinders",
+              className: "esri-icon-public",
+              id: "toggle-3d-cylinders"
+            }]];
+          }
+
+        }
+      });
+      layerList.on("trigger-action", function(event){
+        if(event.action.id === "toggle-3d-cylinders"){
+          cylinderSymbolsUsed = !cylinderSymbolsUsed;
+          changeEventListener();
+        }
+      });
+
+      var layerListExpand = new Expand({
+        view: view,
+        content: layerList.container,
+        expandIconClass: "esri-icon-layer-list",
+        group: "top-left"
+      });
+      view.ui.add(layerListExpand, "top-left");
+
+      // Legend
+
+      var legend = new Legend({
+        view: view,
+        container: document.createElement("div"),
+        layerInfos: [{
+          layer: layer
+        }]
+      });
+
+      var legendExpand = new Expand({
+        view: view,
+        content: legend.container,
+        expandIconClass: "esri-icon-key",
+        group: "top-left"
+      });
+      view.ui.add(legendExpand, "top-left");
+
+      // Color Slider
+
+      var colorSliderExpand = new Expand({
+        view: view,
+        content: document.getElementById("color-container"),
+        expandIconClass: "esri-icon-chart",
+        group: "top-left"
+      });
+      view.ui.add(colorSliderExpand, "top-left");
+
+      // Filters
+
+      var filtersExpand = new Expand({
+        view: view,
+        content: document.getElementById("filter-container"),
+        expandIconClass: "esri-icon-filter",
+        group: "top-left"
+      });
+      view.ui.add(filtersExpand, "top-left");
+
+      // Expands
+
+      layerListExpand.watch("expanded", function(expanded){
+        var otherWidgetsExpanded = colorSliderExpand.expanded || 
+          legendExpand.expanded || filtersExpand.expanded;
+
+        if(expanded && otherWidgetsExpanded){
+          colorSliderExpand.collapse();
+          legendExpand.collapse();
+          filtersExpand.collapse();
+        }
+      });
+
+      colorSliderExpand.watch("expanded", function(expanded){
+        var otherWidgetsExpanded = layerListExpand.expanded || 
+          legendExpand.expanded || filtersExpand.expanded;
+
+        if(expanded && otherWidgetsExpanded){
+          layerListExpand.collapse();
+          legendExpand.collapse();
+          filtersExpand.collapse();
+        }
+      });
+
+      legendExpand.watch("expanded", function(expanded){
+        var otherWidgetsExpanded = colorSliderExpand.expanded || 
+          layerListExpand.expanded || filtersExpand.expanded;
+
+        if(expanded && otherWidgetsExpanded){
+          colorSliderExpand.collapse();
+          layerListExpand.collapse();
+          filtersExpand.collapse();
+        }
+      });
+
+      filtersExpand.watch("expanded", function(expanded){
+        var otherWidgetsExpanded = colorSliderExpand.expanded || 
+          legendExpand.expanded || layerListExpand.expanded;
+
+        if(expanded && otherWidgetsExpanded){
+          colorSliderExpand.collapse();
+          legendExpand.collapse();
+          layerListExpand.collapse();
+        }
+      });
+
+      function changeEventListener(){
+        if(colorField1Select.value === "Cluster37"){
+          colorField2Select.disabled = true;
+          destroyColorSlider();
+          getEMUClusterVisualization();
+        } else {
+          if(colorField2Select.value === ""){
+            colorField2Select.disabled = false;
+            displayMean.style.visibility = /*themeOptions.value === "centered-on" ? "visible" : */"hidden";
+            displayVariable.innerHTML = colorField1Select.selectedOptions[0].text;
+
+            if(colorField1Select.value === "salinity"){
+              displayUnit.innerHTML = "";
+            } else {
+              displayUnit.innerHTML = colorField1Select.value === "temp" ? " °C" : " µmol/l";
+            }
+            generateContinuousVisualization();
+          } else {
+            destroyColorSlider();
+            generateRelationshipVisualization();
+          }
+        }
+      }
+
+      colorField1Select.addEventListener("change", changeEventListener);
+      colorField2Select.addEventListener("change", changeEventListener);
+
+      function getNumHandles(theme){
+        return theme === "high-to-low" ? 2 : 3;
+      }
+
+      function getUniqueValueVisualization(){
+        var symbolType = cylinderSymbolsUsed ? "object" : "icon";
+        var renderer = layer.renderer.clone();
+        renderer.uniqueValueInfos.forEach(function(info){
+          var color = info.symbol.color ? info.symbol.color.clone() : info.symbol.symbolLayers.getItemAt(0).material.color.clone();
+          info.symbol = createSymbol(color, symbolType);
+        });
+
+        if(symbolType === "object"){
+          renderer.visualVariables = [{
+            type: "size",
+            valueExpression: "$feature.ThicknessPos" + " * " + exaggeration,
+            valueUnit: "meters",
+            axis: "height"
+          }, {
+            type: "size",
+            useSymbolValue: true,
+            axis: "width-and-depth"
+          }];
+        }
+
+        layer.renderer = renderer;
+      }
+
+      function getEMUClusterVisualization(){
+        
+        var symbolType = cylinderSymbolsUsed ? "object" : "icon";
+
+        var renderer = {
+          type: "unique-value",
+          field: "Cluster37",
+          defaultSymbol: createSymbol("darkgray", symbolType),
+          defaultLabel: "no classification",
+          uniqueValueInfos: [{
+            value: 10, 
+            label: "EMU 10",
+            symbol: createSymbol([117,112,230], symbolType)
+          }, {
+            value: 13, 
+            label: "EMU 13",
+            symbol: createSymbol([54,71,153], symbolType)
+          }, {
+            value: 33, 
+            label: "EMU 33",
+            symbol: createSymbol([117,145,255], symbolType)
+          }, {
+            value: 24, 
+            label: "EMU 24",
+            symbol: createSymbol([235,169,212], symbolType)
+          }, {
+            value: 26, 
+            label: "EMU 26",
+            symbol: createSymbol([147,101,230], symbolType)
+          }, {
+            value: 18, 
+            label: "EMU 18",
+            symbol: createSymbol([188,90,152], symbolType)
+          }, {
+            value: 36, 
+            label: "EMU 36",
+            symbol: createSymbol([26,82,170], symbolType)
+          }, {
+            value: 14, 
+            label: "EMU 14",
+            symbol: createSymbol([70,82,144], symbolType)
+          }]
+        };
+
+        if(symbolType === "object"){
+          renderer.visualVariables = [{
+            type: "size",
+            valueExpression: "$feature.ThicknessPos" + " * " + exaggeration,
+            valueUnit: "meters",
+            axis: "height"
+          }, {
+            type: "size",
+            useSymbolValue: true,
+            axis: "width-and-depth"
+          }];
+        }
+
+        layer.renderer = renderer;
+      }
+
+      function destroyColorSlider(){
+        if(colorSlider){
+          colorSlider.destroy();
+          colorSlideChangeEvent.remove();
+          colorSlideSlideEvent.remove();
+          colorSlider = null;
+        }
+      }
+
+      function createSymbol(color, type){
+        return {
+          type: "point-3d",
+          symbolLayers: [{
+            type: type,  // icon | object
+            resource: {
+              primitive: type === "object" ? "cylinder" : "circle"
+            },
+            material: {
+              color: color ? color : "white"
+            },
+            size: type === "icon" ? 6 : null,
+            width: type === "object" ? 27000 : null,
+            anchor: type === "object" ? "top" : null
+          }]
+        };
+      }
+
+      function generateContinuousVisualization(){
+        var symbolType = cylinderSymbolsUsed ? "object" : "icon";
+
+        var options = {
+          layer: layer,
+          basemap: "dark-gray",
+          field: colorField1Select.value,
+          view: view,
+          theme: "above-and-below",
+          view: symbolType === "object" ? view : null,
+          worldScale: symbolType === "object"
+        };
+
+        var renderer = {
+          type: "simple",
+          symbol: createSymbol("white", symbolType)
+        }
+
+        var containsIconSymbol = renderer.symbol.symbolLayers.some(function(sl){
+          return sl.type === "icon";
+        });
+
+        if(!containsIconSymbol){
+          renderer.visualVariables = [{
+            type: "size",
+            valueExpression: "$feature.ThicknessPos" + "*" + exaggeration,
+            valueUnit: "meters",
+            axis: "height"
+          }, {
+            type: "size",
+            useSymbolValue: true,
+            axis: "width-and-depth"
+          }];
+        }
+        
+        var colorResponse, colorVV;
+        colorRendererCreator.createVisualVariable(options)
+          .then(function(response){
+            colorResponse = response;
+            colorVV = response.visualVariable;
+
+            if(renderer.visualVariables && renderer.visualVariables.length > 1){
+              renderer.visualVariables.push(colorVV);
+            } else {
+              renderer.visualVariables = [ colorVV ];
+            }
+            layer.renderer = renderer;
+
+            var min = colorResponse.statistics.min;
+            var max = colorResponse.statistics.max;
+            var stddev = colorResponse.statistics.stddev * 0.33;
+            
+            fieldNameValue.innerText = colorField1Select.value;
+            dataFilter.min = min;
+            dataMinElem.innerText = Math.round(min*100) / 100;
+            dataFilter.max = max + stddev;
+            dataMaxElem.innerText = Math.round(max*100) / 100;
+            dataFilter.value = max;
+            dataFilterValue.innerText = Math.round(dataFilter.value*100) / 100;
+            dataFilter.step = stddev;
+
+            return histogram({
+              layer: options.layer,
+              field: options.field,
+              numBins: 30
+            });
+          }).then(function(colorHistogram) {
+            var colorSliderParams = {
+              statistics: colorResponse.statistics,
+              maxValue: colorResponse.statistics.max,
+              minValue: colorResponse.statistics.min,
+              histogram: colorHistogram,
+              visualVariable: colorVV,
+              numHandles: getNumHandles(options.theme),
+              syncedHandles: getNumHandles(options.theme) > 2
+            };
+
+            // input the slider parameters in the slider's constructor
+            // and add it to the view's UI
+
+            if (!colorSlider) {
+
+              var colorSliderParent = document.getElementById("color-container");
+              var colorSliderContainer = document.createElement("div");
+              colorSliderContainer.className = "esri-widget";
+              colorSliderParent.appendChild(colorSliderContainer);
+              colorSliderParams.container = colorSliderContainer;
+
+              colorSlider = new ColorSlider(colorSliderParams);
+
+              // when the user slides the handle(s), update the renderer
+              // with the updated color visual variable object
+
+              colorSlideChangeEvent = colorSlider.on("handle-value-change", function() {
+                var renderer = layer.renderer.clone();
+
+                if(renderer.visualVariables.length <= 1){
+                  return;
+                }
+
+                var visualVariables = lang.clone(renderer.visualVariables);
+                layer.renderer.visualVariables = [];
+
+                if(visualVariables){
+                  var unchangedVVs = visualVariables.filter(function(vv){
+                    return vv.type !== "color";
+                  });
+                  renderer.visualVariables = unchangedVVs.concat([lang.clone(colorSlider.visualVariable)]);
+                } else {
+                  // renderer.visualVariables.pop();
+                  renderer.visualVariables.push(lang.clone(colorSlider.visualVariable));
+                }
+                displayMeanValue.innerHTML = Math.round(colorSlider.visualVariable.stops[2].value*100)/100;
+                layer.renderer = renderer;
+              });
+
+              colorSlideSlideEvent = colorSlider.on("data-change", function() {
+                var renderer = layer.renderer.clone();
+                if(renderer.visualVariables.length > 1){
+                  return;
+                }
+                renderer.visualVariables = [ lang.clone(colorSlider.visualVariable) ];
+                displayMeanValue.innerHTML = Math.round(colorSlider.visualVariable.stops[2].value*100)/100;
+                layer.renderer = renderer;
+              });
+
+            } else {
+              colorSlider.set(colorSliderParams);
+            }
+          });
+      }
+
+      function generateRelationshipVisualization(){
+        const params = {
+          // relationshipScheme: schemes.secondarySchemes[8],
+          layer: layer,
+          view: view,
+          basemap: map.basemap,
+          field1: {
+            field: colorField1Select.value
+          },
+          field2: {
+            field: colorField2Select.value
+          },
+          classificationMethod: "quantile",
+          focus: "HH"
+        };
+
+        return relationshipRendererCreator.createRenderer(params)
+          .then(function(response){
+            var symbolType = cylinderSymbolsUsed ? "object" : "icon";
+            var renderer = response.renderer;
+            var uniqueValueInfos;
+
+            if (cylinderSymbolsUsed){            
+              uniqueValueInfos = renderer.uniqueValueInfos.map(function(info){
+                info.symbol = createSymbol(info.symbol.color.clone(), symbolType);
+                switch (info.value) {
+                  case "HH": 
+                    info.label = "High " + colorField1Select.selectedOptions[0].text + ", High " + colorField2Select.selectedOptions[0].text;
+                    break;
+                  case "HL":
+                    info.label = "High " + colorField1Select.selectedOptions[0].text + ", Low " + colorField2Select.selectedOptions[0].text;
+                    break;
+                  case "LH":
+                    info.label = "Low " + colorField1Select.selectedOptions[0].text + ", High " + colorField2Select.selectedOptions[0].text;
+                    break;
+                  case "LL":
+                    info.label = "Low " + colorField1Select.selectedOptions[0].text + ", Low " + colorField2Select.selectedOptions[0].text;
+                    break;
+                }
+                return info;
+              });
+
+              renderer.defaultSymbol = createSymbol([128,128,128], symbolType);
+              renderer.visualVariables = [{
+                type: "size",
+                valueExpression: "$feature.ThicknessPos" + " * " + exaggeration,
+                valueUnit: "meters",
+                axis: "height"
+              }, {
+                type: "size",
+                useSymbolValue: true,
+                axis: "width-and-depth"
+              }];
+            } else {
+              uniqueValueInfos = renderer.uniqueValueInfos.map(function(info){
+                switch (info.value) {
+                  case "HH": 
+                    info.label = "High " + colorField1Select.selectedOptions[0].text + ", High " + colorField2Select.selectedOptions[0].text;
+                    break;
+                  case "HL":
+                    info.label = "High " + colorField1Select.selectedOptions[0].text + ", Low " + colorField2Select.selectedOptions[0].text;
+                    break;
+                  case "LH":
+                    info.label = "Low " + colorField1Select.selectedOptions[0].text + ", High " + colorField2Select.selectedOptions[0].text;
+                    break;
+                  case "LL":
+                    info.label = "Low " + colorField1Select.selectedOptions[0].text + ", Low " + colorField2Select.selectedOptions[0].text;
+                    break;
+                }
+                return info;
+              });
+            }
+            
+            renderer.uniqueValueInfos = uniqueValueInfos;
+            layer.renderer = renderer;
+
+          });
+      }
+
+      rotate = function(cams, index){
+        var i = index ? index : 0;
+        if (i === cams.length){
+          view.goTo(cams[0], { duration: 5000, easing: "ease-in-out" })
+          return;
+        }
+        return view.goTo(cams[i], { duration: 5000, easing: "ease-in-out" }).then(function(){
+          return rotate(cams, i+1);
+        });
+      }
+
+    });
+  </script>
+</head>
+
+<body class="claro">
+  <div id="viewDiv">
+    <div id="titleDiv" class="esri-widget">
+      Ecological Marine Units - Maldives
+    </div>
+  </div>
+  <div id="color-container" class="widget-background">
+    Field1: &nbsp;&nbsp;&nbsp;<select id="color-field1-select" class="esri-widget">
+      <option value="Cluster37">EMU Cluster</option>
+      <option value="temp">Temperature</option>
+      <option value="salinity" selected>Salinity</option>
+      <option value="appO2ut">Apparent O2</option>
+      <option value="dissO2">Dissolved O2</option>
+      <option value="nitrate">Nitrate</option>
+      <option value="percO2sat">% O2 Saturation</option>
+      <option value="phosphate">Phosphate</option>
+      <option value="silicate">Silicate</option>
+      <option value="ChlorA_12yrAvg">ChlorA (12 yr avg)</option>
+    </select><br>
+    Field2: &nbsp;&nbsp;&nbsp;<select id="color-field2-select" class="esri-widget">
+      <option value="" selected></option>
+      <option value="temp">Temperature</option>
+      <option value="salinity">Salinity</option>
+      <option value="appO2ut">Apparent O2</option>
+      <option value="dissO2">Dissolved O2</option>
+      <option value="nitrate">Nitrate</option>
+      <option value="percO2sat">% O2 Saturation</option>
+      <option value="phosphate">Phosphate</option>
+      <option value="silicate">Silicate</option>
+      <option value="ChlorA_12yrAvg">ChlorA (12 yr avg)</option>
+    </select>
+  </div>
+  <div id="filter-container" class="esri-widget">
+  <div class="esri-widget">
+      EMU Cluster: <select id="emu-filter" class="esri-widget">
+        <option value="1=1" selected>all</option>
+        <option value="Cluster37 = 10">EMU 10</option>
+        <option value="Cluster37 = 13">EMU 13</option>
+        <option value="Cluster37 = 14">EMU 14</option>
+        <option value="Cluster37 = 18">EMU 18</option>
+        <option value="Cluster37 = 24">EMU 24</option>
+        <option value="Cluster37 = 26">EMU 26</option>
+        <option value="Cluster37 = 33">EMU 33</option>
+        <option value="Cluster37 = 36">EMU 36</option>
+      </select>
+    </div>
+    <div class="esri-widget">
+      Depth: <select id="depth-filter" class="esri-widget">
+        <option value="1=1" selected>none</option>
+        <option value="UnitTop > -200">0 - 200m +</option>
+        <option value="UnitTop >= -1000 AND UnitTop <= -200">200m - 1000m</option>
+        <option value="UnitTop >= -2000 AND UnitTop <= -1000">1000m - 2000m</option>
+        <option value="UnitTop >= -3000 AND UnitTop <= -2000">2000m - 3000m</option>
+        <option value="UnitTop <= -3000">> 3000m</option>
+      </select>
+    </div>
+    <div id="data-filter-container" class="esri-widget" style="padding-top: 10px; color: gray;">
+      <input type="checkbox" id="filter-data-check"> filter by data values?<br>
+      <span id="field-name"></span> values less than <span id="data-value"></span><br>
+      <span id="data-min">0</span><input type="range" id="data-filter" min="0" max="38" step="1" class="esri-widget" disabled><span id="data-max">38</span>
+    </div>
+  </div>
+  <div id="display-mean" class="esri-widget">
+    <span id="display-variable"></span><br>
+    <span id="display-mean-value"></span><span id="display-unit"></span>
+  </div>
+</html>
