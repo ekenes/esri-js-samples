@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Client-side projection - 4.7</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://jsdev.arcgis.com/4.10/esri/css/main.css">
+  <script src="https://jsdev.arcgis.com/4.10/"></script>
+
+  <script>
+    require([
+      "esri/views/MapView",
+      "esri/WebMap",
+      "esri/portal/PortalItem",
+      "esri/Graphic",
+      "esri/request",
+    ], function(
+      MapView, WebMap,
+      PortalItem,
+      Graphic,
+      esriRequest
+    ) {
+
+      getData()
+        .then(createPoints);
+
+      const view = new MapView({
+        container: "viewDiv",
+        map: new WebMap({
+          // basemap: "gray"
+          portalItem: {
+            id: "89199cfc680a44268121e826aa73c386"
+          }
+        })
+      });
+
+      function getData(){
+        return esriRequest("null-data-winkel-3.json");
+      }
+
+      function createPoints(response){
+        var graphics = response.data.map(function(feature){
+          return Graphic.fromJSON(feature);
+        });
+        view.graphics.addMany(graphics);
+      }
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
