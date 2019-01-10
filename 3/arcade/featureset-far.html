@@ -26,7 +26,7 @@
 
 <script src="https://js.arcgis.com/3.27/"></script>
 
-<script type="text/plain" id="housing-arcade">
+<script type="text/plain" id="far-arcade">
   // buildings represents the buildings that intersect the clicked parcel
   var buildingFootprints = Intersects($feature, FeatureSetByName($map, "Building Footprints"));
   var grossFloorArea = 0;
@@ -54,30 +54,23 @@ require([
     popupProfile
   ) {
 
-    const housingArcade = document.getElementById("housing-arcade").text;
+    const farArcade = document.getElementById("far-arcade").text;
 
-    const arcadeExpressionInfos = [{
-      name: "housing",
-      title: "housing",
-      expression: housingArcade
-    }];
-
-    popupProfile.initialize( [ housingArcade ] ).then(function(){
-
+    popupProfile.initialize( [ farArcade ] ).then(function(){
       arcgisUtils.createMap("da634028a734418f8a5416c675559c3a", "map").then(function (response) {
         const map = response.map;
-
         const layerIds = map.graphicsLayerIds;
         layer = map.getLayer(layerIds[1]);
 
         layer.setInfoTemplate( new PopupTemplate({
-          title: "{NAME}",
-          description: "Floor Area Ratio (FAR): {expression/housing}",
-          expressionInfos: arcadeExpressionInfos
+          description: "Floor Area Ratio (FAR): {expression/far}",
+          expressionInfos: [{
+            name: "far",
+            title: "far",
+            expression: farArcade
+          }]
         }));
-
       });
-
     });
 
   });
