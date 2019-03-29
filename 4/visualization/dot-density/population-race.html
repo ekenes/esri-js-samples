@@ -28,7 +28,8 @@
         "esri/renderers/DotDensityRenderer",
         "esri/widgets/Legend",
         "esri/widgets/Bookmarks",
-        "esri/widgets/Expand"
+        "esri/widgets/Expand",
+        "esri/widgets/Search"
       ], function(
         WebMap,
         MapView,
@@ -36,7 +37,8 @@
         DotDensityRenderer,
         Legend,
         Bookmarks,
-        Expand
+        Expand,
+        Search
       ) {
         const map = new WebMap({
           portalItem: {
@@ -49,7 +51,7 @@
           map: map,
           highlightOptions: {
             fillOpacity: 0,
-            color: [50, 50, 50]
+            color: [255, 255, 255]
           },
           popup: {
             dockEnabled: true,
@@ -115,17 +117,77 @@
             title: "Current Population Estimates (ACS)",
             popupTemplate: {
               title: "{County}, {State}",
-              content: [{
-                type: "fields",
-                fieldInfos: [{
-                  fieldName: "B03002_001E",
-                  label: "Population",
-                  format: {
-                    digitSeparator: true,
-                    places: 0
-                  }
-                }]
-              }]
+              content: [
+                {
+                  type: "fields",
+                  fieldInfos: [
+                    {
+                      fieldName: "B03002_003E",
+                      label: "White (non-Hispanic)",
+                      format: {
+                        digitSeparator: true,
+                        places: 0
+                      }
+                    },
+                    {
+                      fieldName: "B03002_012E",
+                      label: "Hispanic",
+                      format: {
+                        digitSeparator: true,
+                        places: 0
+                      }
+                    },
+                    {
+                      fieldName: "B03002_004E",
+                      label: "Black or African American",
+                      format: {
+                        digitSeparator: true,
+                        places: 0
+                      }
+                    },
+                    {
+                      fieldName: "B03002_006E",
+                      label: "Asian",
+                      format: {
+                        digitSeparator: true,
+                        places: 0
+                      }
+                    },
+                    {
+                      fieldName: "B03002_005E",
+                      label: "American Indian/Alaskan Native",
+                      format: {
+                        digitSeparator: true,
+                        places: 0
+                      }
+                    },
+                    {
+                      fieldName: "B03002_007E",
+                      label: "Pacific Islander/Hawaiian Native",
+                      format: {
+                        digitSeparator: true,
+                        places: 0
+                      }
+                    },
+                    {
+                      fieldName: "B03002_008E",
+                      label: "Other race",
+                      format: {
+                        digitSeparator: true,
+                        places: 0
+                      }
+                    },
+                    {
+                      fieldName: "B03002_009E",
+                      label: "Two or more races",
+                      format: {
+                        digitSeparator: true,
+                        places: 0
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             renderer: dotDensityRenderer
           });
@@ -142,6 +204,11 @@
             new Expand({
               view: view,
               content: new Bookmarks({ view: view }),
+              group: "top-left"
+            }),
+            new Expand({
+              view: view,
+              content: new Search({ view: view }),
               group: "top-left"
             })], "top-left" );
         });
