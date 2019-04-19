@@ -1,0 +1,46 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>Abel Butler Land</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.11/"></script>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <script>
+      require([
+        "esri/WebMap",
+        "esri/views/MapView",
+        "esri/widgets/Track",
+      ], function(WebMap, MapView, Track) {
+
+        const map = new WebMap({
+          portalItem: { id: "a1bba50e64704f3aae53cd5e3bd106e1" }
+        });
+
+        view = new MapView({
+          container: "viewDiv",
+          map: map
+        });
+        view.ui.add(new Track({ view: view }), "top-left");
+
+      });
+    </script>
+  </head>
+
+  <body>
+    <div id="viewDiv"></div>
+  </body>
+
+</html>
