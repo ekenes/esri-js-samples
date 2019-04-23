@@ -11,10 +11,24 @@
       html,
       body,
       #viewDiv {
-          padding: 0;
-          margin: 0;
-          height: 100%;
-          width: 100%;
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+      #titleDiv {
+        padding: 10px;
+        background-color: rgba(50,50,50,0.9);
+        color: white;
+      }
+      #titleText {
+        font-size: 32pt;
+        font-weight: 600;
+        padding: 10px 5px 10px 5px;
+      }
+      #dataDescription {
+        font-size: 12pt;
+        padding: 10px 5px 0px 5px;
       }
     </style>
 
@@ -28,14 +42,15 @@
         "esri/widgets/Legend",
         "esri/widgets/Search",
         "esri/widgets/LayerList",
+        "esri/widgets/Bookmarks",
         "esri/widgets/Expand"
-      ], function(WebMap, MapView, FeatureLayer, GroupLayer, DotDensityRenderer, Legend, Search, LayerList, Expand) {
+      ], function(WebMap, MapView, FeatureLayer, GroupLayer, DotDensityRenderer, Legend, Search, LayerList, Bookmarks, Expand) {
 
         const map = new WebMap({
           portalItem: { id: "1817165774bc4cd4a31c8c0477ff4866" }
         });
 
-        view = new MapView({
+        const view = new MapView({
           container: "viewDiv",
           map: map,
           highlightOptions: {
@@ -43,7 +58,15 @@
             color: "white"
           },
           constraints: {
-            maxScale: 144447
+            maxScale: 144447,
+            minScale: 4622324
+          },
+          popup: {
+            dockEnabled: true,
+            dockOptions: {
+              breakpoint: false,
+              position: "bottom-right"
+            }
           }
         });
         view.ui.add(new Legend({ view: view }), "bottom-left");
@@ -66,29 +89,25 @@
             view: view,
             listItemCreatedFunction: function (event) {
               const item = event.item;
-              const validTitles = [
-                "Population change from night to day",
-                "Nighttime Population",
-                "Daytime population"
-              ];
               item.open = true;
             }
           })
         }), "top-left");
+
+        view.ui.add(new Expand({
+          view: view,
+          group: "top-left",
+          content: new Bookmarks({ view: view })
+        }), "top-left");
+        view.ui.add("titleDiv", "top-right");
 
         view.when().then(function(){
 
           const url = "https://services.arcgis.com/jIL9msH9OI208GCb/arcgis/rest/services/USA_Daytime_Population_2016/FeatureServer/2";
         
           const changeRenderer = new DotDensityRenderer({
-            referenceDotValue: 400,
+            referenceDotValue: 300,
             outline: null,
-            referenceScale: 577790,
-            // referenceDotValue: 500,
-            // outline: {
-            //   width: 0.5,
-            //   color: [ 250,250,250,0.1 ]
-            // },
             legendOptions: {
               unit: "people"
             },
@@ -96,14 +115,63 @@
               {
                 valueExpression: "$feature.DPOP_CY - $feature.TOTPOP_CY",
                 color: [255,255,0,1],
-                label: "Population growth at daytime"
+                label: "Daytime population growth"
               }, {
                 valueExpression: "IIF($feature.DPOP_CY - $feature.TOTPOP_CY < 0, Abs($feature.DPOP_CY - $feature.TOTPOP_CY), 0)",
                 color: [ 0,255,255,1],
-                label: "Population growth at nighttime"
+                label: "Nighttime population growth"
               }
             ]
           });
+
+
+          const popupTemplate = {
+            content: [{
+              type: "fields",
+              fieldInfos: this.fieldInfos
+            }],
+            expressionInfos: [{
+              expression: "$feature.DPOP_CY - $feature.TOTPOP_CY",
+              title: "Population change from night to day",
+              name: "difference"
+            }],
+            fieldInfos: [{
+              fieldName: 'expression/difference',
+              label: 'Population change from night to day',
+              format: {
+                places: 0,
+                digitSeparator: true
+              }
+            }, {
+              fieldName: 'DPOP_CY',
+              label: 'Daytime population',
+              format: {
+                places: 0,
+                digitSeparator: true
+              }
+            }, {
+              fieldName: 'TOTPOP_CY',
+              label: 'Nighttime population',
+              format: {
+                places: 0,
+                digitSeparator: true
+              }
+            }, {
+              fieldName: 'DPOPWRK_CY',
+              label: 'Worker population (daytime)',
+              format: {
+                places: 0,
+                digitSeparator: true
+              }
+            }, {
+              fieldName: 'DPOPRES_CY',
+              label: 'Resident population (daytime)',
+              format: {
+                places: 0,
+                digitSeparator: true
+              }
+            }]
+          };
 
           const changeLayer = new FeatureLayer({
             url: url,
@@ -111,21 +179,40 @@
             visible: true,
             minScale: 0,
             title: "Population change from night to day",
-            popupTemplate: {
-              content: "Daytime pop change: <b>{expression/difference}</b>",
-              expressionInfos: [{
-                expression: "$feature.DPOP_CY - $feature.TOTPOP_CY",
-                title: "difference",
-                name: "difference"
-              }]
-            }
+            popupTemplate: popupTemplate
+          });
+
+          const workersLayer = new FeatureLayer({
+            url: url,
+            renderer: new DotDensityRenderer({
+              referenceDotValue: 300,
+              outline: null,
+              legendOptions: {
+                unit: "people"
+              },
+              attributes: [
+                {
+                  field: "DPOPWRK_CY",
+                  color: "#35ff89",
+                  label: "Worker population"
+                }, {
+                  field: "DPOPRES_CY",
+                  color: "#ff0ad2",
+                  label: "Resident population"
+                }
+              ]
+            }),
+            visible: false,
+            minScale: 0,
+            title: "Daytime population by residents vs. workers",
+            popupTemplate: popupTemplate
           });
 
           const dayTimePopulation = new FeatureLayer({
             url: url,
             renderer: new DotDensityRenderer({
-              referenceDotValue: 500,
-              outline: null,
+            referenceDotValue: 300,
+            outline: null,
               legendOptions: {
                 unit: "people"
               },
@@ -140,20 +227,13 @@
             visible: false,
             minScale: 0,
             title: "Daytime population",
-            popupTemplate: {
-              content: "Daytime pop change: <b>{expression/difference}</b>",
-              expressionInfos: [{
-                expression: "$feature.DPOP_CY",
-                title: "difference",
-                name: "difference"
-              }]
-            }
+            popupTemplate: popupTemplate
           });
 
           const nighTimePopulation = new FeatureLayer({
             url: url,
             renderer: new DotDensityRenderer({
-              referenceDotValue: 500,
+              referenceDotValue: 300,
               outline: null,
               legendOptions: {
                 unit: "people"
@@ -169,19 +249,12 @@
             visible: false,
             minScale: 0,
             title: "Nighttime Population",
-            popupTemplate: {
-              content: "Daytime pop change: <b>{expression/difference}</b>",
-              expressionInfos: [{
-                expression: "$feature.DPOP_CY",
-                title: "difference",
-                name: "difference"
-              }]
-            }
+            popupTemplate: popupTemplate
           });
 
           const allLayers = new GroupLayer({
-            title: "Population in daytime vs. nighttime",
-            layers: [ dayTimePopulation, nighTimePopulation, changeLayer ],
+            title: "Population (Census Tracts)",
+            layers: [ workersLayer, dayTimePopulation, nighTimePopulation, changeLayer ],
             visibilityMode: "exclusive"
           });
 
@@ -196,6 +269,10 @@
 
   <body>
     <div id="viewDiv"></div>
+    <div id="titleDiv" class="esri-widget">
+      <div id="titleText">Population by day and night</div>
+      <div id="dataDescription">How does population shift when the sun comes up and goes down?</div>
+    </div>
   </body>
 
 </html>
