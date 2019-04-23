@@ -105,25 +105,24 @@
 
           const url = "https://services.arcgis.com/jIL9msH9OI208GCb/arcgis/rest/services/USA_Daytime_Population_2016/FeatureServer/2";
         
-          const changeRenderer = new DotDensityRenderer({
+          const baseRenderer = new DotDensityRenderer({
             referenceDotValue: 300,
             outline: null,
             legendOptions: {
               unit: "people"
-            },
-            attributes: [
-              {
-                valueExpression: "$feature.DPOP_CY - $feature.TOTPOP_CY",
-                color: [255,255,0,1],
-                label: "Daytime population growth"
-              }, {
-                valueExpression: "IIF($feature.DPOP_CY - $feature.TOTPOP_CY < 0, Abs($feature.DPOP_CY - $feature.TOTPOP_CY), 0)",
-                color: [ 0,255,255,1],
-                label: "Nighttime population growth"
-              }
-            ]
+            }
           });
 
+          const changeRenderer = baseRenderer.clone();
+          changeRenderer.attributes = [{
+            valueExpression: "$feature.DPOP_CY - $feature.TOTPOP_CY",
+            color: [255,255,0,1],
+            label: "Daytime population growth"
+          }, {
+            valueExpression: "IIF($feature.DPOP_CY - $feature.TOTPOP_CY < 0, Abs($feature.DPOP_CY - $feature.TOTPOP_CY), 0)",
+            color: [ 0,255,255,1],
+            label: "Nighttime population growth"
+          }];
 
           const popupTemplate = {
             content: [{
@@ -182,70 +181,52 @@
             popupTemplate: popupTemplate
           });
 
+          const workersRenderer = baseRenderer.clone();
+          workersRenderer.attributes = [{
+            field: "DPOPWRK_CY",
+            color: "#35ff89",
+            label: "Worker population"
+          }, {
+            field: "DPOPRES_CY",
+            color: "#ff0ad2",
+            label: "Resident population"
+          }];
+
           const workersLayer = new FeatureLayer({
             url: url,
-            renderer: new DotDensityRenderer({
-              referenceDotValue: 300,
-              outline: null,
-              legendOptions: {
-                unit: "people"
-              },
-              attributes: [
-                {
-                  field: "DPOPWRK_CY",
-                  color: "#35ff89",
-                  label: "Worker population"
-                }, {
-                  field: "DPOPRES_CY",
-                  color: "#ff0ad2",
-                  label: "Resident population"
-                }
-              ]
-            }),
+            renderer: workersRenderer,
             visible: false,
             minScale: 0,
             title: "Daytime population by residents vs. workers",
             popupTemplate: popupTemplate
           });
 
+          const daytimeRenderer = baseRenderer.clone();
+          daytimeRenderer.attributes = [{
+            field: "DPOP_CY",
+            color: [255,255,0,1],
+            label: "Daytime population"
+          }];
+
           const dayTimePopulation = new FeatureLayer({
             url: url,
-            renderer: new DotDensityRenderer({
-            referenceDotValue: 300,
-            outline: null,
-              legendOptions: {
-                unit: "people"
-              },
-              attributes: [
-                {
-                  field: "DPOP_CY",
-                  color: [255,255,0,1],
-                  label: "Daytime population"
-                }
-              ]
-            }),
+            renderer: daytimeRenderer,
             visible: false,
             minScale: 0,
             title: "Daytime population",
             popupTemplate: popupTemplate
           });
 
+          const nighttimeRenderer = baseRenderer.clone();
+          nighttimeRenderer.attributes = [{
+            field: "TOTPOP_CY",
+            color: [ 0,255,255,1],
+            label: "Nighttime Population"
+          }];
+
           const nighTimePopulation = new FeatureLayer({
             url: url,
-            renderer: new DotDensityRenderer({
-              referenceDotValue: 300,
-              outline: null,
-              legendOptions: {
-                unit: "people"
-              },
-              attributes: [
-                {
-                  field: "TOTPOP_CY",
-                  color: [ 0,255,255,1],
-                  label: "Nighttime Population"
-                }
-              ]
-            }),
+            renderer: nighttimeRenderer,
             visible: false,
             minScale: 0,
             title: "Nighttime Population",
