@@ -43,8 +43,9 @@
         "esri/widgets/Search",
         "esri/widgets/LayerList",
         "esri/widgets/Bookmarks",
-        "esri/widgets/Expand"
-      ], function(WebMap, MapView, FeatureLayer, GroupLayer, DotDensityRenderer, Legend, Search, LayerList, Bookmarks, Expand) {
+        "esri/widgets/Expand",
+        "esri/core/watchUtils"
+      ], function(WebMap, MapView, FeatureLayer, GroupLayer, DotDensityRenderer, Legend, Search, LayerList, Bookmarks, Expand, watchUtils) {
 
         const map = new WebMap({
           portalItem: { id: "1817165774bc4cd4a31c8c0477ff4866" }
@@ -103,6 +104,19 @@
 
         view.when().then(function(){
 
+          const urlParams = getUrlParams();
+          const lat = parseFloat(urlParams.lat);
+          const lon = parseFloat(urlParams.lon);
+          const zoom = parseInt(urlParams.zoom);
+          const layerId = parseInt(urlParams.layerId);
+
+          if ( lon && lat){
+            view.goTo({
+              center: [ lon, lat ],
+              zoom: zoom ? zoom : 2
+            });
+          }
+          
           const url = "https://services.arcgis.com/jIL9msH9OI208GCb/arcgis/rest/services/USA_Daytime_Population_2016/FeatureServer/2";
         
           const baseRenderer = new DotDensityRenderer({
@@ -175,10 +189,11 @@
           const changeLayer = new FeatureLayer({
             url: url,
             renderer: changeRenderer,
-            visible: true,
+            visible: this.id === layerId,
             minScale: 0,
             title: "Population change from night to day",
-            popupTemplate: popupTemplate
+            popupTemplate: popupTemplate,
+            id: "change"
           });
 
           const workersRenderer = baseRenderer.clone();
@@ -195,10 +210,11 @@
           const workersLayer = new FeatureLayer({
             url: url,
             renderer: workersRenderer,
-            visible: false,
+            visible: this.id === layerId,
             minScale: 0,
             title: "Daytime population by residents vs. workers",
-            popupTemplate: popupTemplate
+            popupTemplate: popupTemplate,
+            id: "workers"
           });
 
           const daytimeRenderer = baseRenderer.clone();
@@ -211,10 +227,11 @@
           const dayTimePopulation = new FeatureLayer({
             url: url,
             renderer: daytimeRenderer,
-            visible: false,
+            visible: this.id === layerId,
             minScale: 0,
             title: "Daytime population",
-            popupTemplate: popupTemplate
+            popupTemplate: popupTemplate,
+            id: "daytime"
           });
 
           const nighttimeRenderer = baseRenderer.clone();
@@ -227,10 +244,11 @@
           const nighTimePopulation = new FeatureLayer({
             url: url,
             renderer: nighttimeRenderer,
-            visible: false,
+            visible: this.id === layerId,
             minScale: 0,
             title: "Nighttime Population",
-            popupTemplate: popupTemplate
+            popupTemplate: popupTemplate,
+            id: "nighttime"
           });
 
           const allLayers = new GroupLayer({
@@ -240,9 +258,40 @@
           });
 
           map.add(allLayers);
+
+          watchUtils.whenTrue(view, "stationary", function(){
+            setUrlParams({
+              lon: view.center.longitude,
+              lat: view.center.latitude,
+              zoom: view.zoom,
+              layerId: view.map.layers.getItemAt(0).layers.find(function(layer){
+                return layer.visible;
+              }).id
+            });
+          });
+
         }).catch(function(error){
           console.error(error);
         });
+
+        // function to retrieve query parameters (in this case only id)
+        function getUrlParams () {
+          const queryParams = document.location.search.substr(1);
+          let result = {};
+
+          queryParams.split("&").forEach(function(part) {
+            const item = part.split("=");
+            result[item[0]] = decodeURIComponent(item[1]);
+          });
+          console.log(result);
+          return result;
+        }
+
+        // function to set an id as a url param
+        function setUrlParams (params) {
+          const { lat, lon, zoom, layerId } = params;
+          window.history.pushState("", "", `${window.location.pathname}?layerId=${layerId}&lat=${lat}&lon=${lon}&zoom=${zoom}`);
+        }
 
       });
     </script>
