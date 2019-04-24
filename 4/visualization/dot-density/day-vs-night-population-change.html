@@ -119,7 +119,7 @@
             color: [255,255,0,1],
             label: "Daytime population growth"
           }, {
-            valueExpression: "IIF($feature.DPOP_CY - $feature.TOTPOP_CY < 0, Abs($feature.DPOP_CY - $feature.TOTPOP_CY), 0)",
+            valueExpression: "$feature.TOTPOP_CY - $feature.DPOP_CY",
             color: [ 0,255,255,1],
             label: "Nighttime population growth"
           }];
