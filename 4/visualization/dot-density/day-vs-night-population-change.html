@@ -108,7 +108,7 @@
           const lat = parseFloat(urlParams.lat);
           const lon = parseFloat(urlParams.lon);
           const zoom = parseInt(urlParams.zoom);
-          const layerId = parseInt(urlParams.layerId);
+          const layerId = urlParams.layerId;
 
           if ( lon && lat){
             view.goTo({
@@ -189,7 +189,7 @@
           const changeLayer = new FeatureLayer({
             url: url,
             renderer: changeRenderer,
-            visible: this.id === layerId,
+            visible: "change" === layerId,
             minScale: 0,
             title: "Population change from night to day",
             popupTemplate: popupTemplate,
@@ -210,7 +210,7 @@
           const workersLayer = new FeatureLayer({
             url: url,
             renderer: workersRenderer,
-            visible: this.id === layerId,
+            visible: "workers" === layerId,
             minScale: 0,
             title: "Daytime population by residents vs. workers",
             popupTemplate: popupTemplate,
@@ -227,7 +227,7 @@
           const dayTimePopulation = new FeatureLayer({
             url: url,
             renderer: daytimeRenderer,
-            visible: this.id === layerId,
+            visible: "daytime" === layerId,
             minScale: 0,
             title: "Daytime population",
             popupTemplate: popupTemplate,
@@ -244,7 +244,7 @@
           const nighTimePopulation = new FeatureLayer({
             url: url,
             renderer: nighttimeRenderer,
-            visible: this.id === layerId,
+            visible: "nighttime" === layerId,
             minScale: 0,
             title: "Nighttime Population",
             popupTemplate: popupTemplate,
@@ -258,20 +258,23 @@
           });
 
           map.add(allLayers);
+        }).catch(function(error){
+          console.error(error);
+        });
 
-          watchUtils.whenTrue(view, "stationary", function(){
+        watchUtils.when(view, "stationary", function(){
+          if(view.ready){
+            const layerId = view.map.layers.getItemAt(0).layers.find(function(layer){
+              return layer.visible;
+            }).id;
+
             setUrlParams({
               lon: view.center.longitude,
               lat: view.center.latitude,
               zoom: view.zoom,
-              layerId: view.map.layers.getItemAt(0).layers.find(function(layer){
-                return layer.visible;
-              }).id
+              layerId: layerId
             });
-          });
-
-        }).catch(function(error){
-          console.error(error);
+          }
         });
 
         // function to retrieve query parameters (in this case only id)
@@ -283,7 +286,6 @@
             const item = part.split("=");
             result[item[0]] = decodeURIComponent(item[1]);
           });
-          console.log(result);
           return result;
         }
 
