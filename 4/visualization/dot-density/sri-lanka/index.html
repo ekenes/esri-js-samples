@@ -1,0 +1,117 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Sri Lanka population density</title>
+  <style>
+    html, body, #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.16/esri/themes/dark/main.css">
+  <script src="https://js.arcgis.com/4.16/"></script>
+
+  <script>
+  require([
+    "esri/WebMap",
+    "esri/views/MapView",
+    "esri/renderers/DotDensityRenderer",
+    "esri/widgets/Legend",
+    "esri/widgets/Expand",
+    "esri/layers/GeoJSONLayer"
+  ], function(
+    WebMap,
+    MapView,
+    DotDensityRenderer,
+    Legend,
+    Expand,
+    GeoJSONLayer
+  ) {
+    const map = new WebMap({
+      portalItem: {
+        id: "56b5bd522c52409c90d902285732e9f1"
+      }
+    });
+
+    const view = new MapView({
+      container: "viewDiv",
+      map: map,
+      highlightOptions: {
+        fillOpacity: 0,
+        color: [200, 200, 200]
+      },
+      popup: {
+        dockEnabled: true,
+        dockOptions: {
+          position: "top-right",
+          breakpoint: false
+        },
+        defaultPopupTemplateEnabled: true
+      },
+      extent: {
+        "spatialReference": {
+          "latestWkid": 3857,
+          "wkid": 102100
+        },
+        "xmin": -31533154.792964064,
+        "ymin": 654001.4571315553,
+        "xmax": -30554760.830914065,
+        "ymax": 1093055.747601491
+      }
+    });
+
+    view.when().then(function() {
+      const dotDensityRenderer = new DotDensityRenderer({
+        dotValue: 200,
+        outline: null,
+        referenceScale: 577790, // 1:577,790 view scale
+        legendOptions: {
+          unit: "people"
+        },
+        attributes: [
+          {
+            field: "POPULATION",
+            color: "#f23c3f",
+            label: "Population"
+          }
+        ]
+      });
+
+      // Add renderer to the layer and define a popup template
+      const url ="sri-lanka.json";
+
+      const layer = new GeoJSONLayer({
+        url: url,
+        minScale: 20000000,
+        maxScale: 35000,
+        title: "Sri Lanka Population",
+        renderer: dotDensityRenderer
+      });
+
+      layer.createPopupTemplate();
+
+      map.add(layer);
+
+      view.ui.add(
+        [
+          new Expand({
+            view: view,
+            content: new Legend({ view: view }),
+            group: "top-left",
+            expanded: true
+          })
+        ],
+        "top-left"
+      );
+    });
+  });
+  </script>
+</head>
+<body>
+  <div id="viewDiv"></div>
+</body>
+</html>
