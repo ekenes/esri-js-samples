@@ -1,0 +1,155 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>Highlight a country with an effect | Sample | ArcGIS Maps SDK for JavaScript 4.29</title>
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.29/"></script>
+
+    <script>
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/TileLayer",
+        "esri/Graphic",
+        "esri/layers/FeatureLayer",
+        "esri/layers/GraphicsLayer",
+        "esri/layers/GroupLayer",
+        "esri/layers/MediaLayer",
+        "esri/layers/support/VideoElement",
+        "esri/layers/support/ExtentAndRotationGeoreference",
+        "esri/geometry/Extent",
+      ], (
+        Map,
+        MapView,
+        TileLayer,
+        Graphic,
+        FeatureLayer,
+        GraphicsLayer,
+        GroupLayer,
+        MediaLayer, VideoElement, ExtentAndRotationGeoreference, Extent
+      ) => {
+
+        // create a video element by setting video param to point to the video file url
+        // set the geographic location of the video file on the map using an extent
+        const element = new VideoElement({
+          video: "heatmap_1024p30.mp4",
+          georeference: new ExtentAndRotationGeoreference({
+            extent: new Extent({
+              xmin: -180,
+              ymin: -90,
+              xmax: 180,
+              ymax: 90,
+              spatialReference: {
+                wkid: 4326
+              }
+            })
+          })
+        });
+
+        // add the video element to the media layer
+        const precipLayer = new MediaLayer({
+          source: [element],
+          title: "IMERG Daily Precipitation Climatology (2001 - 2022)",
+          copyright: "NASA's Goddard Space Flight Center",
+          effect: "drop-shadow(2px, 2px, 2px, black)"
+        });
+
+        const worldImagery = new TileLayer({
+          portalItem: {
+            id: "898f58f2ee824b3c97bae0698563a4b3" // world imagery
+          },
+          effect: "brightness(1) opacity(1)"
+        });
+
+
+        worldImagery.when(() => {
+          worldImagery.sublayers.forEach((layer) => {
+            if (layer.popupEnabled === true) {
+              layer.popupEnabled = false;
+            }
+          });
+        });
+
+        // this layer is only used to query for the intersecting country when the map is clicked
+        const countries = new FeatureLayer({
+          portalItem: {
+            id: "53a1e68de7e4499cad77c80daba46a94"
+          },
+          renderer: {
+            type: "simple",
+            symbol: {
+              type: "simple-fill",
+              color: "rgba(255, 255, 255, 1)",
+              outline: null
+            }
+          },
+          effect: "brightness(1.5) drop-shadow(0, 0px, 12px)",
+          opacity: 1,
+          blendMode: "destination-in"
+        });
+
+        const tileLayer = new TileLayer({
+          portalItem: {
+            // bottom layer in the group layer
+            id: "898f58f2ee824b3c97bae0698563a4b3" // world imagery
+          }
+        });
+        tileLayer.when(() => {
+          tileLayer.sublayers.forEach((layer) => {
+            if (layer.popupEnabled === true) {
+              layer.popupEnabled = false;
+            }
+          });
+        });
+
+        const groupLayer = new GroupLayer({
+          layers: [
+            precipLayer,
+            countries
+          ],
+          opacity: 1
+        });
+
+        const map = new Map({
+          layers: [worldImagery, groupLayer],
+          basemap: {
+            referenceLayers: [new TileLayer({
+              portalItem: {
+                id: "a70340a048224752915ddbed9d2101a7"
+              }
+            })]
+          }
+        });
+
+        const view = new MapView({
+          container: "viewDiv",
+          map: map,
+          zoom: 2,
+          center: [0, 0],
+          popup: null,
+          constraints: {
+            snapToZoom: false
+          }
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <div id="viewDiv"></div>
+  </body>
+</html>

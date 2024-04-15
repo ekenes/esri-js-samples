@@ -1,0 +1,212 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>Highlight a country with an effect | Sample | ArcGIS Maps SDK for JavaScript 4.29</title>
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+      #messageDiv {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+    </style>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.29/"></script>
+
+    <script>
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/TileLayer",
+        "esri/Graphic",
+        "esri/layers/FeatureLayer",
+        "esri/layers/GraphicsLayer",
+        "esri/layers/GroupLayer",
+        "esri/layers/MediaLayer",
+        "esri/layers/support/VideoElement",
+        "esri/layers/support/ExtentAndRotationGeoreference",
+        "esri/geometry/Extent",
+      ], (
+        Map,
+        MapView,
+        TileLayer,
+        Graphic,
+        FeatureLayer,
+        GraphicsLayer,
+        GroupLayer,
+        MediaLayer, VideoElement, ExtentAndRotationGeoreference, Extent
+      ) => {
+
+        // create a video element by setting video param to point to the video file url
+        // set the geographic location of the video file on the map using an extent
+        const element = new VideoElement({
+          video: "IMERGdaily30_raw_v05_2024-03-27_1635_2048p30.mp4",
+          georeference: new ExtentAndRotationGeoreference({
+            extent: new Extent({
+                xmin: -288,
+                ymin: -90,
+                xmax: 72,
+                ymax: 90,
+                spatialReference: {
+                  wkid: 4326
+                }
+              })
+          })
+        });
+
+        // add the video element to the media layer
+        const precipLayer = new MediaLayer({
+          source: [element],
+          title: "IMERG Daily Precipitation Climatology (2001 - 2022)",
+          copyright: "NASA's Goddard Space Flight Center",
+          effect: "drop-shadow(2px, 2px, 2px, black)"
+        });
+
+        const worldImagery = new TileLayer({
+          portalItem: {
+            id: "898f58f2ee824b3c97bae0698563a4b3" // world imagery
+          }
+        });
+        worldImagery.when(() => {
+          worldImagery.sublayers.forEach((layer) => {
+            if (layer.popupEnabled === true) {
+              layer.popupEnabled = false;
+            }
+          });
+        });
+
+        // this layer is only used to query for the intersecting country when the map is clicked
+        const countries = new FeatureLayer({
+          portalItem: {
+            id: "53a1e68de7e4499cad77c80daba46a94"
+          }
+        });
+
+        // clicked country feature will be added to this layer
+        const graphicsLayer = new GraphicsLayer({
+          blendMode: "destination-in",
+          title: "layer"
+        });
+
+        const tileLayer = new TileLayer({
+          portalItem: {
+            // bottom layer in the group layer
+            id: "898f58f2ee824b3c97bae0698563a4b3" // world imagery
+          }
+        });
+        tileLayer.when(() => {
+          tileLayer.sublayers.forEach((layer) => {
+            if (layer.popupEnabled === true) {
+              layer.popupEnabled = false;
+            }
+          });
+        });
+
+        const groupLayer = new GroupLayer({
+          layers: [
+           precipLayer,
+            // world imagery layer will show where it overlaps with the graphicslayer
+            graphicsLayer
+          ],
+          opacity: 0 // initially this layer will be transparent
+        });
+
+        const map = new Map({
+          layers: [worldImagery, groupLayer]
+        });
+
+        const view = new MapView({
+          container: "viewDiv",
+          map: map,
+          zoom: 6,
+          center: [2, 46],
+          popup: null,
+          constraints: {
+            snapToZoom: false,
+            minScale: 147914381
+          }
+        });
+
+        view.ui.add("messageDiv", "top-right");
+
+        view.when(() => {
+          const query = {
+            geometry: view.center,
+            returnGeometry: true,
+            outFields: ["*"]
+          }
+          highlightCountry(query, view.center)
+        });
+
+        // listen to the view's click event
+        view.on("click", async (event) => {
+          const query = {
+            geometry: view.toMap(event),
+            returnGeometry: true,
+            outFields: ["*"]
+          }
+          highlightCountry(query, query.geometry);
+        });
+
+        async function highlightCountry(query, zoomGeometry){
+          // country symbol - when user clicks on a country
+          // we will query the country from the countries featurelayer
+          // add the country feature to the graphics layer.
+          const symbol = {
+            type: "simple-fill",
+            color: "rgba(255, 255, 255, 1)",
+            outline: null
+          };
+
+          // query the countries layer for a country that intersects the clicked point
+          const {
+              features: [feature]
+            } = await countries.queryFeatures(query);
+            // user clicked on a country and the feature is returned
+            if (feature) {
+              graphicsLayer.graphics.removeAll();
+              feature.symbol = symbol;
+              // add the country to the graphics layer
+              graphicsLayer.graphics.add(feature);
+              // zoom to the highlighted country
+              view.goTo(
+                {
+                  target: zoomGeometry,
+                  extent: feature.geometry.clone()
+                },
+                { duration: 1000 }
+              );
+              // blur the world imagery basemap so that the clicked country can be highlighted
+              worldImagery.effect = "blur(8px) brightness(1.2) grayscale(0.8)";
+              // set the group layer transparency to 1.
+              // also increase the layer brightness and add drop-shadow to make the clicked country stand out.
+              groupLayer.effect = "brightness(1.5) drop-shadow(0, 0px, 12px)";
+              groupLayer.opacity = 1;
+            }
+            // did not click on a country. remove effects
+            else {
+              worldImagery.effect = null;
+              groupLayer.effect = null;
+            }
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div id="viewDiv"></div>
+    <div id="messageDiv" class="esri-widget esri-heading">
+      <h4 class="esri-heading">Click on a country</h4>
+    </div>
+  </body>
+</html>
