@@ -1,0 +1,85 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>MediaLayer with video | Sample | ArcGIS Maps SDK for JavaScript 4.29</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/dark/main.css" />
+    <script src="https://js.arcgis.com/4.29/"></script>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <script>
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/MediaLayer",
+        "esri/layers/support/VideoElement",
+        "esri/layers/support/ExtentAndRotationGeoreference",
+        "esri/widgets/LayerList",
+        "esri/geometry/Extent",
+        "esri/widgets/Slider"
+      ], (
+        Map, MapView, MediaLayer, VideoElement, ExtentAndRotationGeoreference, LayerList, Extent, Slider
+      ) => {
+
+          const element = new VideoElement({
+            video: "IMERGdaily30_raw_v05_2024-03-27_1635_2048p30.mp4",
+            georeference: new ExtentAndRotationGeoreference({
+              extent: new Extent({
+                xmin: -288,
+                ymin: -90,
+                xmax: 72,
+                ymax: 90,
+                spatialReference: {
+                  wkid: 4326
+                }
+              })
+            })
+          });
+
+          // add the video element to the media layer
+          const layer = new MediaLayer({
+            source: [element],
+            title: "IMERG Daily Precipitation Climatology (2001 - 2022)",
+            copyright: "NASA's Goddard Space Flight Center",
+            effect: "drop-shadow(2px, 2px, 2px, black)",
+            blendMode: "lighten"
+          });
+
+        const map = new Map({
+          basemap: {
+            portalItem: {
+              id: "38189d7d668c490895ed15fddcfdc7c7"
+            }
+          },
+          layers: [layer]
+        });
+
+        const view = new MapView({
+          container: "viewDiv",
+          map: map,
+          center: [0, 0],
+          constraints: {
+            snapToZoom: false
+          }
+        });
+    });
+    </script>
+  </head>
+
+  <body>
+    <div id="viewDiv"></div>
+  </body>
+</html>

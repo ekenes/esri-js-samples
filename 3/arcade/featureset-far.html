@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Floor Area Ratio</title>
+
+<link rel="stylesheet" href="https://js.arcgis.com/3.27/esri/css/esri.css">
+
+<style>
+  html, body, #map {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    width: 100%;
+  }  
+</style>
+
+<script>
+  var dojoConfig = {
+    has: {
+      "esri-featurelayer-webgl": 1
+    }
+  };
+</script>
+
+<script src="https://js.arcgis.com/3.27/"></script>
+
+<script type="text/plain" id="far-arcade">
+  // buildings represents the buildings that intersect the clicked parcel
+  var buildingFootprints = Intersects($feature, FeatureSetByName($map, "Building Footprints"));
+  var grossFloorArea = 0;
+  
+  // since a building may have multiple floors, we must multiply the floor area by the number
+  // of floors. Also note the building data shows some buildings in dense areas as crossing
+  // multiple polygons. To avoid miscalculation, we calculate the intersection of the building.
+  for (var building in buildingFootprints){
+    var floors = IIF(building.FLOORCOUNT == 0, 1, building.FLOORCOUNT);
+    grossFloorArea += ( AreaGeodetic( Intersection(building, $feature), 'square-feet') * floors );
+  }
+  // Compute the ratio of the gross building area to the parcel area
+  Round( ( grossFloorArea / AreaGeodetic($feature, 'square-feet') ), 1);
+</script>
+
+<script>
+require([
+    "esri/arcgis/utils",
+    "esri/dijit/PopupTemplate",
+    "esri/arcadeProfiles/popupProfile"
+  ],
+  function(
+    arcgisUtils,
+    PopupTemplate,
+    popupProfile
+  ) {
+
+    const farArcade = document.getElementById("far-arcade").text;
+
+    popupProfile.initialize( [ farArcade ] ).then(function(){
+      arcgisUtils.createMap("da634028a734418f8a5416c675559c3a", "map").then(function (response) {
+        const map = response.map;
+        const layerIds = map.graphicsLayerIds;
+        layer = map.getLayer(layerIds[1]);
+
+        layer.setInfoTemplate( new PopupTemplate({
+          description: "Floor Area Ratio (FAR): {expression/far}",
+          expressionInfos: [{
+            name: "far",
+            title: "far",
+            expression: farArcade
+          }]
+        }));
+      });
+    });
+
+  });
+</script>
+</head>
+
+<body>
+  <div id="map"></div>
+</body>
+
+</html>

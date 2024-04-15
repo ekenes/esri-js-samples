@@ -5,8 +5,8 @@
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>3D EMU Cluster viewer</title>
   
-  <link rel="stylesheet" href="https://js.arcgis.com/4.5/esri/themes/dark-blue/main.css">
-  <link rel="stylesheet" href="https://js.arcgis.com/4.5/dijit/themes/claro/claro.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/4.8/esri/themes/dark-blue/main.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/4.8/dijit/themes/claro/claro.css">
 
   <style>
     html,
@@ -84,7 +84,7 @@
     };
   </script>
 
-  <script src="https://js.arcgis.com/4.5/"></script>
+  <script src="https://js.arcgis.com/4.8/"></script>
 
   <script>
     require([
@@ -182,7 +182,7 @@
         })
       ];
 
-      SnapshotController.prototype._maxFeatures.point = 100000;
+      // SnapshotController.prototype._maxFeatures.point = 100000;
 
        //////////////////////////////////////////////
       //
@@ -419,9 +419,10 @@
       // Create SceneLayer and add to the map
       layer = new FeatureLayer({
         title: "EMU data points",
-        portalItem: {
-          id: "cfbc577e961342688b6c5dc6d246c58f"
-        },
+        // portalItem: {
+        //   id: "cfbc577e961342688b6c5dc6d246c58f"
+        // },
+        url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/ArcGIS/rest/services/EMU_master_3857_2/FeatureServer/0",
         popupTemplate: {
           title: "{NameEMU}",
           content: [{
@@ -479,12 +480,12 @@
       });
       map.add(layer);
 
-      view.then(function(){
+      view.when().then(function(){
         addDepthRuler(view, studyArea, depth);
-        layer.then(function(){
+        layer.when().then(function(){
 
-          filterChange();
-          generateContinuousVisualization();
+          // filterChange();
+          // generateContinuousVisualization();
 
           filterCheckbox.addEventListener("click", function(){
             dataFilter.disabled = !filterCheckbox.checked;
@@ -566,7 +567,9 @@
       layerList.on("trigger-action", function(event){
         if(event.action.id === "toggle-3d-cylinders"){
           cylinderSymbolsUsed = !cylinderSymbolsUsed;
-          changeEventListener();
+
+          getUniqueValueVisualization();
+          // changeEventListener();
         }
       });
 
@@ -686,6 +689,30 @@
 
       function getNumHandles(theme){
         return theme === "high-to-low" ? 2 : 3;
+      }
+
+      function getUniqueValueVisualization(){
+        var symbolType = cylinderSymbolsUsed ? "object" : "icon";
+        var renderer = layer.renderer.clone();
+        renderer.uniqueValueInfos.forEach(function(info){
+          var color = info.symbol.color ? info.symbol.color.clone() : info.symbol.symbolLayers.getItemAt(0).material.color.clone();
+          info.symbol = createSymbol(color, symbolType);
+        });
+
+        if(symbolType === "object"){
+          renderer.visualVariables = [{
+            type: "size",
+            valueExpression: "$feature.ThicknessPos" + " * " + exaggeration,
+            valueUnit: "meters",
+            axis: "height"
+          }, {
+            type: "size",
+            useSymbolValue: true,
+            axis: "width-and-depth"
+          }];
+        }
+
+        layer.renderer = renderer;
       }
 
       function getEMUClusterVisualization(){
@@ -951,8 +978,8 @@
   <div id="filter-container" class="esri-widget">
   <div class="esri-widget">
       EMU Cluster: <select id="emu-filter" class="esri-widget">
-        <option value="1=1">all</option>
-        <option value="Cluster37 = 10" selected>EMU 10</option>
+        <option value="1=1" selected>all</option>
+        <option value="Cluster37 = 10">EMU 10</option>
         <option value="Cluster37 = 13">EMU 13</option>
         <option value="Cluster37 = 14">EMU 14</option>
         <option value="Cluster37 = 18">EMU 18</option>

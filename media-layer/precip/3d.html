@@ -1,0 +1,129 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>MediaLayer with video | Sample | ArcGIS Maps SDK for JavaScript 4.29</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/dark/main.css" />
+    <script src="https://js.arcgis.com/4.29/"></script>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <script>
+      require([
+        "esri/Map",
+        "esri/views/SceneView",
+        "esri/layers/MediaLayer",
+        "esri/layers/support/VideoElement",
+        "esri/layers/support/ExtentAndRotationGeoreference",
+        "esri/widgets/LayerList",
+        "esri/geometry/Extent",
+        "esri/widgets/Slider"
+      ], (
+        Map, SceneView, MediaLayer, VideoElement, ExtentAndRotationGeoreference, LayerList, Extent, Slider
+      ) => {
+
+          // create a video element by setting video param to point to the video file url
+          // set the geographic location of the video file on the map using an extent
+          const element = new VideoElement({
+            video: "IMERGdaily30_raw_v05_2024-03-27_1635_2048p30.mp4",
+            georeference: new ExtentAndRotationGeoreference({
+              extent: new Extent({
+                xmin: -288,
+                ymin: -90,
+                xmax: 72,
+                ymax: 90,
+                spatialReference: {
+                  wkid: 4326
+                }
+              })
+            })
+          });
+
+          // add the video element to the media layer
+          const layer = new MediaLayer({
+            source: [element],
+            title: "IMERG Daily Precipitation Climatology (2001 - 2022)",
+            copyright: "NASA's Goddard Space Flight Center",
+            effect: "drop-shadow(2px, 2px, 2px, black)"
+          });
+
+
+        const map = new Map({
+          basemap: {
+            portalItem: {
+              id: "eb303185d14e45e9be8bbbc1c0daf7ab"
+            }
+          },
+          layers: [layer]
+        });
+
+        const view = new SceneView({
+          container: "viewDiv",
+          map: map,
+          center: [0, 0],
+          constraints: {
+            snapToZoom: false
+          }
+        });
+
+        const layerList = new LayerList({
+          view,
+          listItemCreatedFunction: defineActions
+        });
+
+        view.ui.add(layerList, "top-right");
+        function defineActions(event) {
+          const item = event.item;
+          item.actionsSections = [
+            {
+              title: "Opacity",
+              className: "esri-icon-up",
+              id: "increase-opacity",
+            }
+          ];
+
+          // add a slider to the layer list
+          // so that the opacity of the media layer can be changed
+          const slider = new Slider({
+            min: 0,
+            max: 1,
+            precision: 2,
+            values: [1],
+            visibleElements: {
+              labels: true,
+              rangeLabels: true
+            }
+          });
+
+          item.panel = {
+            content: slider,
+            className: "esri-icon-sliders-horizontal",
+            title: "Change layer opacity",
+            open: true
+          };
+
+          slider.on("thumb-drag", (event) => {
+            const { value } = event;
+            item.layer.opacity = value;
+          });
+        }
+    });
+    </script>
+  </head>
+
+  <body>
+    <div id="viewDiv"></div>
+  </body>
+</html>

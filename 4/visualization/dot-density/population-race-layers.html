@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no"/>
+    <title>Dot density - 4.11</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/themes/dark/main.css"/>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <script src="https://js.arcgis.com/4.11/"></script>
+
+    <script>
+      require([
+        "esri/WebMap",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/renderers/DotDensityRenderer",
+        "esri/widgets/Legend",
+        "esri/widgets/LayerList",
+        "esri/widgets/Bookmarks",
+        "esri/widgets/Expand",
+        "esri/widgets/Search"
+      ], function(
+        WebMap,
+        MapView,
+        FeatureLayer,
+        DotDensityRenderer,
+        Legend,
+        LayerList,
+        Bookmarks,
+        Expand,
+        Search
+      ) {
+        const map = new WebMap({
+          portalItem: {
+            id: "057aa44095f6409ebc0a5625b4793041"
+          }
+        });
+
+        const view = new MapView({
+          container: "viewDiv",
+          map: map,
+          highlightOptions: {
+            fillOpacity: 0,
+            color: [255, 255, 255]
+          },
+          popup: {
+            dockEnabled: true,
+            dockOptions: {
+              position: "top-right",
+              breakpoint: false
+            }
+          },
+          constraints: {
+            maxScale: 35000
+          }
+        });
+
+        view.when().then(function() {
+
+          // Add renderer to the layer and define a popup template
+          const url = "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/ACS_Population_by_Race_and_Hispanic_Origin_Boundaries/FeatureServer/2";
+          const white = new FeatureLayer({
+            url: url,
+            minScale: 20000000,
+            maxScale: 35000,
+            title: "White Population Estimate (ACS)",
+            renderer: new DotDensityRenderer({
+              referenceDotValue: 200,
+              outline: null,
+              referenceScale: 577790, // 1:577,790 view scale
+              legendOptions: {
+                unit: "people"
+              },
+              attributes: [{
+                field: "B03002_003E",
+                color: "#f23c3f",
+                label: "White (non-Hispanic)"
+              }]
+            })
+          });
+
+          const hispanic = new FeatureLayer({
+            url: url,
+            minScale: 20000000,
+            maxScale: 35000,
+            title: "Hispanic Population Estimate (ACS)",
+            renderer: new DotDensityRenderer({
+              referenceDotValue: 200,
+              outline: null,
+              referenceScale: 577790, // 1:577,790 view scale
+              legendOptions: {
+                unit: "people"
+              },
+              attributes: [{
+                field: "B03002_012E",
+                color: "#e8ca0d",
+                label: "Hispanic"
+              }]
+            })
+          });
+
+          const black = new FeatureLayer({
+            url: url,
+            minScale: 20000000,
+            maxScale: 35000,
+            title: "Black Population Estimate (ACS)",
+            renderer: new DotDensityRenderer({
+              referenceDotValue: 200,
+              outline: null,
+              referenceScale: 577790, // 1:577,790 view scale
+              legendOptions: {
+                unit: "people"
+              },
+              attributes: [{
+                field: "B03002_004E",
+                color: "#00b6f1",
+                label: "Black or African American"
+              }]
+            })
+          });
+
+          const asian = new FeatureLayer({
+            url: url,
+            minScale: 20000000,
+            maxScale: 35000,
+            title: "Asian Population Estimates (ACS)",
+            renderer: new DotDensityRenderer({
+              referenceDotValue: 200,
+              outline: null,
+              referenceScale: 577790, // 1:577,790 view scale
+              legendOptions: {
+                unit: "people"
+              },
+              attributes: [{
+                field: "B03002_006E",
+                color: "#32ef94",
+                label: "Asian"
+              }]
+            })
+          });
+
+          const americanIndian = new FeatureLayer({
+            url: url,
+            minScale: 20000000,
+            maxScale: 35000,
+            title: "Current Population Estimates (ACS)",
+            renderer: new DotDensityRenderer({
+              referenceDotValue: 200,
+              outline: null,
+              referenceScale: 577790, // 1:577,790 view scale
+              legendOptions: {
+                unit: "people"
+              },
+              attributes: [{
+                field: "B03002_005E",
+                color: "#ff7fe9",
+                label: "American Indian/Alaskan Native"
+              }]
+            })
+          });
+
+          const islander = new FeatureLayer({
+            url: url,
+            minScale: 20000000,
+            maxScale: 35000,
+            title: "Current Population Estimates (ACS)",
+            renderer: new DotDensityRenderer({
+              referenceDotValue: 200,
+              outline: null,
+              referenceScale: 577790, // 1:577,790 view scale
+              legendOptions: {
+                unit: "people"
+              },
+              attributes: [{
+                field: "B03002_007E",
+                color: "#e2c4a5",
+                label: "Pacific Islander/Hawaiian Native"
+              }]
+            })
+          });
+
+          const other = new FeatureLayer({
+            url: url,
+            minScale: 20000000,
+            maxScale: 35000,
+            title: "Current Population Estimates (ACS)",
+            renderer: new DotDensityRenderer({
+              referenceDotValue: 200,
+              outline: null,
+              referenceScale: 577790, // 1:577,790 view scale
+              legendOptions: {
+                unit: "people"
+              },
+              attributes: [{
+                field: "B03002_008E",
+                color: "#ff6a00",
+                label: "Other race"
+              }]
+            })
+          });
+
+          const two = new FeatureLayer({
+            url: url,
+            minScale: 20000000,
+            maxScale: 35000,
+            title: "Current Population Estimates (ACS)",
+            renderer: new DotDensityRenderer({
+              referenceDotValue: 200,
+              outline: null,
+              referenceScale: 577790, // 1:577,790 view scale
+              legendOptions: {
+                unit: "people"
+              },
+              attributes: [{
+                field: "B03002_009E",
+                color: "#96f7ef",
+                label: "Two or more races"
+              }]
+            })
+          });
+
+          map.addMany([
+            white, hispanic, black, asian, americanIndian, islander, other, two
+          ]);
+
+          view.ui.add([
+            new Expand({
+              view: view,
+              content: new LayerList({ 
+                view: view, 
+                listItemCreatedFunction: function(event) {
+                  const item = event.item;
+                  item.panel = {
+                    content: ["legend"],
+                    open: true
+                  };
+                }
+              }),
+              group: "top-left",
+              expanded: true
+            }),
+            new Expand({
+              view: view,
+              content: new Bookmarks({ view: view }),
+              group: "top-left"
+            }),
+            new Expand({
+              view: view,
+              content: new Search({ view: view }),
+              group: "top-left"
+            })], "top-left" );
+        });
+      });
+    </script>
+  </head>
+
+  <body>
+    <div id="viewDiv"></div>
+  </body>
+</html>

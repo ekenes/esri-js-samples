@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no"/>
+    <title>Dot density - 4.11</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/themes/dark/main.css"/>
+
+    <style>
+      html,
+      body, #viewDivs {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+
+      .view {
+        padding: 1px;
+        margin: 0;
+        float: left;
+        width: 19.8%;
+        height: 50%;
+      }
+
+      .title {
+        padding: 5px;
+        font-size: 14pt;
+      }
+
+      #controls {
+        float: left;
+        width: 20%;
+        height: 100%;
+      }
+
+      #app-title {
+        /* height: 10%; */
+        padding: 5px;
+        font-size: 18pt;
+        background-color: darkslategray;
+        text-align: center;
+      }
+
+      #legend {
+        background-color: inherit;
+        padding: 5px;
+        font-size: 16pt;
+      }
+    </style>
+
+    <script src="https://js.arcgis.com/4.11/"></script>
+
+    <script>
+      require([
+        "esri/WebMap",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/renderers/DotDensityRenderer",
+        "esri/widgets/Legend",
+        "esri/widgets/LayerList",
+        "esri/widgets/Bookmarks",
+        "esri/core/watchUtils"
+      ], function(
+        WebMap,
+        MapView,
+        FeatureLayer,
+        DotDensityRenderer,
+        Legend,
+        LayerList,
+        Bookmarks,
+        watchUtils
+      ) {
+
+        const url = "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/ACS_Population_by_Race_and_Hispanic_Origin_Boundaries/FeatureServer/2";
+
+        const attributes = [{
+          field: "B03002_003E",
+          color: "#f23c3f",
+          label: "White (non-Hispanic)"
+        }, {
+          field: "B03002_012E",
+          color: "#e8ca0d",
+          label: "Hispanic"
+        }, {
+          field: "B03002_004E",
+          color: "#00b6f1",
+          label: "Black or African American"
+        }, {
+          field: "B03002_006E",
+          color: "#32ef94",
+          label: "Asian"
+        }, {
+          field: "B03002_005E",
+          color: "#ff7fe9",
+          label: "American Indian/Alaskan Native"
+        }, {
+          field: "B03002_007E",
+          color: "#e2c4a5",
+          label: "Pacific Islander/Hawaiian Native"
+        }, {
+          field: "B03002_008E",
+          color: "#ff6a00",
+          label: "Other race"
+        }, {
+          field: "B03002_009E",
+          color: "#96f7ef",
+          label: "Two or more races"
+        }];
+
+        var bookmarks;
+        var views = [];
+        var dotValue = 0;
+        var dotValueElement = document.getElementById("dot-value");
+
+        attributes.forEach(function(attribute, i){
+          var viewElement = document.createElement("div");
+          viewElement.classList.add("view");
+
+          var viewDivs = document.getElementById("viewDivs");
+          viewDivs.appendChild(viewElement);
+
+          const view = new MapView({
+            container: viewElement,//`viewDiv-${attribute.label}`,
+            map: new WebMap({
+              portalItem: {
+                id: "057aa44095f6409ebc0a5625b4793041"
+              },
+              layers: [ new FeatureLayer({
+                url: url,
+                minScale: 20000000,
+                maxScale: 35000,
+                title: "Population Estimate (ACS)",
+                renderer: new DotDensityRenderer({
+                  referenceDotValue: 200,
+                  outline: null,
+                  referenceScale: 577790, // 1:577,790 view scale
+                  legendOptions: {
+                    unit: "people"
+                  },
+                  attributes: attribute
+                })
+              })]
+            }),
+            popup: null,
+            constraints: {
+              maxScale: 35000
+            },
+            ui: {
+              components: [ "attribution" ]
+            }
+          });
+
+          views.push(view);
+
+          var titleElement = document.createElement("div");
+          titleElement.innerText = attribute.label;
+          titleElement.classList.add("title");
+          titleElement.classList.add("esri-widget");
+          view.ui.add(titleElement);
+
+          if(i === 0){
+            bookmarks = new Bookmarks({
+              view: view,
+              container: "bookmarks"
+            })
+          }
+
+        });
+
+        views[0].when().then(function(){
+          updateDotValue(view.scale);
+        })
+
+        views[0].watch("scale", updateDotValue);
+
+        function updateDotValue (scale){
+          var layer = views[0].map.layers.getItemAt(0);
+          var renderer = layer.renderer;
+          var dotValue = renderer.calculateDotValue(scale);
+          var formattedDotValue = numberWithCommas(Math.round(dotValue));
+          dotValueElement.innerText = formattedDotValue;
+        }
+
+        // Utility methods copied from 
+        // https://developers.arcgis.com/javascript/latest/sample-code/views-synchronize/index.html
+
+        /**
+         * utility method that synchronizes the viewpoint of a view to other views
+         */
+         var synchronizeView = function(view, others) {
+          others = Array.isArray(others) ? others : [others];
+
+          var viewpointWatchHandle;
+          var viewStationaryHandle;
+          var otherInteractHandlers;
+          var scheduleId;
+
+          var clear = function() {
+            if (otherInteractHandlers) {
+              otherInteractHandlers.forEach(function(handle) {
+                handle.remove();
+              });
+            }
+            viewpointWatchHandle && viewpointWatchHandle.remove();
+            viewStationaryHandle && viewStationaryHandle.remove();
+            scheduleId && clearTimeout(scheduleId);
+            otherInteractHandlers = viewpointWatchHandle = viewStationaryHandle = scheduleId = null;
+          };
+
+          var interactWatcher = view.watch("interacting,animation", function(
+            newValue
+          ) {
+            if (!newValue) {
+              return;
+            }
+            if (viewpointWatchHandle || scheduleId) {
+              return;
+            }
+
+            // start updating the other views at the next frame
+            scheduleId = setTimeout(function() {
+              scheduleId = null;
+              viewpointWatchHandle = view.watch("viewpoint", function(
+                newValue
+              ) {
+                others.forEach(function(otherView) {
+                  otherView.viewpoint = newValue;
+                });
+              });
+            }, 0);
+
+            // stop as soon as another view starts interacting, like if the user starts panning
+            otherInteractHandlers = others.map(function(otherView) {
+              return watchUtils.watch(
+                otherView,
+                "interacting,animation",
+                function(value) {
+                  if (value) {
+                    clear();
+                  }
+                }
+              );
+            });
+
+            // or stop when the view is stationary again
+            viewStationaryHandle = watchUtils.whenTrue(
+              view,
+              "stationary",
+              clear
+            );
+          });
+
+          return {
+            remove: function() {
+              this.remove = function() {};
+              clear();
+              interactWatcher.remove();
+            }
+          };
+        };
+
+        /**
+         * utility method that synchronizes the viewpoints of multiple views
+         */
+        var synchronizeViews = function(views) {
+          var handles = views.map(function(view, idx, views) {
+            var others = views.concat();
+            others.splice(idx, 1);
+            return synchronizeView(view, others);
+          });
+
+          return {
+            remove: function() {
+              this.remove = function() {};
+              handles.forEach(function(h) {
+                h.remove();
+              });
+              handles = null;
+            }
+          };
+        };
+
+        // bind the views
+        synchronizeViews(views);
+
+        function numberWithCommas(x) {
+          return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+      });
+    </script>
+  </head>
+
+  <body>
+    <div id="controls" class="esri-widget">
+      <div id="app-title" class="esri-widget">
+        Current Population Estimates (ACS)
+        <div id="legend" class="esri-widget">
+          1 dot = <span id="dot-value"></span> people
+        </div>
+      </div>
+      <div id="bookmarks"></div>
+    </div>
+    <div id="viewDivs"></div>
+  </body>
+</html>

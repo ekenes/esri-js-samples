@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Client-side projection - 4.7</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.7/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.7/"></script>
+
+  <script>
+    require([
+      "esri/views/MapView",
+      "esri/Map",
+      "esri/WebMap",
+      "esri/portal/PortalItem",
+      "esri/geometry/Point",
+      "esri/geometry/SpatialReference",
+      "esri/geometry/projection",
+      "dojo/domReady!"
+    ], function(
+      MapView, Map, WebMap,
+      PortalItem,
+      Point, SpatialReference,
+      projection
+    ) {
+
+      // check if the client side projection engine is supported in the browser.
+      // The browser must support WebAssembly.
+      if (!projection.isSupported()) {
+        alert("Client-side projection is not supported in this browser.");
+        return;
+      }
+
+      projection.load()
+        .then(createView)
+        .then(createPoints)
+        .catch(errback);
+      
+      // var v;
+
+      function createView(){
+        const view = new MapView({
+          container: "viewDiv",
+          map: new WebMap({
+            portalItem: {
+              id: "89199cfc680a44268121e826aa73c386"
+            }
+          }),
+          // center: [0,0],
+          // zoom: 2
+        });
+        v = view;
+        return view.when();
+      }
+
+      function createPoints(view){
+        for (let wkid = 2000/*2000*/; wkid <= 104000 /*104000*/; wkid++){
+          const sr = new SpatialReference({ wkid: wkid });
+
+          if (!sr.isGeographic){
+            const nullPoint = new Point({
+              spatialReference: sr,
+              x: 0,
+              y: 0
+            });
+            const projectedNullPoint = projection.project(nullPoint, view.spatialReference);
+            if(projectedNullPoint){
+              console.log("proj wkid: ", wkid);
+              view.graphics.add({
+                geometry: projectedNullPoint,
+                symbol: {
+                  type: "simple-marker",
+                  size: 4,
+                  color: null,
+                  outline: {
+                    color: "#00b6ff"
+                  }
+                },
+                attributes: {
+                  wkid: wkid,
+                },
+                popupTemplate: {
+                  title: "{wkid}"
+                }
+              });
+            }
+          }
+        }
+      }
+
+      // Executes if data retrieval was unsuccessful.
+      function errback(error) {
+        console.error("something went wrong. ", error);
+      }
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
